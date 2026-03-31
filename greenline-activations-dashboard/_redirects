@@ -1,0 +1,4 @@
+# Netlify redirects — protect client dashboards
+# Unauthenticated users are redirected to login
+
+/clients/*  /index.html  200
