@@ -1,0 +1,7 @@
+{
+  "name": "greenline-activations-dashboard",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "sed -i \"s|NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY|$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY|g\" index.html"
+  }
+}
