@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greenline Activations — Client Portal</title>
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Outfit:wght@300;400;500&display=swap');
+
+  :root {
+    --green: #2d5f3f;
+    --green-light: #52b788;
+    --green-pale: #e8f0eb;
+    --bg: #f5f4ef;
+    --black: #111111;
+    --muted: #888880;
+    --border: #e0ddd4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .login-wrap {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .login-logo {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .login-logo-tag {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .login-logo-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--green);
+  }
+
+  .login-logo-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--green-light);
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+    margin-bottom: 3px;
+  }
+
+  .login-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+  }
+
+  .login-card h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--black);
+    margin-bottom: 6px;
+  }
+
+  .login-card p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+    font-weight: 300;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .form-input {
+    width: 100%;
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--black);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-input:focus {
+    border-color: var(--green);
+  }
+
+  .btn-login {
+    width: 100%;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    background: var(--green);
+    color: white;
+    border: none;
+    padding: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.15s;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-login:hover { opacity: 0.88; }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .error-msg {
+    display: none;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #dc2626;
+    margin-top: 12px;
+  }
+
+  .loading-msg {
+    display: none;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+
+  .login-footer {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .login-footer a {
+    color: var(--green);
+    text-decoration: none;
+  }
+
+  /* Access denied state */
+  .access-denied {
+    display: none;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .access-denied h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    color: var(--black);
+    margin-bottom: 8px;
+  }
+
+  .access-denied p {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .btn-logout {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+  <div class="login-logo">
+    <p class="login-logo-tag">Client Portal</p>
+    <p class="login-logo-name">Greenline<span class="login-logo-dot"></span></p>
+  </div>
+
+  <div class="login-card" id="login-card">
+    <h2>Welcome back</h2>
+    <p>Sign in to access your activation dashboard.</p>
+
+    <div class="form-group">
+      <label class="form-label" for="email">Email address</label>
+      <input type="email" class="form-input" id="email" placeholder="you@yourbrand.com" autocomplete="email">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="password">Password</label>
+      <input type="password" class="form-input" id="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+
+    <button class="btn-login" id="login-btn" onclick="handleLogin()">Sign In</button>
+
+    <div class="error-msg" id="error-msg">
+      Invalid email or password. If you need access, contact your Greenline account manager.
+    </div>
+
+    <div class="loading-msg" id="loading-msg">
+      Signing in...
+    </div>
+  </div>
+
+  <div class="access-denied" id="access-denied">
+    <h3>Access Not Authorized</h3>
+    <p>Your account doesn't have access to this portal. Contact Greenline to get set up.</p>
+    <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+  </div>
+
+  <div class="login-footer">
+    Need access? <a href="mailto:asmar@greenlineactivations.com">Contact Greenline</a>
+  </div>
+
+</div>
+
+<script>
+  // Client → Dashboard mapping
+  // Add new clients here as you onboard them
+  const CLIENT_DASHBOARDS = {
+    'peter@3chi.com': '/clients/3chi.html',
+    'pglad@3chi.com': '/clients/3chi.html',
+    'julian@plift.com': '/clients/plift.html',
+    'todd@plift.com': '/clients/plift.html',
+    'kam@gigli.com': '/clients/gigli.html',
+    'jared@gigli.com': '/clients/gigli.html',
+  };
+
+  // Initialize Netlify Identity
+  netlifyIdentity.init();
+
+  // Check if already logged in on page load
+  netlifyIdentity.on('init', user => {
+    if (user) {
+      redirectOrDeny(user);
+    }
+  });
+
+  // Handle successful login
+  netlifyIdentity.on('login', user => {
+    redirectOrDeny(user);
+  });
+
+  function handleLogin() {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!email || !password) {
+      showError('Please enter your email and password.');
+      return;
+    }
+
+    document.getElementById('login-btn').disabled = true;
+    document.getElementById('loading-msg').style.display = 'block';
+    document.getElementById('error-msg').style.display = 'none';
+
+    netlifyIdentity.open('login');
+  }
+
+  function redirectOrDeny(user) {
+    const email = user.email.toLowerCase();
+    const dashboard = CLIENT_DASHBOARDS[email];
+
+    if (dashboard) {
+      window.location.href = dashboard;
+    } else {
+      // Logged in but not an authorized client
+      document.getElementById('login-card').style.display = 'none';
+      document.getElementById('access-denied').style.display = 'block';
+    }
+  }
+
+  function handleLogout() {
+    netlifyIdentity.logout();
+    document.getElementById('login-card').style.display = 'block';
+    document.getElementById('access-denied').style.display = 'none';
+  }
+
+  netlifyIdentity.on('logout', () => {
+    document.getElementById('login-card').style.display = 'block';
+    document.getElementById('access-denied').style.display = 'none';
+  });
+
+  function showError(msg) {
+    document.getElementById('login-btn').disabled = false;
+    document.getElementById('loading-msg').style.display = 'none';
+    const err = document.getElementById('error-msg');
+    err.textContent = msg;
+    err.style.display = 'block';
+  }
+
+  // Allow Enter key to submit
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleLogin();
+  });
+</script>
+
+</body>
+</html>
