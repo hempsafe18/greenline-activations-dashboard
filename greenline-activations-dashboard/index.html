@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greenline Activations — Client Portal</title>
+<!--
+  SETUP INSTRUCTIONS:
+  1. Create a free account at clerk.com
+  2. Create a new application — choose "Email + Password" sign-in
+  3. Set registration to "Invitations only" in Clerk dashboard → User & Authentication → Email, Phone, Username
+  4. Replace YOUR_PUBLISHABLE_KEY below with your Clerk publishable key (starts with pk_)
+  5. Replace YOUR_FRONTEND_API with your Clerk frontend API URL (found in Clerk dashboard)
+-->
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="YOUR_PUBLISHABLE_KEY"
+  src="https://YOUR_FRONTEND_API.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+  type="text/javascript"
+></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Outfit:wght@300;400;500&display=swap');
+
+  :root {
+    --green: #2d5f3f;
+    --green-light: #52b788;
+    --green-pale: #e8f0eb;
+    --bg: #f5f4ef;
+    --black: #111111;
+    --muted: #888880;
+    --border: #e0ddd4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .login-wrap { width: 100%; max-width: 420px; }
+
+  .login-logo { text-align: center; margin-bottom: 36px; }
+
+  .login-logo-tag {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .login-logo-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--green);
+  }
+
+  .login-logo-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--green-light);
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+    margin-bottom: 3px;
+  }
+
+  .login-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+  }
+
+  .login-card h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--black);
+    margin-bottom: 6px;
+  }
+
+  .login-card p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+    font-weight: 300;
+  }
+
+  #clerk-sign-in { min-height: 160px; }
+
+  .loading-msg {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    padding: 24px 0;
+  }
+
+  .login-footer {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .login-footer a { color: var(--green); text-decoration: none; }
+
+  .access-denied {
+    display: none;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .access-denied h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    color: var(--black);
+    margin-bottom: 8px;
+  }
+
+  .access-denied p { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+
+  .btn-logout {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-logo">
+    <p class="login-logo-tag">Client Portal</p>
+    <p class="login-logo-name">Greenline<span class="login-logo-dot"></span></p>
+  </div>
+
+  <div class="login-card" id="login-card">
+    <h2>Welcome back</h2>
+    <p>Sign in to access your activation dashboard.</p>
+    <div id="clerk-sign-in">
+      <div class="loading-msg">Loading...</div>
+    </div>
+  </div>
+
+  <div class="access-denied" id="access-denied">
+    <h3>Access Not Authorized</h3>
+    <p>Your account doesn't have access to this portal. Contact Greenline to get set up.</p>
+    <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+  </div>
+
+  <div class="login-footer">
+    Need access? <a href="mailto:asmar@greenlineactivations.com">Contact Greenline</a>
+  </div>
+</div>
+
+<script>
+  // ── CLIENT → DASHBOARD MAPPING ────────────────────────────────────────────
+  // Add each new client email and their dashboard path here
+  const CLIENT_DASHBOARDS = {
+    'peter@3chi.com':    '/clients/3chi.html',
+    'pglad@3chi.com':    '/clients/3chi.html',
+    'julian@plift.com':  '/clients/plift.html',
+    'todd@plift.com':    '/clients/plift.html',
+    'kam@gigli.com':     '/clients/gigli.html',
+    'jared@gigli.com':   '/clients/gigli.html',
+  };
+
+  // ── INIT ──────────────────────────────────────────────────────────────────
+  window.addEventListener('load', async () => {
+    await window.Clerk.load();
+
+    if (window.Clerk.user) {
+      redirectOrDeny(window.Clerk.user);
+      return;
+    }
+
+    // Mount Clerk sign-in with Greenline branding
+    window.Clerk.mountSignIn(document.getElementById('clerk-sign-in'), {
+      appearance: {
+        variables: {
+          colorPrimary: '#2d5f3f',
+          colorBackground: '#f5f4ef',
+          colorText: '#111111',
+          borderRadius: '8px',
+          fontFamily: 'Outfit, sans-serif',
+        },
+        elements: {
+          card: { boxShadow: 'none', border: 'none', padding: '0' },
+          formButtonPrimary: {
+            backgroundColor: '#2d5f3f',
+            fontFamily: 'Syne, sans-serif',
+            fontWeight: '700',
+          },
+        }
+      }
+    });
+
+    // Route after sign-in
+    window.Clerk.addListener(({ user }) => {
+      if (user) redirectOrDeny(user);
+    });
+  });
+
+  function redirectOrDeny(user) {
+    const email = (user.primaryEmailAddress?.emailAddress || '').toLowerCase();
+    const dashboard = CLIENT_DASHBOARDS[email];
+    if (dashboard) {
+      window.location.href = dashboard;
+    } else {
+      document.getElementById('login-card').style.display = 'none';
+      document.getElementById('access-denied').style.display = 'block';
+    }
+  }
+
+  async function handleLogout() {
+    await window.Clerk.signOut();
+    location.reload();
+  }
+</script>
+</body>
+</html>
