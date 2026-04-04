@@ -96,13 +96,9 @@ export default function UnifiedDashboard() {
     setIsLoading(false);
   };
 
-  // Trigger the fetch exactly once when the page first loads
+// Trigger the fetch exactly once when the page first loads
   useEffect(() => {
-    if (GOOGLE_SHEET_CSV_URL !== "PASTE_YOUR_PUBLISHED_CSV_LINK_HERE") {
-      fetchLiveData();
-    } else {
-      setIsLoading(false); // Stop loading if no URL is provided
-    }
+    fetchLiveData();
   }, []);
 
   const submitRequest = () => {
