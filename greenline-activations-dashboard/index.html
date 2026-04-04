@@ -158,33 +158,31 @@
     script.crossOrigin = 'anonymous';
     script.async = true;
 
-    script.addEventListener('load', async () => {
-      try {
-        await window.Clerk.load({ appearance: CLERK_APPEARANCE });
+    window.addEventListener('load', async function () {
+  await Clerk.load();
 
-        // Already signed in — route immediately
-        if (window.Clerk.user) {
-          redirectOrDeny(window.Clerk.user);
-          return;
-        }
-
-        // Mount sign-in component
-        window.Clerk.mountSignIn(
-          document.getElementById('clerk-sign-in'),
-          { appearance: CLERK_APPEARANCE }
-        );
-
-        // Listen for sign-in completion
-        window.Clerk.addListener(({ user }) => {
-          if (user) redirectOrDeny(user);
-        });
-
-      } catch (err) {
-        console.error('Clerk init error:', err);
-        showError();
-      }
-    });
-
+  if (Clerk.user) {
+    // 1. Logic for Logged-In Users
+    const userEmail = Clerk.user.primaryEmailAddress.emailAddress;
+    const dashboardPath = CLIENT_DASHBOARDS[userEmail] || '/clients/default.html';
+    
+    // Check if we're already at the right destination to prevent redirect loops
+    if (!window.location.pathname.includes(dashboardPath)) {
+      window.location.href = dashboardPath;
+    }
+  } else {
+    // 2. Logic for Logged-Out Users (Mounting Sign-In)
+    const signInDiv = document.getElementById('sign-in-ui');
+    if (signInDiv) {
+      Clerk.mountSignIn(signInDiv, {
+        routing: 'path',
+        path: '/sign-in',
+        // Optional: Ensure they go back to the root after signing in
+        forceRedirectUrl: '/' 
+      });
+    }
+  }
+});
     script.addEventListener('error', () => showError());
     document.head.appendChild(script);
   })();
