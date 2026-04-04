@@ -158,27 +158,38 @@
     script.crossOrigin = 'anonymous';
     script.async = true;
 
-    window.addEventListener('load', async function () {
+// List of authorized emails and their specific dashboard paths
+const CLIENT_DASHBOARDS = {
+  '3chi@example.com': '/clients/3chi.html',
+  'plift@example.com': '/clients/plift.html',
+  'gigli@example.com': '/clients/gigli.html'
+};
+
+window.addEventListener('load', async function () {
   await Clerk.load();
 
   if (Clerk.user) {
-    // 1. Logic for Logged-In Users
+    // USER IS LOGGED IN
     const userEmail = Clerk.user.primaryEmailAddress.emailAddress;
-    const dashboardPath = CLIENT_DASHBOARDS[userEmail] || '/clients/default.html';
-    
-    // Check if we're already at the right destination to prevent redirect loops
-    if (!window.location.pathname.includes(dashboardPath)) {
-      window.location.href = dashboardPath;
+    const dashboardPath = CLIENT_DASHBOARDS[userEmail];
+
+    if (dashboardPath) {
+      // Redirect to their specific dashboard if they aren't already there
+      if (window.location.pathname !== dashboardPath) {
+        window.location.href = dashboardPath;
+      }
+    } else {
+      // Fallback if email isn't in your mapping
+      console.error("No dashboard assigned to this email.");
+      document.body.innerHTML = "<h1>Access Denied</h1><p>Contact support.</p>";
     }
   } else {
-    // 2. Logic for Logged-Out Users (Mounting Sign-In)
+    // USER IS LOGGED OUT
     const signInDiv = document.getElementById('sign-in-ui');
     if (signInDiv) {
       Clerk.mountSignIn(signInDiv, {
-        routing: 'path',
-        path: '/sign-in',
-        // Optional: Ensure they go back to the root after signing in
-        forceRedirectUrl: '/' 
+        routing: 'path',    // Critical: Tells Clerk to use URL paths
+        path: '/sign-in',   // Critical: Tells Clerk where the login page is
       });
     }
   }
