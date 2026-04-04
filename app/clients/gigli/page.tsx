@@ -1,33 +1,113 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const TARGET_BRAND = "Gigli"; 
+
+// 🚨 PASTE YOUR PUBLISHED GOOGLE SHEETS CSV LINK HERE 🚨
+const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Handles the manual form submission
+  // --- DYNAMIC DASHBOARD STATE ---
+  const [metrics, setMetrics] = useState({
+    sampled: 0, sold: 0, activations: 0, conversion: 0, topFlavor: "Loading...",
+    markets: [] as any[], calendar: [] as any[]
+  });
+
+  // --- CUSTOM CSV PARSER ---
+  const parseCSV = (str: string) => {
+    const result = []; let row = []; let cell = ''; let quote = false;
+    for (let i = 0; i < str.length; i++) {
+      let char = str[i], nextChar = str[i + 1];
+      if (char === '"' && quote && nextChar === '"') { cell += '"'; i++; }
+      else if (char === '"') { quote = !quote; }
+      else if (char === ',' && !quote) { row.push(cell); cell = ''; }
+      else if (char === '\n' && !quote) { row.push(cell); result.push(row); row = []; cell = ''; }
+      else { cell += char; }
+    }
+    row.push(cell); result.push(row);
+    return result;
+  };
+
+  // --- AUTOMATIC LIVE DATA FETCH ---
+  const fetchLiveData = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(GOOGLE_SHEET_CSV_URL);
+      const text = await response.text();
+      
+      const rows = parseCSV(text);
+      const headers = rows[0].map((h: string) => h.trim());
+      const data = rows.slice(1).map((row: string[]) => {
+        let obj: any = {};
+        row.forEach((val, i) => obj[headers[i]] = val);
+        return obj;
+      });
+
+      let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
+      let cityCounts: Record<string, number> = {}; let flavorCounts: Record<string, number> = {};
+      let newCalendar: any[] = [];
+
+      data.forEach(row => {
+        if (!row['Brand Name'] || !row['Brand Name'].toUpperCase().includes(TARGET_BRAND.toUpperCase())) return;
+        
+        totalActivations++;
+        totalSampled += parseInt(row['Total consumers sampled']) || 0;
+        totalSold += parseInt(row['Estimated units sold']) || 0;
+        
+        const city = row['City'] || 'Unknown';
+        cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row['Total consumers sampled']) || 0);
+        
+        const flavor = row['Top performing flavor'];
+        if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
+
+        if (row['Store Name']) {
+          newCalendar.push({
+            date: row['Activation Date'] || 'TBD',
+            store: row['Store Name'],
+            market: `${city} · ${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
+            status: "Complete"
+          });
+        }
+      });
+
+      let bestFlavor = "No data"; let maxFlavorCount = 0;
+      for (const [flavor, count] of Object.entries(flavorCounts)) {
+        if (count > maxFlavorCount) { bestFlavor = flavor; maxFlavorCount = count; }
+      }
+
+      const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
+
+      if (totalActivations > 0) {
+        setMetrics({
+          sampled: totalSampled, sold: totalSold, activations: totalActivations,
+          conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
+          topFlavor: bestFlavor, markets: markets,
+          calendar: newCalendar.slice(-4).reverse()
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch data", error);
+    }
+    setIsLoading(false);
+  };
+
+// Trigger the fetch exactly once when the page first loads
+  useEffect(() => {
+    fetchLiveData();
+  }, []);
+
   const submitRequest = () => {
     setShowSuccess(true);
-    setUploadMessage("✅ Request submitted successfully.");
-    setTimeout(() => {
-      setShowSuccess(false);
-      setUploadMessage("");
-    }, 5000);
+    setUploadMessage("✅ Request submitted successfully. Greenline will review shortly.");
+    setTimeout(() => setShowSuccess(false), 5000);
   };
 
-  // Handles the file upload button
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const fileName = e.target.files[0].name;
-      setShowSuccess(true);
-      setUploadMessage(`✅ Bulk upload successful: ${fileName}`);
-      setTimeout(() => {
-        setShowSuccess(false);
-        setUploadMessage("");
-      }, 5000);
-    }
-  };
+  const maxMarketValue = Math.max(...metrics.markets.map(m => m.value), 1);
 
   return (
     <div className="dashboard-wrapper">
@@ -44,11 +124,12 @@ export default function UnifiedDashboard() {
         .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
         .main { margin-left: 220px; padding: 32px; min-height: 100vh; padding-top: 80px; }
         .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
-        .topbar-left h1 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 700; color: var(--black); margin: 0; }
+        .topbar-left h1 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 700; color: var(--black); margin: 0; display: flex; align-items: center; gap: 12px; }
         .topbar-left p { font-size: 13px; color: var(--muted); margin-top: 2px; margin-bottom: 0; }
         .topbar-right { display: flex; align-items: center; gap: 10px; }
         .badge { background: var(--green-pale); color: var(--green); font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 20px; }
-        .badge-orange { background: #fef3ec; color: var(--orange); }
+        .btn-refresh { background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--black); transition: 0.2s; }
+        .btn-refresh:hover { background: var(--green-pale); color: var(--green); border-color: var(--green-light); }
         .section { display: none; } .section.active { display: block; }
         .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
         .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; position: relative; overflow: hidden; }
@@ -57,7 +138,6 @@ export default function UnifiedDashboard() {
         .stat-label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; margin-top: 0; }
         .stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 700; color: var(--black); line-height: 1; margin-bottom: 6px; margin-top: 0; }
         .stat-value.green { color: var(--green); }
-        .stat-delta { font-size: 11px; color: var(--green-light); font-weight: 500; margin: 0; }
         .two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 20px; }
         .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 14px; }
         .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
@@ -66,100 +146,83 @@ export default function UnifiedDashboard() {
         .chart-bars { display: flex; align-items: flex-end; gap: 10px; height: 140px; padding-bottom: 24px; position: relative; }
         .chart-bars::after { content: ''; position: absolute; bottom: 24px; left: 0; right: 0; height: 1px; background: var(--border); }
         .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
-        .bar-fill { width: 100%; border-radius: 5px 5px 0 0; background: var(--green); transition: height 0.4s ease; position: relative; }
-        .bar-fill.light { background: var(--green-pale); border: 1px solid var(--green-light); }
+        .bar-fill { width: 100%; border-radius: 5px 5px 0 0; background: var(--green); transition: height 0.6s ease; position: relative; }
         .bar-label { font-size: 10px; color: var(--muted); margin-top: 6px; text-align: center; white-space: nowrap; margin-bottom: 0; }
         .bar-val { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 600; color: var(--black); white-space: nowrap; }
-        .conv-meter { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-        .conv-label { font-size: 13px; color: #555; min-width: 120px; }
-        .conv-track { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
-        .conv-fill { height: 100%; border-radius: 4px; background: var(--green); }
-        .conv-val { font-size: 13px; font-weight: 600; color: var(--green); min-width: 40px; text-align: right; }
         .cal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-        .cal-card.completed { border-left: 3px solid var(--green); } .cal-card.upcoming { border-left: 3px solid var(--orange); }
+        .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; border-left: 3px solid var(--green); }
         .cal-date { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; margin-top: 0; }
         .cal-store { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--black); margin-bottom: 4px; margin-top: 0; }
         .cal-market { font-size: 11px; color: var(--muted); margin-bottom: 10px; margin-top: 0; }
-        .cal-status { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; display: inline-block; }
-        .cs-done { background: var(--green-pale); color: var(--green); } .cs-upcoming { background: #fef3ec; color: var(--orange); }
+        .cal-status { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; display: inline-block; background: var(--green-pale); color: var(--green); }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
         .form-input { font-family: 'Outfit', sans-serif; font-size: 13px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--black); outline: none; }
         .time-inputs { display: flex; align-items: center; gap: 10px; }
-        .time-inputs span { font-size: 12px; color: var(--muted); font-weight: bold; }
         .btn-submit { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; background: var(--green); color: white; border: none; padding: 12px 28px; border-radius: 8px; cursor: pointer; transition: opacity 0.2s; }
-        .btn-submit:hover { opacity: 0.9; }
         .success-msg { background: var(--green-pale); border: 1px solid var(--green-light); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: var(--green); font-weight: 500; margin-top: 14px; }
         .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
         .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; margin-top: 1px; }
         .intel-text { color: #555; line-height: 1.5; margin: 0; } .intel-text strong { color: var(--black); font-weight: 600; }
-        
-        /* New Bulk Upload Styles */
-        .bulk-upload-area { margin-top: 30px; padding: 24px; border: 2px dashed var(--border); border-radius: 12px; text-align: center; background: #fafaf8; }
-        .bulk-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--black); }
-        .bulk-desc { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
-        .btn-upload { display: inline-block; background: var(--green-pale); color: var(--green); font-size: 12px; font-weight: 700; padding: 10px 20px; border-radius: 6px; cursor: pointer; transition: all 0.2s; border: 1px solid var(--green-light); }
-        .btn-upload:hover { background: var(--green); color: white; }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .spinner { border: 4px solid rgba(0,0,0,0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: var(--green); animation: spin 1s linear infinite; margin-bottom: 16px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       `}} />
+
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="spinner"></div>
+          <p style={{fontWeight: 600, color: 'var(--green)'}}>Syncing live data from Google Sheets...</p>
+        </div>
+      )}
 
       {/* SIDEBAR */}
       <div className="sidebar">
         <p className="sidebar-logo">Greenline Activations</p>
-        <p className="sidebar-brand">Gigli</p>
-
+        <p className="sidebar-brand">{TARGET_BRAND}</p>
         <p className="nav-label">Menu</p>
-        <a className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveSection('dashboard')}>
-          <span className="icon">📊</span> Dashboard
-        </a>
-        <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}>
-          <span className="icon">📅</span> Activation Calendar
-        </a>
-        <a className={`nav-item ${activeSection === 'intel' ? 'active' : ''}`} onClick={() => setActiveSection('intel')}>
-          <span className="icon">🔍</span> Market Intel
-        </a>
-        <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}>
-          <span className="icon">➕</span> Request Activation
-        </a>
+        <a className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
+        <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
+        <a className={`nav-item ${activeSection === 'intel' ? 'active' : ''}`} onClick={() => setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
+        <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
       </div>
 
       {/* MAIN CONTENT */}
       <div className="main">
         <div className="topbar">
           <div className="topbar-left">
-            <h1>Activation Dashboard</h1>
-            <p>March 2026 · Sprint 1 · Florida</p>
+            <h1>Activation Dashboard <button className="btn-refresh" onClick={fetchLiveData}>↻ Sync Data</button></h1>
+            <p>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right">
-            <span className="badge">8 Activations Complete</span>
-            <span className="badge badge-orange">4 Upcoming</span>
+            <span className="badge">{metrics.activations} Activations Complete</span>
           </div>
         </div>
 
         {/* DASHBOARD TAB */}
         <div className={`section ${activeSection === 'dashboard' ? 'active' : ''}`}>
           <div className="stat-grid">
-            <div className="stat-card"><p className="stat-label">Consumers Sampled</p><p className="stat-value">318</p><p className="stat-delta">↑ Across 8 activations</p></div>
-            <div className="stat-card"><p className="stat-label">Total Purchases</p><p className="stat-value green">47</p><p className="stat-delta">↑ Units sold</p></div>
-            <div className="stat-card"><p className="stat-label">Avg Conversion Rate</p><p className="stat-value">16%</p><p className="stat-delta">↑ Midtown 18%</p></div>
-            <div className="stat-card"><p className="stat-label">Activations</p><p className="stat-value">8 <span style={{fontSize:'16px', color:'var(--muted)'}}>/ 12</span></p><p className="stat-delta">Sprint 1 in progress</p></div>
+            <div className="stat-card"><p className="stat-label">Consumers Sampled</p><p className="stat-value">{metrics.sampled}</p></div>
+            <div className="stat-card"><p className="stat-label">Total Purchases</p><p className="stat-value green">{metrics.sold}</p></div>
+            <div className="stat-card"><p className="stat-label">Avg Conversion Rate</p><p className="stat-value">{metrics.conversion}%</p></div>
+            <div className="stat-card"><p className="stat-label">Total Activations</p><p className="stat-value">{metrics.activations}</p></div>
           </div>
 
           <div className="two-col">
             <div className="card">
-              <div className="card-header"><div><p className="card-title">Consumers Reached by Market</p><p className="card-sub">Sprint 1</p></div></div>
+              <div className="card-header"><div><p className="card-title">Consumers Reached by Market</p><p className="card-sub">Top 3 Performing Cities</p></div></div>
               <div className="chart-bars">
-                <div className="bar-col"><div className="bar-fill" style={{height:'85%'}}><span className="bar-val">142</span></div><p className="bar-label">Melbourne</p></div>
-                <div className="bar-col"><div className="bar-fill" style={{height:'72%'}}><span className="bar-val">120</span></div><p className="bar-label">St. Johns</p></div>
-                <div className="bar-col"><div className="bar-fill light" style={{height:'45%'}}><span className="bar-val">34</span></div><p className="bar-label">Longwood</p></div>
+                {metrics.markets.map((market, index) => (
+                  <div className="bar-col" key={index}>
+                    <div className="bar-fill" style={{height: `${(market.value / maxMarketValue) * 100}%`}}>
+                      <span className="bar-val">{market.value}</span>
+                    </div>
+                    <p className="bar-label">{market.city}</p>
+                  </div>
+                ))}
+                {metrics.markets.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No market data yet.</p>}
               </div>
-            </div>
-
-            <div className="card">
-              <div className="card-header"><div><p className="card-title">Conversion</p><p className="card-sub">Sample-to-purchase</p></div></div>
-              <div className="conv-meter"><span className="conv-label">Midtown</span><div className="conv-track"><div className="conv-fill" style={{width:'78%'}}></div></div><span className="conv-val">18%</span></div>
-              <div className="conv-meter"><span className="conv-label">Beachwalk</span><div className="conv-track"><div className="conv-fill" style={{width:'72%'}}></div></div><span className="conv-val">17%</span></div>
             </div>
           </div>
         </div>
@@ -167,10 +230,17 @@ export default function UnifiedDashboard() {
         {/* CALENDAR TAB */}
         <div className={`section ${activeSection === 'calendar' ? 'active' : ''}`}>
           <div className="card">
-            <div className="card-header"><div><p className="card-title">Activation Calendar</p><p className="card-sub">Sprint 1</p></div></div>
+            <div className="card-header"><div><p className="card-title">Recent Activations</p></div></div>
             <div className="cal-grid">
-              <div className="cal-card completed"><p className="cal-date">Feb 27, 2026</p><p className="cal-store">Shores Beachwalk</p><p className="cal-market">St. Augustine · 4-7pm</p><span className="cal-status cs-done">✓ Complete</span></div>
-              <div className="cal-card upcoming"><p className="cal-date">Mar 27, 2026</p><p className="cal-store">Shores Rivertown</p><p className="cal-market">St. Johns · 4-7pm</p><span className="cal-status cs-upcoming">⏳ Upcoming</span></div>
+              {metrics.calendar.map((event, index) => (
+                <div className="cal-card" key={index}>
+                  <p className="cal-date">{event.date}</p>
+                  <p className="cal-store">{event.store}</p>
+                  <p className="cal-market">{event.market}</p>
+                  <span className="cal-status">{event.status}</span>
+                </div>
+              ))}
+              {metrics.calendar.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No activations scheduled.</p>}
             </div>
           </div>
         </div>
@@ -178,68 +248,25 @@ export default function UnifiedDashboard() {
         {/* INTEL TAB */}
         <div className={`section ${activeSection === 'intel' ? 'active' : ''}`}>
           <div className="card">
-            <div className="card-header"><div><p className="card-title">Market Intelligence</p><p className="card-sub">Field observations</p></div></div>
-            <div className="intel-item"><span className="intel-icon">🍊</span><p className="intel-text"><strong>Blood Orange Margarita dominates.</strong> Top sampled and purchased SKU across all locations.</p></div>
+            <div className="card-header"><div><p className="card-title">Market Intelligence</p></div></div>
+            <div className="intel-item"><span className="intel-icon">🏆</span><p className="intel-text"><strong>{metrics.topFlavor} dominates.</strong> Top sampled and purchased SKU across recent activations.</p></div>
           </div>
         </div>
 
         {/* REQUEST TAB */}
         <div className={`section ${activeSection === 'request' ? 'active' : ''}`}>
           <div className="card">
-            <div className="card-header">
-              <div>
-                <p className="card-title">Request Activation</p>
-                <p className="card-sub">Greenline will confirm within 48 hours.</p>
-              </div>
-            </div>
-            
-            {/* Manual Form Area */}
+            <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
             <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Store Name</label>
-                <input type="text" className="form-input" placeholder="e.g. Total Wine" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Store Address</label>
-                <input type="text" className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Preferred Date</label>
-                <input type="date" className="form-input" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Time (From - To)</label>
-                <div className="time-inputs">
-                  <input type="time" className="form-input" style={{flex: 1}} />
-                  <span>-</span>
-                  <input type="time" className="form-input" style={{flex: 1}} />
-                </div>
-              </div>
+              <div className="form-group"><label className="form-label">Store Name</label><input type="text" className="form-input" placeholder="e.g. Total Wine" /></div>
+              <div className="form-group"><label className="form-label">Store Address</label><input type="text" className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
+              <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" className="form-input" /></div>
+              <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" className="form-input" style={{flex: 1}} /><span>-</span><input type="time" className="form-input" style={{flex: 1}} /></div></div>
             </div>
-            
             <button className="btn-submit" onClick={submitRequest}>Submit Request</button>
-
-            {/* Bulk Upload Area */}
-            <div className="bulk-upload-area">
-              <p className="bulk-title">Have multiple activations?</p>
-              <p className="bulk-desc">Upload a CSV or Excel file to request multiple stores at once.</p>
-              <label className="btn-upload">
-                Choose CSV / Excel File
-                {/* This input is hidden, clicking the label triggers the upload window */}
-                <input 
-                  type="file" 
-                  accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
-                  style={{ display: 'none' }} 
-                  onChange={handleFileUpload}
-                />
-              </label>
-            </div>
-
-            {/* Success Message Banner */}
             {showSuccess && <div className="success-msg">{uploadMessage}</div>}
           </div>
         </div>
-
       </div>
     </div>
   );
