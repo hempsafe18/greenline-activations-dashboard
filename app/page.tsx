@@ -1,8 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-export default function HomePage() {
-  const { userId } = auth();
+// 1. Added 'async' here
+export default async function HomePage() {
+  
+  // 2. Added 'await' here
+  const { userId } = await auth();
 
   // If the user is logged in, immediately send them to the dashboard router
   if (userId) {
