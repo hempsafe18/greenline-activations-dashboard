@@ -1,9 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const TARGET_BRAND = "3CHI"; 
-
-// 🚨 PASTE YOUR PUBLISHED GOOGLE SHEETS CSV LINK HERE 🚨
+// 1. PASTE YOUR 3CHI PUBLISHED GOOGLE SHEETS CSV LINK HERE
 const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
 
 export default function UnifiedDashboard() {
@@ -14,8 +12,10 @@ export default function UnifiedDashboard() {
 
   // --- DYNAMIC DASHBOARD STATE ---
   const [metrics, setMetrics] = useState({
-    sampled: 0, sold: 0, activations: 0, conversion: 0, topFlavor: "Loading...",
-    markets: [] as any[], calendar: [] as any[]
+    sampled: 0, sold: 0, activations: 0, conversion: 0, 
+    markets: [] as any[], 
+    calendar: [] as any[],
+    intel: [] as any[]
   });
 
   // --- CUSTOM CSV PARSER ---
@@ -49,11 +49,17 @@ export default function UnifiedDashboard() {
       });
 
       let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
-      let cityCounts: Record<string, number> = {}; let flavorCounts: Record<string, number> = {};
+      let cityCounts: Record<string, number> = {}; 
+      let flavorCounts: Record<string, number> = {};
       let newCalendar: any[] = [];
+      let newIntel: any[] = [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
       data.forEach(row => {
-        if (!row['Brand Name'] || !row['Brand Name'].toUpperCase().includes(TARGET_BRAND.toUpperCase())) return;
+        // Because this is a dedicated sheet, we process EVERY row that has a store name
+        if (!row['Store Name']) return; 
         
         totalActivations++;
         totalSampled += parseInt(row['Total consumers sampled']) || 0;
@@ -65,29 +71,68 @@ export default function UnifiedDashboard() {
         const flavor = row['Top performing flavor'];
         if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
 
-        if (row['Store Name']) {
+        // INTEL: Consumer Objections
+        const objections = row['Consumer objections encountered'];
+        if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
+            newIntel.push({
+                type: 'objection',
+                icon: '💬',
+                text: `Objection at ${row['Store Name'] || city}: ${objections}`
+            });
+        }
+
+        // INTEL: Engagement Photo Link
+        const photoLink = row['Engagement photo submission'];
+        if (photoLink && photoLink.includes('http')) {
+             newIntel.push({
+                type: 'photo',
+                icon: '📸',
+                text: `New engagement photo from ${row['Store Name'] || city}.`,
+                link: photoLink
+             });
+        }
+
+        // CALENDAR LOGIC
+        if (row['Activation Date']) {
+          const actDate = new Date(row['Activation Date']);
+          const isUpcoming = actDate > today;
+
           newCalendar.push({
-            date: row['Activation Date'] || 'TBD',
+            date: row['Activation Date'],
             store: row['Store Name'],
             market: `${city} · ${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
-            status: "Complete"
+            status: isUpcoming ? "Upcoming" : "Complete",
+            sortDate: actDate
           });
         }
       });
 
+      // Find top flavor
       let bestFlavor = "No data"; let maxFlavorCount = 0;
       for (const [flavor, count] of Object.entries(flavorCounts)) {
         if (count > maxFlavorCount) { bestFlavor = flavor; maxFlavorCount = count; }
       }
 
+      // Add top flavor to intel
+      if (bestFlavor !== "No data") {
+        newIntel.unshift({
+            type: 'flavor',
+            icon: '🏆',
+            text: `Top performing SKU across recent activations is ${bestFlavor}.`
+        });
+      }
+
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
+      
+      newCalendar.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
 
       if (totalActivations > 0) {
         setMetrics({
           sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
-          topFlavor: bestFlavor, markets: markets,
-          calendar: newCalendar.slice(-4).reverse()
+          markets: markets,
+          calendar: newCalendar.slice(0, 6),
+          intel: newIntel.slice(0, 5)
         });
       }
     } catch (error) {
@@ -96,10 +141,7 @@ export default function UnifiedDashboard() {
     setIsLoading(false);
   };
 
-// Trigger the fetch exactly once when the page first loads
-  useEffect(() => {
-    fetchLiveData();
-  }, []);
+  useEffect(() => { fetchLiveData(); }, []);
 
   const submitRequest = () => {
     setShowSuccess(true);
@@ -133,8 +175,6 @@ export default function UnifiedDashboard() {
         .section { display: none; } .section.active { display: block; }
         .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
         .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; position: relative; overflow: hidden; }
-        .stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--green); opacity: 0; transition: opacity 0.2s; }
-        .stat-card:hover::after { opacity: 1; }
         .stat-label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; margin-top: 0; }
         .stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 700; color: var(--black); line-height: 1; margin-bottom: 6px; margin-top: 0; }
         .stat-value.green { color: var(--green); }
@@ -150,11 +190,20 @@ export default function UnifiedDashboard() {
         .bar-label { font-size: 10px; color: var(--muted); margin-top: 6px; text-align: center; white-space: nowrap; margin-bottom: 0; }
         .bar-val { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 600; color: var(--black); white-space: nowrap; }
         .cal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; border-left: 3px solid var(--green); }
+        .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; border-left: 3px solid var(--border); }
+        .cal-card.status-Complete { border-left-color: var(--green); }
+        .cal-card.status-Upcoming { border-left-color: var(--orange); }
         .cal-date { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; margin-top: 0; }
         .cal-store { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--black); margin-bottom: 4px; margin-top: 0; }
         .cal-market { font-size: 11px; color: var(--muted); margin-bottom: 10px; margin-top: 0; }
-        .cal-status { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; display: inline-block; background: var(--green-pale); color: var(--green); }
+        .cal-status { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; display: inline-block; }
+        .cal-status.status-Complete { background: var(--green-pale); color: var(--green); }
+        .cal-status.status-Upcoming { background: #fef3ec; color: var(--orange); }
+        .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; align-items: center; }
+        .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; margin-top: 1px; }
+        .intel-text { color: #555; line-height: 1.5; margin: 0; flex: 1; }
+        .intel-link { color: var(--green); text-decoration: none; font-weight: bold; font-size: 11px; padding: 4px 8px; border: 1px solid var(--green); border-radius: 4px; }
+        .intel-link:hover { background: var(--green); color: white; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
@@ -162,9 +211,6 @@ export default function UnifiedDashboard() {
         .time-inputs { display: flex; align-items: center; gap: 10px; }
         .btn-submit { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; background: var(--green); color: white; border: none; padding: 12px 28px; border-radius: 8px; cursor: pointer; transition: opacity 0.2s; }
         .success-msg { background: var(--green-pale); border: 1px solid var(--green-light); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: var(--green); font-weight: 500; margin-top: 14px; }
-        .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-        .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; margin-top: 1px; }
-        .intel-text { color: #555; line-height: 1.5; margin: 0; } .intel-text strong { color: var(--black); font-weight: 600; }
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
         .spinner { border: 4px solid rgba(0,0,0,0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: var(--green); animation: spin 1s linear infinite; margin-bottom: 16px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -173,14 +219,13 @@ export default function UnifiedDashboard() {
       {isLoading && (
         <div className="loading-overlay">
           <div className="spinner"></div>
-          <p style={{fontWeight: 600, color: 'var(--green)'}}>Syncing live data from Google Sheets...</p>
+          <p style={{fontWeight: 600, color: 'var(--green)'}}>Syncing live data...</p>
         </div>
       )}
 
-      {/* SIDEBAR */}
       <div className="sidebar">
         <p className="sidebar-logo">Greenline Activations</p>
-        <p className="sidebar-brand">{TARGET_BRAND}</p>
+        <p className="sidebar-brand">3CHI</p>
         <p className="nav-label">Menu</p>
         <a className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
         <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
@@ -188,7 +233,6 @@ export default function UnifiedDashboard() {
         <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
       </div>
 
-      {/* MAIN CONTENT */}
       <div className="main">
         <div className="topbar">
           <div className="topbar-left">
@@ -196,7 +240,7 @@ export default function UnifiedDashboard() {
             <p>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right">
-            <span className="badge">{metrics.activations} Activations Complete</span>
+            <span className="badge">{metrics.activations} Activations Logged</span>
           </div>
         </div>
 
@@ -208,7 +252,6 @@ export default function UnifiedDashboard() {
             <div className="stat-card"><p className="stat-label">Avg Conversion Rate</p><p className="stat-value">{metrics.conversion}%</p></div>
             <div className="stat-card"><p className="stat-label">Total Activations</p><p className="stat-value">{metrics.activations}</p></div>
           </div>
-
           <div className="two-col">
             <div className="card">
               <div className="card-header"><div><p className="card-title">Consumers Reached by Market</p><p className="card-sub">Top 3 Performing Cities</p></div></div>
@@ -221,7 +264,6 @@ export default function UnifiedDashboard() {
                     <p className="bar-label">{market.city}</p>
                   </div>
                 ))}
-                {metrics.markets.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No market data yet.</p>}
               </div>
             </div>
           </div>
@@ -230,17 +272,17 @@ export default function UnifiedDashboard() {
         {/* CALENDAR TAB */}
         <div className={`section ${activeSection === 'calendar' ? 'active' : ''}`}>
           <div className="card">
-            <div className="card-header"><div><p className="card-title">Recent Activations</p></div></div>
+            <div className="card-header"><div><p className="card-title">Activation Schedule</p></div></div>
             <div className="cal-grid">
               {metrics.calendar.map((event, index) => (
-                <div className="cal-card" key={index}>
+                <div className={`cal-card status-${event.status}`} key={index}>
                   <p className="cal-date">{event.date}</p>
                   <p className="cal-store">{event.store}</p>
                   <p className="cal-market">{event.market}</p>
-                  <span className="cal-status">{event.status}</span>
+                  <span className={`cal-status status-${event.status}`}>{event.status}</span>
                 </div>
               ))}
-              {metrics.calendar.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No activations scheduled.</p>}
+              {metrics.calendar.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No activations found.</p>}
             </div>
           </div>
         </div>
@@ -248,8 +290,15 @@ export default function UnifiedDashboard() {
         {/* INTEL TAB */}
         <div className={`section ${activeSection === 'intel' ? 'active' : ''}`}>
           <div className="card">
-            <div className="card-header"><div><p className="card-title">Market Intelligence</p></div></div>
-            <div className="intel-item"><span className="intel-icon">🏆</span><p className="intel-text"><strong>{metrics.topFlavor} dominates.</strong> Top sampled and purchased SKU across recent activations.</p></div>
+            <div className="card-header"><div><p className="card-title">Market Intelligence</p><p className="card-sub">Latest feedback and photos</p></div></div>
+            {metrics.intel.map((item, index) => (
+               <div className="intel-item" key={index}>
+                  <span className="intel-icon">{item.icon}</span>
+                  <p className="intel-text">{item.text}</p>
+                  {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link">View Photo</a>}
+               </div>
+            ))}
+            {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No intel gathered yet.</p>}
           </div>
         </div>
 
