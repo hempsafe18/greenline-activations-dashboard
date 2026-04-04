@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </Show>
               <Show when="signed-in">
-                <UserButton afterSignOutUrl="/" />
+                <UserButton />
               </Show>
             </div>
           </header>
