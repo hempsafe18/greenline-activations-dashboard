@@ -107,7 +107,7 @@ export default function UnifiedDashboard() {
       {/* SIDEBAR */}
       <div className="sidebar">
         <p className="sidebar-logo">Greenline Activations</p>
-        <p className="sidebar-brand">3CHI</p>
+        <p className="sidebar-brand">Plift</p>
 
         <p className="nav-label">Menu</p>
         <a className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveSection('dashboard')}>
