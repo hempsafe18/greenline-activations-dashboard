@@ -1,19 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": ".",
-  "env": {
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "@next_public_clerk_publishable_key"
-  },
+  "cleanUrls": true,
   "routes": [
     {
+      "src": "/sign-in(.*)",
+      "dest": "/index.html"
+    },
+    {
       "src": "/clients/(.*)",
-      "headers": {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        "X-Frame-Options": "DENY",
-        "X-Content-Type-Options": "nosniff"
-      },
-      "dest": "/clients/$1"
+      "dest": "/clients/$1.html"
     },
     {
       "src": "/(.*)",
