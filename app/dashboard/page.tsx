@@ -12,7 +12,7 @@ export default async function DashboardRouter() {
   const email = user.emailAddresses[0]?.emailAddress;
 
   // 1. ADMIN HUB - Put your personal/admin email here!
-  if (email === "asmar.gary@gmail.COM") {
+  if (email === "asmar@greenlineactivations.com") {
     return (
       <div style={{ maxWidth: '800px', margin: '3rem auto', padding: '2rem', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#10B981' }}>Greenline Admin Hub</h1>
@@ -33,11 +33,11 @@ export default async function DashboardRouter() {
   }
 
   // 2. CLIENT ROUTING
-  if (email === "plift@example.com") {
+  if (email === "example@plift.com") {
     redirect("/clients/plift");
-  } else if (email === "3chi@example.com") {
+  } else if (email === "example@3chi.com") {
     redirect("/clients/3chi");
-  } else if (email === "gigli@example.com") {
+  } else if (email === "example@gigli.com") {
     redirect("/clients/gigli");
   }
 
