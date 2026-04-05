@@ -242,4 +242,108 @@ export default function UnifiedDashboard() {
       {isLoading && (
         <div className="loading-overlay">
           <div className="spinner"></div>
-          <p style={{fontWeight: 600,
+          <p style={{fontWeight: 600, color: 'var(--green)'}}>Syncing live data...</p>
+        </div>
+      )}
+
+      <div className="sidebar">
+        <p className="sidebar-logo">Greenline Activations</p>
+        <p className="sidebar-brand">3CHI</p>
+        <p className="nav-label">Menu</p>
+        <a className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
+        <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
+        <a className={`nav-item ${activeSection === 'intel' ? 'active' : ''}`} onClick={() => setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
+        <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
+      </div>
+
+      <div className="main">
+        <div className="topbar">
+          <div className="topbar-left">
+            <h1>Activation Dashboard <button className="btn-refresh" onClick={fetchLiveData}>↻ Sync Data</button></h1>
+            <p>Live connected to Google Sheets</p>
+          </div>
+          <div className="topbar-right">
+            <span className="badge">{metrics.activations} Activations Logged</span>
+          </div>
+        </div>
+
+        {/* DASHBOARD TAB */}
+        <div className={`section ${activeSection === 'dashboard' ? 'active' : ''}`}>
+          <div className="stat-grid">
+            <div className="stat-card"><p className="stat-label">Consumers Sampled</p><p className="stat-value">{metrics.sampled}</p></div>
+            <div className="stat-card"><p className="stat-label">Total Purchases</p><p className="stat-value green">{metrics.sold}</p></div>
+            <div className="stat-card"><p className="stat-label">Avg Conversion Rate</p><p className="stat-value">{metrics.conversion}%</p></div>
+            <div className="stat-card"><p className="stat-label">Total Activations</p><p className="stat-value">{metrics.activations}</p></div>
+          </div>
+          <div className="two-col">
+            <div className="card">
+              <div className="card-header"><div><p className="card-title">Consumers Reached by Market</p><p className="card-sub">Top 3 Performing Cities</p></div></div>
+              <div className="chart-bars">
+                {metrics.markets.map((market, index) => (
+                  <div className="bar-col" key={index}>
+                    <div className="bar-fill" style={{height: `${(market.value / maxMarketValue) * 100}%`}}>
+                      <span className="bar-val">{market.value}</span>
+                    </div>
+                    <p className="bar-label">{market.city}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CALENDAR TAB */}
+        <div className={`section ${activeSection === 'calendar' ? 'active' : ''}`}>
+          <div className="card">
+            <div className="card-header"><div><p className="card-title">Activation Schedule</p></div></div>
+            <div className="cal-grid">
+              {metrics.calendar.map((event, index) => (
+                <div className={`cal-card status-${event.status}`} key={index}>
+                  <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
+                  <p className="cal-store">{event.store}</p>
+                  <p className="cal-market">{event.market} {event.address && `· ${event.address}`}</p>
+                  {event.products && <div className="cal-products">🎁 {event.products}</div>}
+                  <div className="cal-footer">
+                    <span className={`cal-status status-${event.status}`}>{event.status}</span>
+                    {event.samplingType && <span className="cal-tag">{event.samplingType}</span>}
+                  </div>
+                </div>
+              ))}
+              {metrics.calendar.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No activations found.</p>}
+            </div>
+          </div>
+        </div>
+
+        {/* INTEL TAB */}
+        <div className={`section ${activeSection === 'intel' ? 'active' : ''}`}>
+          <div className="card">
+            <div className="card-header"><div><p className="card-title">Market Intelligence</p><p className="card-sub">Latest feedback and photos</p></div></div>
+            {metrics.intel.map((item, index) => (
+               <div className="intel-item" key={index}>
+                  <span className="intel-icon">{item.icon}</span>
+                  <p className="intel-text">{item.text}</p>
+                  {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link">View Photo</a>}
+               </div>
+            ))}
+            {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No intel gathered yet.</p>}
+          </div>
+        </div>
+
+        {/* REQUEST TAB */}
+        <div className={`section ${activeSection === 'request' ? 'active' : ''}`}>
+          <div className="card">
+            <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
+            <div className="form-grid">
+              <div className="form-group"><label className="form-label">Store Name</label><input type="text" className="form-input" placeholder="e.g. Total Wine" /></div>
+              <div className="form-group"><label className="form-label">Store Address</label><input type="text" className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
+              <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" className="form-input" /></div>
+              <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" className="form-input" style={{flex: 1}} /><span>-</span><input type="time" className="form-input" style={{flex: 1}} /></div></div>
+            </div>
+            <button className="btn-submit" onClick={submitRequest}>Submit Request</button>
+            {showSuccess && <div className="success-msg">{uploadMessage}</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
