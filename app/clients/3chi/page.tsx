@@ -149,10 +149,14 @@ export default function UnifiedDashboard() {
 
   useEffect(() => { fetchLiveData(); }, []);
 
-  // --- NEW: PDF GENERATION FUNCTIONS ---
+// --- NEW: DYNAMIC PDF GENERATION FUNCTIONS ---
   const downloadDashboardReport = async () => {
     setIsExportingDashboard(true);
     try {
+      // Magically import the tools ONLY when the button is clicked!
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
       const element = document.getElementById("dashboard-export-area");
       if (!element) return;
       const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#f5f4ef" });
@@ -167,6 +171,29 @@ export default function UnifiedDashboard() {
       alert("Failed to generate PDF. Please try again.");
     }
     setIsExportingDashboard(false);
+  };
+
+  const downloadRecapReport = async () => {
+    setIsExportingRecap(true);
+    try {
+      // Magically import the tools ONLY when the button is clicked!
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const element = document.getElementById("recap-export-area");
+      if (!element) return;
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Recap_${selectedRecap.store.replace(/\s+/g, '_')}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Failed to generate Recap PDF.");
+    }
+    setIsExportingRecap(false);
   };
 
   const downloadRecapReport = async () => {
