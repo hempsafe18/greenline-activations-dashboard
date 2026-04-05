@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 
+const TARGET_BRAND = "3CHI";
+
 // 1. PASTE YOUR GOOGLE SHEET LINKS HERE
 const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
 const UPCOMING_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=0&single=true&output=csv";
