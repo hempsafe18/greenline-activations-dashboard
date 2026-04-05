@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 
-// 1. PASTE YOUR 3CHI PUBLISHED GOOGLE SHEETS CSV LINK HERE
-const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
+// 1. PASTE YOUR GOOGLE SHEET LINKS HERE
+const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
+const UPCOMING_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=0&single=true&output=csv";
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -37,75 +38,96 @@ export default function UnifiedDashboard() {
   const fetchLiveData = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(GOOGLE_SHEET_CSV_URL);
-      const text = await response.text();
-      
-      const rows = parseCSV(text);
-      const headers = rows[0].map((h: string) => h.trim());
-      const data = rows.slice(1).map((row: string[]) => {
-        let obj: any = {};
-        row.forEach((val, i) => obj[headers[i]] = val);
-        return obj;
-      });
+      // Fetch BOTH sheets at the same time
+      const [recapRes, upcomingRes] = await Promise.all([
+        fetch(RECAP_CSV_URL).catch(() => null),
+        fetch(UPCOMING_CSV_URL).catch(() => null)
+      ]);
 
+      let newCalendar: any[] = [];
       let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
       let cityCounts: Record<string, number> = {}; 
       let flavorCounts: Record<string, number> = {};
-      let newCalendar: any[] = [];
       let newIntel: any[] = [];
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // --- PROCESS RECAP DATA ---
+      if (recapRes && recapRes.ok) {
+        const text = await recapRes.text();
+        const rows = parseCSV(text);
+        const headers = rows[0].map((h: string) => h.trim());
+        const data = rows.slice(1).map((row: string[]) => {
+          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
+        });
 
-      data.forEach(row => {
-        // Because this is a dedicated sheet, we process EVERY row that has a store name
-        if (!row['Store Name']) return; 
-        
-        totalActivations++;
-        totalSampled += parseInt(row['Total consumers sampled']) || 0;
-        totalSold += parseInt(row['Estimated units sold']) || 0;
-        
-        const city = row['City'] || 'Unknown';
-        cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row['Total consumers sampled']) || 0);
-        
-        const flavor = row['Top performing flavor'];
-        if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
+        data.forEach(row => {
+          if (!row['Store Name']) return; 
+          
+          totalActivations++;
+          totalSampled += parseInt(row['Total consumers sampled']) || 0;
+          totalSold += parseInt(row['Estimated units sold']) || 0;
+          
+          const city = row['City'] || 'Unknown';
+          cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row['Total consumers sampled']) || 0);
+          
+          const flavor = row['Top performing flavor'];
+          if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
 
-        // INTEL: Consumer Objections
-        const objections = row['Consumer objections encountered'];
-        if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
-            newIntel.push({
-                type: 'objection',
-                icon: '💬',
-                text: `Objection at ${row['Store Name'] || city}: ${objections}`
+          // INTEL
+          const objections = row['Consumer objections encountered'];
+          if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
+              newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row['Store Name'] || city}: ${objections}` });
+          }
+
+          const photoLink = row['Engagement photo submission'];
+          if (photoLink && photoLink.includes('http')) {
+               newIntel.push({ type: 'photo', icon: '📸', text: `New engagement photo from ${row['Store Name'] || city}.`, link: photoLink });
+          }
+
+          // COMPLETED CALENDAR EVENTS
+          if (row['Activation Date']) {
+            newCalendar.push({
+              date: row['Activation Date'],
+              store: row['Store Name'],
+              market: city,
+              time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
+              status: "Complete",
+              sortDate: new Date(row['Activation Date'])
             });
-        }
+          }
+        });
+      }
 
-        // INTEL: Engagement Photo Link
-        const photoLink = row['Engagement photo submission'];
-        if (photoLink && photoLink.includes('http')) {
-             newIntel.push({
-                type: 'photo',
-                icon: '📸',
-                text: `New engagement photo from ${row['Store Name'] || city}.`,
-                link: photoLink
-             });
-        }
+      // --- PROCESS UPCOMING DATA ---
+      if (upcomingRes && upcomingRes.ok) {
+        const text = await upcomingRes.text();
+        const rows = parseCSV(text);
+        const headers = rows[0].map((h: string) => h.trim());
+        const data = rows.slice(1).map((row: string[]) => {
+          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
+        });
 
-        // CALENDAR LOGIC
-        if (row['Activation Date']) {
-          const actDate = new Date(row['Activation Date']);
-          const isUpcoming = actDate > today;
-
+        data.forEach(row => {
+          if (!row['Store Name'] || !row['Date']) return; 
+          
+          // Format the new fields
+          const startTime = row['Start Time'] || '';
+          const endTime = row['End Time'] || '';
+          const timeString = startTime && endTime ? `${startTime} - ${endTime}` : '';
+          
           newCalendar.push({
-            date: row['Activation Date'],
+            date: row['Date'],
             store: row['Store Name'],
-            market: `${city} · ${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
-            status: isUpcoming ? "Upcoming" : "Complete",
-            sortDate: actDate
+            market: row['Market'] || 'TBD',
+            address: row['Address'] || '',
+            time: timeString,
+            products: row['Products'] || '',
+            samplingType: row['Sampling Type'] || '',
+            purchaseReq: row['Product Purchase'] || '',
+            status: "Upcoming",
+            sortDate: new Date(row['Date'])
           });
-        }
-      });
+        });
+      }
 
       // Find top flavor
       let bestFlavor = "No data"; let maxFlavorCount = 0;
@@ -115,18 +137,15 @@ export default function UnifiedDashboard() {
 
       // Add top flavor to intel
       if (bestFlavor !== "No data") {
-        newIntel.unshift({
-            type: 'flavor',
-            icon: '🏆',
-            text: `Top performing SKU across recent activations is ${bestFlavor}.`
-        });
+        newIntel.unshift({ type: 'flavor', icon: '🏆', text: `Top performing SKU across recent activations is ${bestFlavor}.` });
       }
 
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
       
+      // Sort calendar: Upcoming dates first, then most recent completed dates
       newCalendar.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
 
-      if (totalActivations > 0) {
+      if (totalActivations > 0 || newCalendar.length > 0) {
         setMetrics({
           sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
@@ -193,12 +212,16 @@ export default function UnifiedDashboard() {
         .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; border-left: 3px solid var(--border); }
         .cal-card.status-Complete { border-left-color: var(--green); }
         .cal-card.status-Upcoming { border-left-color: var(--orange); }
-        .cal-date { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; margin-top: 0; }
+        .cal-date { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
+        .cal-time { text-transform: none; font-weight: 500; }
         .cal-store { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--black); margin-bottom: 4px; margin-top: 0; }
-        .cal-market { font-size: 11px; color: var(--muted); margin-bottom: 10px; margin-top: 0; }
+        .cal-market { font-size: 11px; color: var(--muted); margin-bottom: 8px; margin-top: 0; }
+        .cal-products { font-size: 10px; color: #666; margin-top: -4px; margin-bottom: 12px; background: #f5f5f5; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+        .cal-footer { display: flex; align-items: center; gap: 8px; }
         .cal-status { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; display: inline-block; }
         .cal-status.status-Complete { background: var(--green-pale); color: var(--green); }
         .cal-status.status-Upcoming { background: #fef3ec; color: var(--orange); }
+        .cal-tag { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
         .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; align-items: center; }
         .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; margin-top: 1px; }
         .intel-text { color: #555; line-height: 1.5; margin: 0; flex: 1; }
@@ -219,104 +242,4 @@ export default function UnifiedDashboard() {
       {isLoading && (
         <div className="loading-overlay">
           <div className="spinner"></div>
-          <p style={{fontWeight: 600, color: 'var(--green)'}}>Syncing live data...</p>
-        </div>
-      )}
-
-      <div className="sidebar">
-        <p className="sidebar-logo">Greenline Activations</p>
-        <p className="sidebar-brand">3CHI</p>
-        <p className="nav-label">Menu</p>
-        <a className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
-        <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
-        <a className={`nav-item ${activeSection === 'intel' ? 'active' : ''}`} onClick={() => setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
-        <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
-      </div>
-
-      <div className="main">
-        <div className="topbar">
-          <div className="topbar-left">
-            <h1>Activation Dashboard <button className="btn-refresh" onClick={fetchLiveData}>↻ Sync Data</button></h1>
-            <p>Live connected to Google Sheets</p>
-          </div>
-          <div className="topbar-right">
-            <span className="badge">{metrics.activations} Activations Logged</span>
-          </div>
-        </div>
-
-        {/* DASHBOARD TAB */}
-        <div className={`section ${activeSection === 'dashboard' ? 'active' : ''}`}>
-          <div className="stat-grid">
-            <div className="stat-card"><p className="stat-label">Consumers Sampled</p><p className="stat-value">{metrics.sampled}</p></div>
-            <div className="stat-card"><p className="stat-label">Total Purchases</p><p className="stat-value green">{metrics.sold}</p></div>
-            <div className="stat-card"><p className="stat-label">Avg Conversion Rate</p><p className="stat-value">{metrics.conversion}%</p></div>
-            <div className="stat-card"><p className="stat-label">Total Activations</p><p className="stat-value">{metrics.activations}</p></div>
-          </div>
-          <div className="two-col">
-            <div className="card">
-              <div className="card-header"><div><p className="card-title">Consumers Reached by Market</p><p className="card-sub">Top 3 Performing Cities</p></div></div>
-              <div className="chart-bars">
-                {metrics.markets.map((market, index) => (
-                  <div className="bar-col" key={index}>
-                    <div className="bar-fill" style={{height: `${(market.value / maxMarketValue) * 100}%`}}>
-                      <span className="bar-val">{market.value}</span>
-                    </div>
-                    <p className="bar-label">{market.city}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* CALENDAR TAB */}
-        <div className={`section ${activeSection === 'calendar' ? 'active' : ''}`}>
-          <div className="card">
-            <div className="card-header"><div><p className="card-title">Activation Schedule</p></div></div>
-            <div className="cal-grid">
-              {metrics.calendar.map((event, index) => (
-                <div className={`cal-card status-${event.status}`} key={index}>
-                  <p className="cal-date">{event.date}</p>
-                  <p className="cal-store">{event.store}</p>
-                  <p className="cal-market">{event.market}</p>
-                  <span className={`cal-status status-${event.status}`}>{event.status}</span>
-                </div>
-              ))}
-              {metrics.calendar.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No activations found.</p>}
-            </div>
-          </div>
-        </div>
-
-        {/* INTEL TAB */}
-        <div className={`section ${activeSection === 'intel' ? 'active' : ''}`}>
-          <div className="card">
-            <div className="card-header"><div><p className="card-title">Market Intelligence</p><p className="card-sub">Latest feedback and photos</p></div></div>
-            {metrics.intel.map((item, index) => (
-               <div className="intel-item" key={index}>
-                  <span className="intel-icon">{item.icon}</span>
-                  <p className="intel-text">{item.text}</p>
-                  {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link">View Photo</a>}
-               </div>
-            ))}
-            {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No intel gathered yet.</p>}
-          </div>
-        </div>
-
-        {/* REQUEST TAB */}
-        <div className={`section ${activeSection === 'request' ? 'active' : ''}`}>
-          <div className="card">
-            <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
-            <div className="form-grid">
-              <div className="form-group"><label className="form-label">Store Name</label><input type="text" className="form-input" placeholder="e.g. Total Wine" /></div>
-              <div className="form-group"><label className="form-label">Store Address</label><input type="text" className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
-              <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" className="form-input" /></div>
-              <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" className="form-input" style={{flex: 1}} /><span>-</span><input type="time" className="form-input" style={{flex: 1}} /></div></div>
-            </div>
-            <button className="btn-submit" onClick={submitRequest}>Submit Request</button>
-            {showSuccess && <div className="success-msg">{uploadMessage}</div>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+          <p style={{fontWeight: 600,
