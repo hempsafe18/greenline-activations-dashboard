@@ -10,16 +10,18 @@ export default function UnifiedDashboard() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- DYNAMIC DASHBOARD STATE ---
-  const [metrics, setMetrics] = useState({
-    sampled: 0, sold: 0, activations: 0, conversion: 0, 
-    markets: [] as any[], 
-    calendar: [] as any[],
-    intel: [] as any[]
+  // --- NEW: FORM CAPTURE STATE ---
+  const [formData, setFormData] = useState({
+    storeName: "", address: "", date: "", startTime: "", endTime: ""
   });
 
-  // --- CUSTOM CSV PARSER ---
+  const [metrics, setMetrics] = useState({
+    sampled: 0, sold: 0, activations: 0, conversion: 0, 
+    markets: [] as any[], calendar: [] as any[], intel: [] as any[]
+  });
+
   const parseCSV = (str: string) => {
     const result = []; let row = []; let cell = ''; let quote = false;
     for (let i = 0; i < str.length; i++) {
@@ -34,11 +36,9 @@ export default function UnifiedDashboard() {
     return result;
   };
 
-  // --- AUTOMATIC LIVE DATA FETCH ---
   const fetchLiveData = async () => {
     setIsLoading(true);
     try {
-      // Fetch BOTH sheets at the same time
       const [recapRes, upcomingRes] = await Promise.all([
         fetch(RECAP_CSV_URL).catch(() => null),
         fetch(UPCOMING_CSV_URL).catch(() => null)
@@ -50,7 +50,6 @@ export default function UnifiedDashboard() {
       let flavorCounts: Record<string, number> = {};
       let newIntel: any[] = [];
 
-      // --- PROCESS RECAP DATA ---
       if (recapRes && recapRes.ok) {
         const text = await recapRes.text();
         const rows = parseCSV(text);
@@ -72,7 +71,6 @@ export default function UnifiedDashboard() {
           const flavor = row['Top performing flavor'];
           if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
 
-          // INTEL
           const objections = row['Consumer objections encountered'];
           if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
               newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row['Store Name'] || city}: ${objections}` });
@@ -83,21 +81,16 @@ export default function UnifiedDashboard() {
                newIntel.push({ type: 'photo', icon: '📸', text: `New engagement photo from ${row['Store Name'] || city}.`, link: photoLink });
           }
 
-          // COMPLETED CALENDAR EVENTS
           if (row['Activation Date']) {
             newCalendar.push({
-              date: row['Activation Date'],
-              store: row['Store Name'],
-              market: city,
+              date: row['Activation Date'], store: row['Store Name'], market: city,
               time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
-              status: "Complete",
-              sortDate: new Date(row['Activation Date'])
+              status: "Complete", sortDate: new Date(row['Activation Date'])
             });
           }
         });
       }
 
-      // --- PROCESS UPCOMING DATA ---
       if (upcomingRes && upcomingRes.ok) {
         const text = await upcomingRes.text();
         const rows = parseCSV(text);
@@ -108,64 +101,78 @@ export default function UnifiedDashboard() {
 
         data.forEach(row => {
           if (!row['Store Name'] || !row['Date']) return; 
-          
-          // Format the new fields
-          const startTime = row['Start Time'] || '';
-          const endTime = row['End Time'] || '';
-          const timeString = startTime && endTime ? `${startTime} - ${endTime}` : '';
+          const startTime = row['Start Time'] || ''; const endTime = row['End Time'] || '';
           
           newCalendar.push({
-            date: row['Date'],
-            store: row['Store Name'],
-            market: row['Market'] || 'TBD',
-            address: row['Address'] || '',
-            time: timeString,
-            products: row['Products'] || '',
-            samplingType: row['Sampling Type'] || '',
-            purchaseReq: row['Product Purchase'] || '',
-            status: "Upcoming",
-            sortDate: new Date(row['Date'])
+            date: row['Date'], store: row['Store Name'], market: row['Market'] || 'TBD',
+            address: row['Address'] || '', time: startTime && endTime ? `${startTime} - ${endTime}` : '',
+            products: row['Products'] || '', samplingType: row['Sampling Type'] || '',
+            purchaseReq: row['Product Purchase'] || '', status: "Upcoming", sortDate: new Date(row['Date'])
           });
         });
       }
 
-      // Find top flavor
       let bestFlavor = "No data"; let maxFlavorCount = 0;
       for (const [flavor, count] of Object.entries(flavorCounts)) {
         if (count > maxFlavorCount) { bestFlavor = flavor; maxFlavorCount = count; }
       }
 
-      // Add top flavor to intel
       if (bestFlavor !== "No data") {
         newIntel.unshift({ type: 'flavor', icon: '🏆', text: `Top performing SKU across recent activations is ${bestFlavor}.` });
       }
 
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
-      
-      // Sort calendar: Upcoming dates first, then most recent completed dates
       newCalendar.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
 
       if (totalActivations > 0 || newCalendar.length > 0) {
         setMetrics({
           sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
-          markets: markets,
-          calendar: newCalendar.slice(0, 6),
-          intel: newIntel.slice(0, 5)
+          markets: markets, calendar: newCalendar.slice(0, 6), intel: newIntel.slice(0, 5)
         });
       }
-    } catch (error) {
-      console.error("Failed to fetch data", error);
-    }
+    } catch (error) { console.error("Failed to fetch data", error); }
     setIsLoading(false);
   };
 
   useEffect(() => { fetchLiveData(); }, []);
 
-  const submitRequest = () => {
-    setShowSuccess(true);
-    setUploadMessage("✅ Request submitted successfully. Greenline will review shortly.");
+  // --- NEW: HANDLE API SUBMISSION ---
+  const submitRequest = async () => {
+    if (!formData.storeName || !formData.date) {
+      alert("Please fill out at least the Store Name and Date.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const response = await fetch('/api/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, client: TARGET_BRAND })
+      });
+
+      if (response.ok) {
+        setUploadMessage("✅ Request submitted successfully. The team has been notified.");
+        setShowSuccess(true);
+        // Reset the form
+        setFormData({ storeName: "", address: "", date: "", startTime: "", endTime: "" });
+      } else {
+        setUploadMessage("❌ Failed to send request. Please try again.");
+        setShowSuccess(true);
+      }
+    } catch (error) {
+      setUploadMessage("❌ Network error. Please try again.");
+      setShowSuccess(true);
+    }
+    
+    setIsSubmitting(false);
     setTimeout(() => setShowSuccess(false), 5000);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const maxMarketValue = Math.max(...metrics.markets.map(m => m.value), 1);
@@ -233,6 +240,7 @@ export default function UnifiedDashboard() {
         .form-input { font-family: 'Outfit', sans-serif; font-size: 13px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--black); outline: none; }
         .time-inputs { display: flex; align-items: center; gap: 10px; }
         .btn-submit { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; background: var(--green); color: white; border: none; padding: 12px 28px; border-radius: 8px; cursor: pointer; transition: opacity 0.2s; }
+        .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
         .success-msg { background: var(--green-pale); border: 1px solid var(--green-light); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: var(--green); font-weight: 500; margin-top: 14px; }
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
         .spinner { border: 4px solid rgba(0,0,0,0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: var(--green); animation: spin 1s linear infinite; margin-bottom: 16px; }
@@ -248,7 +256,7 @@ export default function UnifiedDashboard() {
 
       <div className="sidebar">
         <p className="sidebar-logo">Greenline Activations</p>
-        <p className="sidebar-brand">3CHI</p>
+        <p className="sidebar-brand">{TARGET_BRAND}</p>
         <p className="nav-label">Menu</p>
         <a className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
         <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
@@ -333,13 +341,34 @@ export default function UnifiedDashboard() {
         <div className={`section ${activeSection === 'request' ? 'active' : ''}`}>
           <div className="card">
             <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
+            
+            {/* UPDATED: Data Binding for Inputs */}
             <div className="form-grid">
-              <div className="form-group"><label className="form-label">Store Name</label><input type="text" className="form-input" placeholder="e.g. Total Wine" /></div>
-              <div className="form-group"><label className="form-label">Store Address</label><input type="text" className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
-              <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" className="form-input" /></div>
-              <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" className="form-input" style={{flex: 1}} /><span>-</span><input type="time" className="form-input" style={{flex: 1}} /></div></div>
+              <div className="form-group">
+                <label className="form-label">Store Name</label>
+                <input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Total Wine" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Store Address</label>
+                <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Preferred Date</label>
+                <input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Time (From - To)</label>
+                <div className="time-inputs">
+                  <input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} />
+                  <span>-</span>
+                  <input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} />
+                </div>
+              </div>
             </div>
-            <button className="btn-submit" onClick={submitRequest}>Submit Request</button>
+
+            <button className="btn-submit" onClick={submitRequest} disabled={isSubmitting}>
+              {isSubmitting ? "Sending..." : "Submit Request"}
+            </button>
             {showSuccess && <div className="success-msg">{uploadMessage}</div>}
           </div>
         </div>
