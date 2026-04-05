@@ -17,8 +17,9 @@ export async function POST(req: Request) {
 
     // 2. SEND TO HUBSPOT (Creates a new "Deal" in your CRM)
     const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
+    
     if (hubspotToken) {
-      await fetch('https://api.hubapi.com/crm/v3/objects/deals', {
+      const response = await fetch('https://api.hubapi.com/crm/v3/objects/deals', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${hubspotToken}`,
@@ -29,33 +30,21 @@ export async function POST(req: Request) {
             dealname: `Activation Request: ${storeName} (${client})`,
             description: notificationText,
             dealstage: "appointmentscheduled", // A standard default HubSpot stage
+            pipeline: "default"
           }
         })
       });
-    }
 
-    // 3. SEND EMAIL NOTIFICATION (Using Resend API)
-    const resendToken = process.env.RESEND_API_KEY;
-    const adminEmail = process.env.ADMIN_EMAIL; // Where you want to receive alerts
-    
-    if (resendToken && adminEmail) {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: "Greenline Alerts <onboarding@resend.dev>", // Resend's default testing address
-          to: [adminEmail],
-          subject: `🟢 New Activation Request: ${client} - ${storeName}`,
-          text: notificationText,
-        })
-      });
+      if (!response.ok) {
+        console.error("HubSpot Error:", await response.text());
+        return NextResponse.json({ success: false, error: "Failed to create deal in HubSpot" }, { status: 500 });
+      }
+    } else {
+      console.warn("No HubSpot token found in environment variables.");
     }
 
     // Tell the dashboard it was successful
-    return NextResponse.json({ success: true, message: "Request processed successfully" });
+    return NextResponse.json({ success: true, message: "Request sent to HubSpot successfully" });
 
   } catch (error) {
     console.error("API Route Error:", error);
