@@ -15,11 +15,13 @@ export default function UnifiedDashboard() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // PDF Loading States
+  const [isExportingDashboard, setIsExportingDashboard] = useState(false);
+  const [isExportingRecap, setIsExportingRecap] = useState(false);
 
   // Modal States
   const [changeModal, setChangeModal] = useState({ isOpen: false, type: "", event: null as any, notes: "" });
-  
-  // NEW: State for the Full Recap Modal
   const [selectedRecap, setSelectedRecap] = useState<any>(null);
 
   const [formData, setFormData] = useState({
@@ -95,8 +97,6 @@ export default function UnifiedDashboard() {
               date: row['Activation Date'], store: row['Store Name'], market: city,
               time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
               status: "Complete", sortDate: new Date(row['Activation Date']),
-              
-              // NEW: We save the entire spreadsheet row to the calendar event!
               fullData: row 
             });
           }
@@ -148,6 +148,45 @@ export default function UnifiedDashboard() {
   };
 
   useEffect(() => { fetchLiveData(); }, []);
+
+  // --- NEW: PDF GENERATION FUNCTIONS ---
+  const downloadDashboardReport = async () => {
+    setIsExportingDashboard(true);
+    try {
+      const element = document.getElementById("dashboard-export-area");
+      if (!element) return;
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#f5f4ef" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${TARGET_BRAND}_Activation_Report.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Failed to generate PDF. Please try again.");
+    }
+    setIsExportingDashboard(false);
+  };
+
+  const downloadRecapReport = async () => {
+    setIsExportingRecap(true);
+    try {
+      const element = document.getElementById("recap-export-area");
+      if (!element) return;
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Recap_${selectedRecap.store.replace(/\s+/g, '_')}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Failed to generate Recap PDF.");
+    }
+    setIsExportingRecap(false);
+  };
 
   const submitRequest = async () => {
     if (!formData.storeName || !formData.date) { alert("Please fill out at least the Store Name and Date."); return; }
@@ -206,7 +245,6 @@ export default function UnifiedDashboard() {
 
   const maxMarketValue = Math.max(...metrics.markets.map(m => m.value), 1);
 
-  // Helper to render links beautifully in the recap modal
   const renderRecapValue = (val: string) => {
     if (val && val.toString().startsWith('http')) {
       return <a href={val} target="_blank" rel="noopener noreferrer" style={{color: 'var(--green)', fontWeight: 'bold', textDecoration: 'underline'}}>View Link / File ↗</a>;
@@ -233,8 +271,8 @@ export default function UnifiedDashboard() {
         .topbar-left p { font-size: 13px; color: var(--muted); margin-top: 2px; margin-bottom: 0; }
         .topbar-right { display: flex; align-items: center; gap: 16px; }
         .badge { background: var(--green-pale); color: var(--green); font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 20px; }
-        .btn-refresh { background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--black); transition: 0.2s; }
-        .btn-refresh:hover { background: var(--green-pale); color: var(--green); border-color: var(--green-light); }
+        .btn-action-primary { background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--black); transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+        .btn-action-primary:hover { background: var(--green-pale); color: var(--green); border-color: var(--green-light); }
         .section { display: none; } .section.active { display: block; }
         .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
         .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; position: relative; overflow: hidden; }
@@ -254,12 +292,9 @@ export default function UnifiedDashboard() {
         .bar-val { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 600; color: var(--black); white-space: nowrap; }
         .cal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
         .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; border-left: 3px solid var(--border); display: flex; flex-direction: column; }
-        
-        /* NEW: Clickable Card CSS */
         .cal-card.clickable { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
         .cal-card.clickable:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
         .cal-view-details { font-size: 10px; font-weight: 700; color: var(--green); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px; }
-        
         .cal-card.status-Complete { border-left-color: var(--green); }
         .cal-card.status-Upcoming { border-left-color: var(--orange); }
         .cal-date { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
@@ -277,6 +312,8 @@ export default function UnifiedDashboard() {
         .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; align-items: center; }
         .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; margin-top: 1px; }
         .intel-text { color: #555; line-height: 1.5; margin: 0; flex: 1; }
+        .intel-link { color: var(--green); text-decoration: none; font-weight: bold; font-size: 11px; padding: 4px 8px; border: 1px solid var(--green); border-radius: 4px; }
+        .intel-link:hover { background: var(--green); color: white; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-group.full { grid-column: 1 / -1; }
@@ -355,21 +392,26 @@ export default function UnifiedDashboard() {
       {/* FULL RECAP MODAL (COMPLETED) */}
       {selectedRecap && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSelectedRecap(null)}}>
-          <div className="modal-content large">
+          {/* We added an ID here so the PDF generator knows exactly what to capture */}
+          <div className="modal-content large" id="recap-export-area">
             <div className="modal-header">
               <div>
                 <h3 className="modal-title">Activation Recap: {selectedRecap.store}</h3>
                 <p className="modal-desc" style={{margin: '4px 0 0 0'}}>{selectedRecap.date} · {selectedRecap.market}</p>
               </div>
-              <button className="btn-close-icon" onClick={() => setSelectedRecap(null)}>✕</button>
+              
+              <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+                {/* 🚨 PDF EXPORT BUTTON (Hidden from the actual PDF using data-html2canvas-ignore) 🚨 */}
+                <button className="btn-action-primary" onClick={downloadRecapReport} disabled={isExportingRecap} data-html2canvas-ignore="true">
+                  {isExportingRecap ? "Generating PDF..." : "⬇ Download Report"}
+                </button>
+                <button className="btn-close-icon" onClick={() => setSelectedRecap(null)} data-html2canvas-ignore="true">✕</button>
+              </div>
             </div>
             
             <div className="recap-grid">
               {Object.entries(selectedRecap.fullData).map(([key, val]) => {
-                // Skip empty values or redundant columns we already showed in the header
                 if (!val || String(val).trim() === '' || key === 'Store Name' || key === 'Brand Name' || key === 'Activation Date' || key === 'Timestamp' || key === 'City') return null;
-                
-                // Make long text fields take up the full width
                 const isLongText = String(val).length > 60 || key.includes("Notes") || key.includes("objections") || key.includes("describe");
 
                 return (
@@ -384,14 +426,7 @@ export default function UnifiedDashboard() {
         </div>
       )}
 
-      {isLoading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-          <p style={{fontWeight: 600, color: 'var(--green)'}}>Syncing live data...</p>
-        </div>
-      )}
-
-      <div className="sidebar">
+      <div className="sidebar" data-html2canvas-ignore="true">
         <p className="sidebar-logo">Greenline Activations</p>
         <p className="sidebar-brand">{TARGET_BRAND}</p>
         <p className="nav-label">Menu</p>
@@ -401,13 +436,23 @@ export default function UnifiedDashboard() {
         <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
       </div>
 
-      <div className="main">
+      {/* The export area grabs the main dashboard (but ignores the sidebar) */}
+      <div className="main" id="dashboard-export-area">
         <div className="topbar">
           <div className="topbar-left">
-            <h1>Activation Dashboard <button className="btn-refresh" onClick={fetchLiveData}>↻ Sync Data</button></h1>
-            <p>Live connected to Google Sheets</p>
+            <h1>
+              Activation Dashboard 
+              {/* 🚨 REFRESH AND EXPORT BUTTONS 🚨 */}
+              <div style={{display: 'flex', gap: '8px', marginTop: '10px'}} data-html2canvas-ignore="true">
+                <button className="btn-action-primary" onClick={fetchLiveData}>↻ Sync Data</button>
+                <button className="btn-action-primary" onClick={downloadDashboardReport} disabled={isExportingDashboard}>
+                  {isExportingDashboard ? "Generating PDF..." : "⬇ Export Dashboard"}
+                </button>
+              </div>
+            </h1>
+            <p style={{marginTop: '6px'}}>Live connected to Google Sheets</p>
           </div>
-          <div className="topbar-right">
+          <div className="topbar-right" data-html2canvas-ignore="true">
             <UserButton />
             <span className="badge">{metrics.activations} Activations Logged</span>
           </div>
@@ -449,7 +494,6 @@ export default function UnifiedDashboard() {
                   <div 
                     className={`cal-card status-${event.status} ${isComplete ? 'clickable' : ''}`} 
                     key={index}
-                    // Click handler opens the detailed recap modal!
                     onClick={() => isComplete ? setSelectedRecap(event) : null}
                   >
                     <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
@@ -463,15 +507,14 @@ export default function UnifiedDashboard() {
                       </div>
                       
                       {event.status === 'Upcoming' && (
-                        <div className="cal-actions">
+                        <div className="cal-actions" data-html2canvas-ignore="true">
                           <button className="btn-action" onClick={(e) => { e.stopPropagation(); setChangeModal({isOpen: true, type: 'Edit', event, notes: ''}); }}>Edit</button>
                           <button className="btn-action" onClick={(e) => { e.stopPropagation(); setChangeModal({isOpen: true, type: 'Cancel', event, notes: ''}); }}>Cancel</button>
                         </div>
                       )}
                     </div>
                     
-                    {/* Visual cue that the card is clickable */}
-                    {isComplete && <div className="cal-view-details">Read Full Report →</div>}
+                    {isComplete && <div className="cal-view-details" data-html2canvas-ignore="true">Read Full Report →</div>}
                   </div>
                 );
               })}
@@ -488,7 +531,7 @@ export default function UnifiedDashboard() {
                <div className="intel-item" key={index}>
                   <span className="intel-icon">{item.icon}</span>
                   <p className="intel-text">{item.text}</p>
-                  {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link">View Photo</a>}
+                  {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link" data-html2canvas-ignore="true">View Photo</a>}
                </div>
             ))}
             {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No intel gathered yet.</p>}
@@ -496,7 +539,7 @@ export default function UnifiedDashboard() {
         </div>
 
         {/* REQUEST TAB */}
-        <div className={`section ${activeSection === 'request' ? 'active' : ''}`}>
+        <div className={`section ${activeSection === 'request' ? 'active' : ''}`} data-html2canvas-ignore="true">
           <div className="card">
             <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
             <div className="form-grid">
