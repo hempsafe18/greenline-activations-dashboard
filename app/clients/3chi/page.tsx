@@ -16,8 +16,11 @@ export default function UnifiedDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Modal State for Edits/Cancels
+  // Modal States
   const [changeModal, setChangeModal] = useState({ isOpen: false, type: "", event: null as any, notes: "" });
+  
+  // NEW: State for the Full Recap Modal
+  const [selectedRecap, setSelectedRecap] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     storeName: "", address: "", date: "", startTime: "", endTime: "", notes: ""
@@ -91,7 +94,10 @@ export default function UnifiedDashboard() {
             newCalendar.push({
               date: row['Activation Date'], store: row['Store Name'], market: city,
               time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
-              status: "Complete", sortDate: new Date(row['Activation Date'])
+              status: "Complete", sortDate: new Date(row['Activation Date']),
+              
+              // NEW: We save the entire spreadsheet row to the calendar event!
+              fullData: row 
             });
           }
         });
@@ -200,6 +206,14 @@ export default function UnifiedDashboard() {
 
   const maxMarketValue = Math.max(...metrics.markets.map(m => m.value), 1);
 
+  // Helper to render links beautifully in the recap modal
+  const renderRecapValue = (val: string) => {
+    if (val && val.toString().startsWith('http')) {
+      return <a href={val} target="_blank" rel="noopener noreferrer" style={{color: 'var(--green)', fontWeight: 'bold', textDecoration: 'underline'}}>View Link / File ↗</a>;
+    }
+    return val;
+  };
+
   return (
     <div className="dashboard-wrapper">
       <style dangerouslySetInnerHTML={{ __html: `
@@ -240,6 +254,12 @@ export default function UnifiedDashboard() {
         .bar-val { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 600; color: var(--black); white-space: nowrap; }
         .cal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
         .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; border-left: 3px solid var(--border); display: flex; flex-direction: column; }
+        
+        /* NEW: Clickable Card CSS */
+        .cal-card.clickable { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .cal-card.clickable:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+        .cal-view-details { font-size: 10px; font-weight: 700; color: var(--green); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px; }
+        
         .cal-card.status-Complete { border-left-color: var(--green); }
         .cal-card.status-Upcoming { border-left-color: var(--orange); }
         .cal-date { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
@@ -273,10 +293,20 @@ export default function UnifiedDashboard() {
         /* Modal Styles */
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
         .modal-content { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 400px; }
-        .modal-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-top: 0; margin-bottom: 8px; }
+        .modal-content.large { max-width: 700px; max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px; }
+        .modal-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin: 0; }
         .modal-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .btn-close-icon { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); padding: 0; line-height: 1; }
         .btn-cancel { background: white; border: 1px solid var(--border); padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }
+        
+        /* Recap Data Grid */
+        .recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .recap-item { background: #fafaf8; border: 1px solid var(--border); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 4px; }
+        .recap-item.full-width { grid-column: 1 / -1; }
+        .recap-key { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+        .recap-val { font-size: 13px; color: var(--black); word-break: break-word; }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @media (max-width: 768px) {
@@ -293,12 +323,13 @@ export default function UnifiedDashboard() {
           .form-grid { grid-template-columns: 1fr; }
           .time-inputs { flex-direction: column; align-items: flex-start; gap: 8px; }
           .time-inputs span { display: none; }
+          .recap-grid { grid-template-columns: 1fr; }
         }
       `}} />
 
-      {/* CHANGE REQUEST MODAL */}
+      {/* CHANGE REQUEST MODAL (UPCOMING) */}
       {changeModal.isOpen && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setChangeModal({isOpen: false, type: "", event: null, notes: ""})}}>
           <div className="modal-content">
             <h3 className="modal-title">{changeModal.type} Activation</h3>
             <p className="modal-desc">{changeModal.event.store} on {changeModal.event.date}</p>
@@ -316,6 +347,38 @@ export default function UnifiedDashboard() {
               <button className="btn-submit" onClick={submitChangeRequest} disabled={isSubmitting}>
                 {isSubmitting ? "Sending..." : "Submit Request"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULL RECAP MODAL (COMPLETED) */}
+      {selectedRecap && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSelectedRecap(null)}}>
+          <div className="modal-content large">
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">Activation Recap: {selectedRecap.store}</h3>
+                <p className="modal-desc" style={{margin: '4px 0 0 0'}}>{selectedRecap.date} · {selectedRecap.market}</p>
+              </div>
+              <button className="btn-close-icon" onClick={() => setSelectedRecap(null)}>✕</button>
+            </div>
+            
+            <div className="recap-grid">
+              {Object.entries(selectedRecap.fullData).map(([key, val]) => {
+                // Skip empty values or redundant columns we already showed in the header
+                if (!val || String(val).trim() === '' || key === 'Store Name' || key === 'Brand Name' || key === 'Activation Date' || key === 'Timestamp' || key === 'City') return null;
+                
+                // Make long text fields take up the full width
+                const isLongText = String(val).length > 60 || key.includes("Notes") || key.includes("objections") || key.includes("describe");
+
+                return (
+                  <div className={`recap-item ${isLongText ? 'full-width' : ''}`} key={key}>
+                    <span className="recap-key">{key}</span>
+                    <span className="recap-val">{renderRecapValue(String(val))}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -380,28 +443,38 @@ export default function UnifiedDashboard() {
           <div className="card">
             <div className="card-header"><div><p className="card-title">Activation Schedule</p></div></div>
             <div className="cal-grid">
-              {metrics.calendar.map((event, index) => (
-                <div className={`cal-card status-${event.status}`} key={index}>
-                  <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
-                  <p className="cal-store">{event.store}</p>
-                  <p className="cal-market">{event.market} {event.address && `· ${event.address}`}</p>
-                  {event.products && <div className="cal-products">🎁 {event.products}</div>}
-                  
-                  <div className="cal-footer">
-                    <div>
-                      <span className={`cal-status status-${event.status}`}>{event.status}</span>
+              {metrics.calendar.map((event, index) => {
+                const isComplete = event.status === 'Complete';
+                return (
+                  <div 
+                    className={`cal-card status-${event.status} ${isComplete ? 'clickable' : ''}`} 
+                    key={index}
+                    // Click handler opens the detailed recap modal!
+                    onClick={() => isComplete ? setSelectedRecap(event) : null}
+                  >
+                    <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
+                    <p className="cal-store">{event.store}</p>
+                    <p className="cal-market">{event.market} {event.address && `· ${event.address}`}</p>
+                    {event.products && <div className="cal-products">🎁 {event.products}</div>}
+                    
+                    <div className="cal-footer">
+                      <div>
+                        <span className={`cal-status status-${event.status}`}>{event.status}</span>
+                      </div>
+                      
+                      {event.status === 'Upcoming' && (
+                        <div className="cal-actions">
+                          <button className="btn-action" onClick={(e) => { e.stopPropagation(); setChangeModal({isOpen: true, type: 'Edit', event, notes: ''}); }}>Edit</button>
+                          <button className="btn-action" onClick={(e) => { e.stopPropagation(); setChangeModal({isOpen: true, type: 'Cancel', event, notes: ''}); }}>Cancel</button>
+                        </div>
+                      )}
                     </div>
                     
-                    {/* NEW: Edit/Cancel Buttons for Upcoming Events */}
-                    {event.status === 'Upcoming' && (
-                      <div className="cal-actions">
-                        <button className="btn-action" onClick={() => setChangeModal({isOpen: true, type: 'Edit', event, notes: ''})}>Edit</button>
-                        <button className="btn-action" onClick={() => setChangeModal({isOpen: true, type: 'Cancel', event, notes: ''})}>Cancel</button>
-                      </div>
-                    )}
+                    {/* Visual cue that the card is clickable */}
+                    {isComplete && <div className="cal-view-details">Read Full Report →</div>}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {metrics.calendar.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No activations found.</p>}
             </div>
           </div>
@@ -432,7 +505,6 @@ export default function UnifiedDashboard() {
               <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" /></div>
               <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /></div></div>
               
-              {/* NEW: Notes Field */}
               <div className="form-group full">
                 <label className="form-label">Additional Notes</label>
                 <textarea name="notes" value={formData.notes} onChange={handleInputChange} className="form-input form-textarea" placeholder="Any specific requirements, target demographics, or special instructions..." />
