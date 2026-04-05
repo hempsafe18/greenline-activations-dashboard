@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    // 1. Unpack the data sent from the dashboard
     const body = await req.json();
     const { storeName, address, date, startTime, endTime, client } = body;
 
@@ -15,7 +14,6 @@ export async function POST(req: Request) {
       Time: ${startTime} - ${endTime}
     `;
 
-    // 2. SEND TO HUBSPOT (Creates a new "Deal" in your CRM)
     const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
     
     if (hubspotToken) {
@@ -29,8 +27,11 @@ export async function POST(req: Request) {
           properties: {
             dealname: `Activation Request: ${storeName} (${client})`,
             description: notificationText,
-            dealstage: "appointmentscheduled", // A standard default HubSpot stage
-            pipeline: "default"
+            
+            // --- UPDATED HUBSPOT ROUTING ---
+            pipeline: "883257455", 
+            dealstage: "1327057675", 
+            hubspot_owner_id: "72940663"
           }
         })
       });
@@ -43,7 +44,6 @@ export async function POST(req: Request) {
       console.warn("No HubSpot token found in environment variables.");
     }
 
-    // Tell the dashboard it was successful
     return NextResponse.json({ success: true, message: "Request sent to HubSpot successfully" });
 
   } catch (error) {
