@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-// 🚨 NEW IMPORT ADDED HERE 🚨
 import { UserButton } from "@clerk/nextjs";
 
 const TARGET_BRAND = "3CHI"; 
@@ -149,11 +148,10 @@ export default function UnifiedDashboard() {
 
   useEffect(() => { fetchLiveData(); }, []);
 
-// --- NEW: DYNAMIC PDF GENERATION FUNCTIONS ---
+  // --- NEW: DYNAMIC PDF GENERATION FUNCTIONS ---
   const downloadDashboardReport = async () => {
     setIsExportingDashboard(true);
     try {
-      // Magically import the tools ONLY when the button is clicked!
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
 
@@ -176,29 +174,9 @@ export default function UnifiedDashboard() {
   const downloadRecapReport = async () => {
     setIsExportingRecap(true);
     try {
-      // Magically import the tools ONLY when the button is clicked!
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
 
-      const element = document.getElementById("recap-export-area");
-      if (!element) return;
-      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Recap_${selectedRecap.store.replace(/\s+/g, '_')}.pdf`);
-    } catch (error) {
-      console.error("PDF generation failed", error);
-      alert("Failed to generate Recap PDF.");
-    }
-    setIsExportingRecap(false);
-  };
-
-  const downloadRecapReport = async () => {
-    setIsExportingRecap(true);
-    try {
       const element = document.getElementById("recap-export-area");
       if (!element) return;
       const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
@@ -555,38 +533,3 @@ export default function UnifiedDashboard() {
           <div className="card">
             <div className="card-header"><div><p className="card-title">Market Intelligence</p><p className="card-sub">Latest feedback and photos</p></div></div>
             {metrics.intel.map((item, index) => (
-               <div className="intel-item" key={index}>
-                  <span className="intel-icon">{item.icon}</span>
-                  <p className="intel-text">{item.text}</p>
-                  {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link" data-html2canvas-ignore="true">View Photo</a>}
-               </div>
-            ))}
-            {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No intel gathered yet.</p>}
-          </div>
-        </div>
-
-        {/* REQUEST TAB */}
-        <div className={`section ${activeSection === 'request' ? 'active' : ''}`} data-html2canvas-ignore="true">
-          <div className="card">
-            <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
-            <div className="form-grid">
-              <div className="form-group"><label className="form-label">Store Name</label><input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Total Wine" /></div>
-              <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
-              <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" /></div>
-              <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /></div></div>
-              
-              <div className="form-group full">
-                <label className="form-label">Additional Notes</label>
-                <textarea name="notes" value={formData.notes} onChange={handleInputChange} className="form-input form-textarea" placeholder="Any specific requirements, target demographics, or special instructions..." />
-              </div>
-            </div>
-            <button className="btn-submit" onClick={submitRequest} disabled={isSubmitting}>
-              {isSubmitting ? "Sending..." : "Submit Request"}
-            </button>
-            {showSuccess && <div className="success-msg">{uploadMessage}</div>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
