@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
+// 🚨 NEW IMPORT ADDED HERE 🚨
+import { UserButton } from "@clerk/nextjs";
 
-const TARGET_BRAND = "3CHI";
+const TARGET_BRAND = "3CHI"; 
 
 // 1. PASTE YOUR GOOGLE SHEET LINKS HERE
 const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
@@ -14,7 +16,6 @@ export default function UnifiedDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- NEW: FORM CAPTURE STATE ---
   const [formData, setFormData] = useState({
     storeName: "", address: "", date: "", startTime: "", endTime: ""
   });
@@ -139,7 +140,6 @@ export default function UnifiedDashboard() {
 
   useEffect(() => { fetchLiveData(); }, []);
 
-  // --- NEW: HANDLE API SUBMISSION ---
   const submitRequest = async () => {
     if (!formData.storeName || !formData.date) {
       alert("Please fill out at least the Store Name and Date.");
@@ -158,7 +158,6 @@ export default function UnifiedDashboard() {
       if (response.ok) {
         setUploadMessage("✅ Request submitted successfully. The team has been notified.");
         setShowSuccess(true);
-        // Reset the form
         setFormData({ storeName: "", address: "", date: "", startTime: "", endTime: "" });
       } else {
         setUploadMessage("❌ Failed to send request. Please try again.");
@@ -196,7 +195,7 @@ export default function UnifiedDashboard() {
         .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
         .topbar-left h1 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 700; color: var(--black); margin: 0; display: flex; align-items: center; gap: 12px; }
         .topbar-left p { font-size: 13px; color: var(--muted); margin-top: 2px; margin-bottom: 0; }
-        .topbar-right { display: flex; align-items: center; gap: 10px; }
+        .topbar-right { display: flex; align-items: center; gap: 16px; }
         .badge { background: var(--green-pale); color: var(--green); font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 20px; }
         .btn-refresh { background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--black); transition: 0.2s; }
         .btn-refresh:hover { background: var(--green-pale); color: var(--green); border-color: var(--green-light); }
@@ -246,7 +245,24 @@ export default function UnifiedDashboard() {
         .success-msg { background: var(--green-pale); border: 1px solid var(--green-light); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: var(--green); font-weight: 500; margin-top: 14px; }
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
         .spinner { border: 4px solid rgba(0,0,0,0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: var(--green); animation: spin 1s linear infinite; margin-bottom: 16px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* 🚨 NEW MOBILE RESPONSIVE CSS 🚨 */
+        @media (max-width: 768px) {
+          .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 1px solid rgba(0,0,0,0.05); }
+          .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
+          .nav-item { flex-direction: column; font-size: 10px; padding: 4px; text-align: center; gap: 4px; width: 25%; margin-bottom: 0; }
+          .nav-item .icon { font-size: 18px; width: auto; text-align: center; margin: 0 auto; }
+          .main { margin-left: 0; padding: 16px; padding-bottom: 90px; padding-top: 20px; }
+          .topbar { flex-direction: column; align-items: flex-start; gap: 16px; }
+          .topbar-right { width: 100%; justify-content: space-between; flex-direction: row-reverse; }
+          .stat-grid { grid-template-columns: 1fr 1fr; }
+          .two-col { grid-template-columns: 1fr; }
+          .cal-grid { grid-template-columns: 1fr; }
+          .form-grid { grid-template-columns: 1fr; }
+          .time-inputs { flex-direction: column; align-items: flex-start; gap: 8px; }
+          .time-inputs span { display: none; }
+          .intel-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+        }
       `}} />
 
       {isLoading && (
@@ -273,6 +289,8 @@ export default function UnifiedDashboard() {
             <p>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right">
+            {/* 🚨 CLERK SIGN OUT PROFILE BUTTON 🚨 */}
+            <UserButton />
             <span className="badge">{metrics.activations} Activations Logged</span>
           </div>
         </div>
@@ -343,31 +361,12 @@ export default function UnifiedDashboard() {
         <div className={`section ${activeSection === 'request' ? 'active' : ''}`}>
           <div className="card">
             <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
-            
-            {/* UPDATED: Data Binding for Inputs */}
             <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Store Name</label>
-                <input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Total Wine" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Store Address</label>
-                <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Preferred Date</label>
-                <input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Time (From - To)</label>
-                <div className="time-inputs">
-                  <input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} />
-                  <span>-</span>
-                  <input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} />
-                </div>
-              </div>
+              <div className="form-group"><label className="form-label">Store Name</label><input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Total Wine" /></div>
+              <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
+              <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" /></div>
+              <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /></div></div>
             </div>
-
             <button className="btn-submit" onClick={submitRequest} disabled={isSubmitting}>
               {isSubmitting ? "Sending..." : "Submit Request"}
             </button>
