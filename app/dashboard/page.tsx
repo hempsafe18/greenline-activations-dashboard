@@ -33,12 +33,19 @@ export default async function DashboardRouter() {
   }
 
   // 2. CLIENT ROUTING
-  if (email === "example@plift.com") {
+  if (email.endsWith("@plift.com")) {
     redirect("/clients/plift");
-  } else if (email === "example@3chi.com") {
+  } else if (email.endsWith("@3chi.com")) {
     redirect("/clients/3chi");
-  } else if (email === "example@gigli.com") {
+  } else if (email.endsWith("@gigli.com")) {
     redirect("/clients/gigli");
+  } else if (email === "asmar@greenlineactivations.com") {
+    // Don't forget your own admin routing!
+    redirect("/dashboard"); // Or wherever you want to land when you log in
+  } else {
+    // Optional: What happens if a random person creates an account?
+    // They won't match any of the above, so you can show them an error or blank page.
+    redirect("/"); 
   }
 
   // 3. UNAUTHORIZED
