@@ -3,56 +3,48 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { storeName, address, date, startTime, endTime, client } = body;
+    // Added 'notes' and 'requestType' to the incoming data
+    const { storeName, address, date, startTime, endTime, client, notes, requestType = "New Activation Request" } = body;
 
     const notificationText = `
-      New Activation Request!
+      Type: ${requestType}
       Client: ${client}
       Store: ${storeName}
-      Address: ${address}
+      Address: ${address || 'N/A'}
       Date: ${date}
-      Time: ${startTime} - ${endTime}
+      Time: ${startTime || 'N/A'} - ${endTime || 'N/A'}
+      Notes: ${notes || 'None provided'}
     `;
 
-    // --- NEW: CLIENT TO COMPANY ID MAP ---
-    // This tells HubSpot exactly which Company Record to attach the deal to
     const companyMap: Record<string, string> = {
-      "3CHI": "49420807771",
-      "Plift": "49489562731",
-      "Gigli": "49775042420"
+      "3CHI": "PASTE_3CHI_COMPANY_ID",
+      "Plift": "PASTE_PLIFT_COMPANY_ID",
+      "Gigli": "PASTE_GIGLI_COMPANY_ID"
     };
 
     const targetCompanyId = companyMap[client];
-
     const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
     
     if (hubspotToken) {
-      // 1. Build the base Deal payload
       const payload: any = {
         properties: {
-          dealname: `Activation Request: ${storeName} (${client})`,
+          // Updates the Deal Name to show if it's a New Request or a Cancellation/Edit
+          dealname: `${requestType}: ${storeName} (${client})`,
           description: notificationText,
-          pipeline: "883257455", // Keep your existing Pipeline ID here!
-          dealstage: "1327057675" // Keep your existing Stage ID here!
+          pipeline: "883257455", 
+          dealstage: "1327057675" 
         }
       };
 
-      // 2. Automatically associate the Deal with the Company if we have the ID
       if (targetCompanyId) {
         payload.associations = [
           {
             to: { id: targetCompanyId },
-            types: [
-              {
-                associationCategory: "HUBSPOT_DEFINED",
-                associationTypeId: 5 // In HubSpot, '5' is the secret code for Deal -> Company
-              }
-            ]
+            types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 5 }]
           }
         ];
       }
 
-      // 3. Send to HubSpot
       const response = await fetch('https://api.hubapi.com/crm/v3/objects/deals', {
         method: 'POST',
         headers: {
@@ -70,7 +62,7 @@ export async function POST(req: Request) {
       console.warn("No HubSpot token found in environment variables.");
     }
 
-    return NextResponse.json({ success: true, message: "Request sent to HubSpot successfully" });
+    return NextResponse.json({ success: true, message: "Request sent successfully" });
 
   } catch (error) {
     console.error("API Route Error:", error);
