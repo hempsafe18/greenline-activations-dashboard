@@ -444,7 +444,7 @@ const downloadRecapReport = async () => {
             
             <div className="recap-grid">
               {Object.entries(selectedRecap.fullData).map(([key, val]) => {
-                if (!val || String(val).trim() === '' || key === 'Store Name' || key === 'Brand Name' || key === 'Activation Date' || key === 'Timestamp' || key === 'City') return null;
+                if (!val || String(val).trim() === '' || key === 'Store Name' || key === 'Brand Name' || key === 'Activation Date' || key === 'Timestamp' || key === 'City'|| key.toLowerCase().includes('email')) return null;
                 const isLongText = String(val).length > 60 || key.includes("Notes") || key.includes("objections") || key.includes("describe");
 
                 return (
