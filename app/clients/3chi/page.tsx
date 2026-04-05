@@ -171,7 +171,7 @@ export default function UnifiedDashboard() {
     setIsExportingDashboard(false);
   };
 
-  const downloadRecapReport = async () => {
+const downloadRecapReport = async () => {
     setIsExportingRecap(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
@@ -179,12 +179,42 @@ export default function UnifiedDashboard() {
 
       const element = document.getElementById("recap-export-area");
       if (!element) return;
+
+      // 1. MAGIC TRICK: Temporarily expand the modal to show everything
+      const originalMaxHeight = element.style.maxHeight;
+      const originalOverflow = element.style.overflow;
+      element.style.maxHeight = "none";
+      element.style.overflow = "visible";
+
+      // Take the full-height screenshot
       const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
+      
+      // 2. Put the modal back to normal immediately
+      element.style.maxHeight = originalMaxHeight || "85vh";
+      element.style.overflow = originalOverflow || "auto";
+
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
+      
+      // 3. MULTI-PAGE MATH: Calculate if it needs more than 1 page
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Add the first page
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Keep adding new pages until we run out of image!
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
       pdf.save(`Recap_${selectedRecap.store.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error("PDF generation failed", error);
