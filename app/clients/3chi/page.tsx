@@ -16,8 +16,11 @@ export default function UnifiedDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Modal State for Edits/Cancels
+  const [changeModal, setChangeModal] = useState({ isOpen: false, type: "", event: null as any, notes: "" });
+
   const [formData, setFormData] = useState({
-    storeName: "", address: "", date: "", startTime: "", endTime: ""
+    storeName: "", address: "", date: "", startTime: "", endTime: "", notes: ""
   });
 
   const [metrics, setMetrics] = useState({
@@ -141,38 +144,57 @@ export default function UnifiedDashboard() {
   useEffect(() => { fetchLiveData(); }, []);
 
   const submitRequest = async () => {
-    if (!formData.storeName || !formData.date) {
-      alert("Please fill out at least the Store Name and Date.");
-      return;
-    }
-
+    if (!formData.storeName || !formData.date) { alert("Please fill out at least the Store Name and Date."); return; }
     setIsSubmitting(true);
     
     try {
       const response = await fetch('/api/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, client: TARGET_BRAND })
+        body: JSON.stringify({ ...formData, client: TARGET_BRAND, requestType: "New Activation Request" })
       });
 
       if (response.ok) {
         setUploadMessage("✅ Request submitted successfully. The team has been notified.");
         setShowSuccess(true);
-        setFormData({ storeName: "", address: "", date: "", startTime: "", endTime: "" });
+        setFormData({ storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "" });
       } else {
         setUploadMessage("❌ Failed to send request. Please try again.");
         setShowSuccess(true);
       }
-    } catch (error) {
-      setUploadMessage("❌ Network error. Please try again.");
-      setShowSuccess(true);
-    }
-    
-    setIsSubmitting(false);
-    setTimeout(() => setShowSuccess(false), 5000);
+    } catch (error) { setUploadMessage("❌ Network error."); setShowSuccess(true); }
+    setIsSubmitting(false); setTimeout(() => setShowSuccess(false), 5000);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const submitChangeRequest = async () => {
+    if (!changeModal.notes) { alert("Please provide details for this change."); return; }
+    setIsSubmitting(true);
+    
+    try {
+      const response = await fetch('/api/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          storeName: changeModal.event.store,
+          date: changeModal.event.date,
+          notes: changeModal.notes,
+          client: TARGET_BRAND, 
+          requestType: `${changeModal.type} Request`
+        })
+      });
+
+      if (response.ok) {
+        setUploadMessage(`✅ ${changeModal.type} request sent successfully.`);
+        setShowSuccess(true);
+        setChangeModal({ isOpen: false, type: "", event: null, notes: "" });
+      } else {
+        alert("Failed to send request.");
+      }
+    } catch (error) { alert("Network error."); }
+    setIsSubmitting(false); setTimeout(() => setShowSuccess(false), 5000);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -217,7 +239,7 @@ export default function UnifiedDashboard() {
         .bar-label { font-size: 10px; color: var(--muted); margin-top: 6px; text-align: center; white-space: nowrap; margin-bottom: 0; }
         .bar-val { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 600; color: var(--black); white-space: nowrap; }
         .cal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; border-left: 3px solid var(--border); }
+        .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; border-left: 3px solid var(--border); display: flex; flex-direction: column; }
         .cal-card.status-Complete { border-left-color: var(--green); }
         .cal-card.status-Upcoming { border-left-color: var(--orange); }
         .cal-date { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
@@ -225,20 +247,22 @@ export default function UnifiedDashboard() {
         .cal-store { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--black); margin-bottom: 4px; margin-top: 0; }
         .cal-market { font-size: 11px; color: var(--muted); margin-bottom: 8px; margin-top: 0; }
         .cal-products { font-size: 10px; color: #666; margin-top: -4px; margin-bottom: 12px; background: #f5f5f5; padding: 4px 8px; border-radius: 4px; display: inline-block; }
-        .cal-footer { display: flex; align-items: center; gap: 8px; }
+        .cal-footer { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: auto; }
         .cal-status { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; display: inline-block; }
         .cal-status.status-Complete { background: var(--green-pale); color: var(--green); }
         .cal-status.status-Upcoming { background: #fef3ec; color: var(--orange); }
-        .cal-tag { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .cal-actions { display: flex; gap: 4px; }
+        .btn-action { font-size: 10px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; background: white; cursor: pointer; color: var(--muted); }
+        .btn-action:hover { background: #f5f5f5; color: var(--black); border-color: #ccc; }
         .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; align-items: center; }
         .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; margin-top: 1px; }
         .intel-text { color: #555; line-height: 1.5; margin: 0; flex: 1; }
-        .intel-link { color: var(--green); text-decoration: none; font-weight: bold; font-size: 11px; padding: 4px 8px; border: 1px solid var(--green); border-radius: 4px; }
-        .intel-link:hover { background: var(--green); color: white; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group.full { grid-column: 1 / -1; }
         .form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
         .form-input { font-family: 'Outfit', sans-serif; font-size: 13px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--black); outline: none; }
+        .form-textarea { resize: vertical; min-height: 80px; }
         .time-inputs { display: flex; align-items: center; gap: 10px; }
         .btn-submit { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; background: var(--green); color: white; border: none; padding: 12px 28px; border-radius: 8px; cursor: pointer; transition: opacity 0.2s; }
         .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -246,7 +270,15 @@ export default function UnifiedDashboard() {
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
         .spinner { border: 4px solid rgba(0,0,0,0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: var(--green); animation: spin 1s linear infinite; margin-bottom: 16px; }
         
-        /* 🚨 NEW MOBILE RESPONSIVE CSS 🚨 */
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+        .modal-content { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 400px; }
+        .modal-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-top: 0; margin-bottom: 8px; }
+        .modal-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .btn-cancel { background: white; border: 1px solid var(--border); padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @media (max-width: 768px) {
           .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 1px solid rgba(0,0,0,0.05); }
           .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
@@ -261,9 +293,33 @@ export default function UnifiedDashboard() {
           .form-grid { grid-template-columns: 1fr; }
           .time-inputs { flex-direction: column; align-items: flex-start; gap: 8px; }
           .time-inputs span { display: none; }
-          .intel-item { flex-direction: column; align-items: flex-start; gap: 8px; }
         }
       `}} />
+
+      {/* CHANGE REQUEST MODAL */}
+      {changeModal.isOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 className="modal-title">{changeModal.type} Activation</h3>
+            <p className="modal-desc">{changeModal.event.store} on {changeModal.event.date}</p>
+            <div className="form-group full">
+              <label className="form-label">Details of your request:</label>
+              <textarea 
+                className="form-input form-textarea" 
+                placeholder={changeModal.type === 'Edit' ? "e.g. Can we move this to Friday at 5pm?" : "Please provide a reason for cancellation."}
+                value={changeModal.notes}
+                onChange={(e) => setChangeModal({...changeModal, notes: e.target.value})}
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setChangeModal({isOpen: false, type: "", event: null, notes: ""})}>Close</button>
+              <button className="btn-submit" onClick={submitChangeRequest} disabled={isSubmitting}>
+                {isSubmitting ? "Sending..." : "Submit Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading && (
         <div className="loading-overlay">
@@ -289,7 +345,6 @@ export default function UnifiedDashboard() {
             <p>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right">
-            {/* 🚨 CLERK SIGN OUT PROFILE BUTTON 🚨 */}
             <UserButton />
             <span className="badge">{metrics.activations} Activations Logged</span>
           </div>
@@ -331,9 +386,19 @@ export default function UnifiedDashboard() {
                   <p className="cal-store">{event.store}</p>
                   <p className="cal-market">{event.market} {event.address && `· ${event.address}`}</p>
                   {event.products && <div className="cal-products">🎁 {event.products}</div>}
+                  
                   <div className="cal-footer">
-                    <span className={`cal-status status-${event.status}`}>{event.status}</span>
-                    {event.samplingType && <span className="cal-tag">{event.samplingType}</span>}
+                    <div>
+                      <span className={`cal-status status-${event.status}`}>{event.status}</span>
+                    </div>
+                    
+                    {/* NEW: Edit/Cancel Buttons for Upcoming Events */}
+                    {event.status === 'Upcoming' && (
+                      <div className="cal-actions">
+                        <button className="btn-action" onClick={() => setChangeModal({isOpen: true, type: 'Edit', event, notes: ''})}>Edit</button>
+                        <button className="btn-action" onClick={() => setChangeModal({isOpen: true, type: 'Cancel', event, notes: ''})}>Cancel</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -366,6 +431,12 @@ export default function UnifiedDashboard() {
               <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
               <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" /></div>
               <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /></div></div>
+              
+              {/* NEW: Notes Field */}
+              <div className="form-group full">
+                <label className="form-label">Additional Notes</label>
+                <textarea name="notes" value={formData.notes} onChange={handleInputChange} className="form-input form-textarea" placeholder="Any specific requirements, target demographics, or special instructions..." />
+              </div>
             </div>
             <button className="btn-submit" onClick={submitRequest} disabled={isSubmitting}>
               {isSubmitting ? "Sending..." : "Submit Request"}
