@@ -30,8 +30,7 @@ export async function POST(req: Request) {
             
             // --- UPDATED HUBSPOT ROUTING ---
             pipeline: "883257455", 
-            dealstage: "1327057675", 
-            hubspot_owner_id: "72940663"
+            dealstage: "1327057675"
           }
         })
       });
