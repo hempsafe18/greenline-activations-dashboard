@@ -47,7 +47,7 @@ export default async function HomePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1.5rem', textAlign: 'center', backgroundColor: '#f5f4ef' }}>
       <div style={{ backgroundColor: 'white', padding: '3rem 2rem', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', width: '100%', maxWidth: '400px' }}>
-        <h1 style={{ fontSize: '2.25rem', marginBottom: '0.5rem', color: '#111', fontWeight: '800', letterSpacing: '-0.02em' }}>Greenline</h1>
+        <h1 style={{ fontSize: '2.25rem', marginBottom: '0.5rem', color: '#111', fontWeight: '800', letterSpacing: '-0.02em' }}>Greenline Activations</h1>
         <p style={{ color: '#4b5563', marginBottom: '2.5rem', fontSize: '1.05rem', lineHeight: '1.5' }}>Welcome to the Activation Hub.<br/>Please sign in to access your data.</p>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
