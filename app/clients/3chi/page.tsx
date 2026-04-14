@@ -28,9 +28,13 @@ export default function UnifiedDashboard() {
   });
 
   const [metrics, setMetrics] = useState({
-    sampled: 0, sold: 0, activations: 0, conversion: 0, 
-    markets: [] as any[], calendar: [] as any[], intel: [] as any[]
+    sampled: 0, sold: 0, activations: 0, conversion: 0,
+    markets: [] as any[], upcoming: [] as any[], previous: [] as any[], intel: [] as any[]
   });
+
+  const ITEMS_PER_PAGE = 6;
+  const [visibleUpcoming, setVisibleUpcoming] = useState(ITEMS_PER_PAGE);
+  const [visiblePrevious, setVisiblePrevious] = useState(ITEMS_PER_PAGE);
 
   const parseCSV = (str: string) => {
     const result = []; let row = []; let cell = ''; let quote = false;
@@ -48,6 +52,8 @@ export default function UnifiedDashboard() {
 
   const fetchLiveData = async () => {
     setIsLoading(true);
+    setVisibleUpcoming(ITEMS_PER_PAGE);
+    setVisiblePrevious(ITEMS_PER_PAGE);
     try {
       const [recapRes, upcomingRes] = await Promise.all([
         fetch(RECAP_CSV_URL).catch(() => null),
@@ -133,13 +139,23 @@ export default function UnifiedDashboard() {
       }
 
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
-      newCalendar.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
+
+      const upcomingEvents = newCalendar
+        .filter(e => e.status === 'Upcoming')
+        .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime()); // soonest first
+
+      const previousEvents = newCalendar
+        .filter(e => e.status === 'Complete')
+        .sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime()); // most recent first
 
       if (totalActivations > 0 || newCalendar.length > 0) {
         setMetrics({
           sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
-          markets: markets, calendar: newCalendar.slice(0, 6), intel: newIntel.slice(0, 5)
+          markets: markets,
+          upcoming: upcomingEvents,
+          previous: previousEvents,
+          intel: newIntel.slice(0, 5)
         });
       }
     } catch (error) { console.error("Failed to fetch data", error); }
@@ -380,6 +396,15 @@ const downloadRecapReport = async () => {
         .recap-key { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
         .recap-val { font-size: 13px; color: var(--black); word-break: break-word; }
 
+        .cal-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .cal-section-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--black); margin: 0; }
+        .cal-section-count { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+        .cal-section-count.upcoming { background: #fef3ec; color: var(--orange); }
+        .cal-section-count.previous { background: var(--green-pale); color: var(--green); }
+        .cal-load-more-wrap { display: flex; justify-content: center; margin-top: 16px; }
+        .btn-load-more { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 9px 22px; font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600; color: var(--green); cursor: pointer; transition: all 0.2s; }
+        .btn-load-more:hover { background: var(--green-pale); border-color: var(--green-light); }
+        .cal-section-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @media (max-width: 768px) {
           .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 1px solid rgba(0,0,0,0.05); }
@@ -516,42 +541,77 @@ const downloadRecapReport = async () => {
 
         {/* CALENDAR TAB */}
         <div className={`section ${activeSection === 'calendar' ? 'active' : ''}`}>
-          <div className="card">
-            <div className="card-header"><div><p className="card-title">Activation Schedule</p></div></div>
-            <div className="cal-grid">
-              {metrics.calendar.map((event, index) => {
-                const isComplete = event.status === 'Complete';
-                return (
-                  <div 
-                    className={`cal-card status-${event.status} ${isComplete ? 'clickable' : ''}`} 
-                    key={index}
-                    onClick={() => isComplete ? setSelectedRecap(event) : null}
-                  >
-                    <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
-                    <p className="cal-store">{event.store}</p>
-                    <p className="cal-market">{event.market} {event.address && `· ${event.address}`}</p>
-                    {event.products && <div className="cal-products">🎁 {event.products}</div>}
-                    
-                    <div className="cal-footer">
-                      <div>
-                        <span className={`cal-status status-${event.status}`}>{event.status}</span>
-                      </div>
-                      
-                      {event.status === 'Upcoming' && (
-                        <div className="cal-actions" data-html2canvas-ignore="true">
-                          <button className="btn-action" onClick={(e) => { e.stopPropagation(); setChangeModal({isOpen: true, type: 'Edit', event, notes: ''}); }}>Edit</button>
-                          <button className="btn-action" onClick={(e) => { e.stopPropagation(); setChangeModal({isOpen: true, type: 'Cancel', event, notes: ''}); }}>Cancel</button>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {isComplete && <div className="cal-view-details" data-html2canvas-ignore="true">Read Full Report →</div>}
-                  </div>
-                );
-              })}
-              {metrics.calendar.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No activations found.</p>}
+
+          {/* --- UPCOMING ACTIVATIONS --- */}
+          <div className="card" style={{marginBottom: '16px'}}>
+            <div className="cal-section-header">
+              <p className="cal-section-title">Upcoming Activations</p>
+              <span className="cal-section-count upcoming">{metrics.upcoming.length} scheduled</span>
             </div>
+            <div className="cal-grid">
+              {metrics.upcoming.slice(0, visibleUpcoming).map((event, index) => (
+                <div className="cal-card status-Upcoming" key={index}>
+                  <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
+                  <p className="cal-store">{event.store}</p>
+                  <p className="cal-market">{event.market}{event.address && ` · ${event.address}`}</p>
+                  {event.products && <div className="cal-products">🎁 {event.products}</div>}
+                  <div className="cal-footer">
+                    <span className="cal-status status-Upcoming">Upcoming</span>
+                    <div className="cal-actions" data-html2canvas-ignore="true">
+                      <button className="btn-action" onClick={() => setChangeModal({isOpen: true, type: 'Edit', event, notes: ''})}>Edit</button>
+                      <button className="btn-action" onClick={() => setChangeModal({isOpen: true, type: 'Cancel', event, notes: ''})}>Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {metrics.upcoming.length === 0 && (
+                <p style={{fontSize: '12px', color: '#888', gridColumn: '1/-1'}}>No upcoming activations scheduled.</p>
+              )}
+            </div>
+            {visibleUpcoming < metrics.upcoming.length && (
+              <div className="cal-load-more-wrap" data-html2canvas-ignore="true">
+                <button className="btn-load-more" onClick={() => setVisibleUpcoming(v => v + ITEMS_PER_PAGE)}>
+                  Load More ({metrics.upcoming.length - visibleUpcoming} remaining)
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* --- PREVIOUS ACTIVATIONS --- */}
+          <div className="card">
+            <div className="cal-section-header">
+              <p className="cal-section-title">Previous Activations</p>
+              <span className="cal-section-count previous">{metrics.previous.length} completed</span>
+            </div>
+            <div className="cal-grid">
+              {metrics.previous.slice(0, visiblePrevious).map((event, index) => (
+                <div
+                  className="cal-card status-Complete clickable"
+                  key={index}
+                  onClick={() => setSelectedRecap(event)}
+                >
+                  <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
+                  <p className="cal-store">{event.store}</p>
+                  <p className="cal-market">{event.market}</p>
+                  <div className="cal-footer">
+                    <span className="cal-status status-Complete">Complete</span>
+                  </div>
+                  <div className="cal-view-details" data-html2canvas-ignore="true">Read Full Report →</div>
+                </div>
+              ))}
+              {metrics.previous.length === 0 && (
+                <p style={{fontSize: '12px', color: '#888', gridColumn: '1/-1'}}>No previous activations found.</p>
+              )}
+            </div>
+            {visiblePrevious < metrics.previous.length && (
+              <div className="cal-load-more-wrap" data-html2canvas-ignore="true">
+                <button className="btn-load-more" onClick={() => setVisiblePrevious(v => v + ITEMS_PER_PAGE)}>
+                  Load More ({metrics.previous.length - visiblePrevious} remaining)
+                </button>
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* INTEL TAB */}
