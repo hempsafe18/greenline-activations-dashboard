@@ -23,20 +23,20 @@ export async function POST(req: Request) {
     };
 
     const targetCompanyId = companyMap[client];
+    const isRealCompanyId = targetCompanyId && !targetCompanyId.startsWith('PASTE_');
     const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-    
+
     if (hubspotToken) {
       const payload: any = {
         properties: {
-          // Updates the Deal Name to show if it's a New Request or a Cancellation/Edit
           dealname: `${requestType}: ${storeName} (${client})`,
           description: notificationText,
-          pipeline: "883257455", 
-          dealstage: "1327057675" 
+          pipeline: "883257455",
+          dealstage: "1327057675"
         }
       };
 
-      if (targetCompanyId) {
+      if (isRealCompanyId) {
         payload.associations = [
           {
             to: { id: targetCompanyId },
