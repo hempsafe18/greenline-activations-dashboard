@@ -33,8 +33,8 @@ export default async function DashboardRouter() {
   }
 
   // 2. CLIENT ROUTING
-  if (email.endsWith("@plift.com")) {
-    redirect("/clients/plift");
+  if (email.endsWith("@amigos.com")) {
+    redirect("/clients/amigos");
   } else if (email.endsWith("@3chi.com")) {
     redirect("/clients/3chi");
   } else if (email.endsWith("@gigli.com")) {
