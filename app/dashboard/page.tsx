@@ -21,8 +21,8 @@ export default async function DashboardRouter() {
           <Link href="/clients/3chi" style={{ padding: '1rem 1.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', textDecoration: 'none', color: '#111', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
             3CHI Dashboard <span>→</span>
           </Link>
-          <Link href="/clients/plift" style={{ padding: '1rem 1.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', textDecoration: 'none', color: '#111', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
-            Plift Dashboard <span>→</span>
+          <Link href="/clients/amigos" style={{ padding: '1rem 1.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', textDecoration: 'none', color: '#111', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+            Amigos Dashboard <span>→</span>
           </Link>
           <Link href="/clients/gigli" style={{ padding: '1rem 1.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', textDecoration: 'none', color: '#111', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
             Gigli Dashboard <span>→</span>
