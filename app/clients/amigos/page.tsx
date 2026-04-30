@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 
-const TARGET_BRAND = "3CHI"; 
+const TARGET_BRAND = "AMIGOS"; 
 
 // 1. PASTE YOUR GOOGLE SHEET LINKS HERE
 const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
