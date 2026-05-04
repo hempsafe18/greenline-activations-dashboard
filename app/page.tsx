@@ -22,7 +22,7 @@ export default async function HomePage() {
         redirect("/clients/amigos");
       } else if (email === "asmar@greenlineactivations.com" || email === "asmar.gary@gmail.com") {
         // Admin Routing - Change this if you have a specific master dashboard!
-        redirect("/clients"); 
+        redirect("/dashboard"); 
       } else {
         // FALLBACK: If their email doesn't match any client, show Access Denied
         return (
