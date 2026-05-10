@@ -92,9 +92,12 @@ export default function UnifiedDashboard() {
               newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row['Store Name'] || city}: ${objections}` });
           }
 
-          const photoLink = row['Engagement photo submission'];
-          if (photoLink && photoLink.includes('http')) {
-               newIntel.push({ type: 'photo', icon: '📸', text: `New engagement photo from ${row['Store Name'] || city}.`, link: photoLink });
+          const photoField = row['Engagement photo submission'];
+          if (photoField) {
+            const photoUrls = photoField.split(/[\n,]+/).map((s: string) => s.trim()).filter((s: string) => s.startsWith('http'));
+            photoUrls.forEach((photoLink: string, idx: number) => {
+              newIntel.push({ type: 'photo', icon: '📸', text: `Engagement photo${photoUrls.length > 1 ? ` ${idx + 1}` : ''} from ${row['Store Name'] || city}.`, link: photoLink });
+            });
           }
 
           if (row['Activation Date']) {
@@ -140,8 +143,9 @@ export default function UnifiedDashboard() {
 
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
 
+      const today = new Date(); today.setHours(0, 0, 0, 0);
       const upcomingEvents = newCalendar
-        .filter(e => e.status === 'Upcoming')
+        .filter(e => e.status === 'Upcoming' && e.sortDate >= today)
         .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime()); // soonest first
 
       const previousEvents = newCalendar
@@ -297,7 +301,19 @@ const downloadRecapReport = async () => {
   const maxMarketValue = Math.max(...metrics.markets.map(m => m.value), 1);
 
   const renderRecapValue = (val: string) => {
-    if (val && val.toString().startsWith('http')) {
+    const urls = val.split(/[\n,]+/).map(s => s.trim()).filter(s => s.startsWith('http'));
+    if (urls.length > 1) {
+      return (
+        <span style={{display: 'flex', flexDirection: 'column', gap: '6px'}}>
+          {urls.map((url, i) => (
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{color: 'var(--ink)', fontWeight: '700', textDecoration: 'underline'}}>
+              View Photo {i + 1} ↗
+            </a>
+          ))}
+        </span>
+      );
+    }
+    if (val.startsWith('http')) {
       return <a href={val} target="_blank" rel="noopener noreferrer" style={{color: 'var(--ink)', fontWeight: '700', textDecoration: 'underline'}}>View Link / File ↗</a>;
     }
     return val;
@@ -458,8 +474,7 @@ const downloadRecapReport = async () => {
 
       {/* CHANGE REQUEST MODAL (UPCOMING) */}
       {changeModal.isOpen && (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setChangeModal({isOpen: false, type: "", event: null, notes: ""})}}>
-          <div className="modal-content">
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setChangeModal({isOpen: false, type: "", event: null, notes: ""})}}>          <div className="modal-content">
             <h3 className="modal-title">{changeModal.type} Activation</h3>
             <p className="modal-desc">{changeModal.event.store} on {changeModal.event.date}</p>
             <div className="form-group full">
