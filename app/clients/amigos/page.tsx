@@ -36,6 +36,10 @@ export default function UnifiedDashboard() {
   const [visibleUpcoming, setVisibleUpcoming] = useState(ITEMS_PER_PAGE);
   const [visiblePrevious, setVisiblePrevious] = useState(ITEMS_PER_PAGE);
 
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
+
   const parseCSV = (str: string) => {
     const result = []; let row = []; let cell = ''; let quote = false;
     for (let i = 0; i < str.length; i++) {
@@ -166,7 +170,51 @@ export default function UnifiedDashboard() {
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchLiveData(); }, []);
+  const fetchNotifications = async () => {
+    setNotifLoading(true);
+    try {
+      const res = await fetch(`/api/notifications?client=${encodeURIComponent(TARGET_BRAND)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+      }
+    } catch (e) { console.error('Failed to fetch notifications', e); }
+    setNotifLoading(false);
+  };
+
+  const markAsRead = async (id: string) => {
+    await fetch('/api/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllRead = async () => {
+    await fetch('/api/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client: TARGET_BRAND, markAllRead: true })
+    });
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const formatNotifTime = (ts: string) => {
+    try {
+      return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    } catch { return ts; }
+  };
+
+  const notifTypeColor: Record<string, string> = {
+    email: 'var(--canopy-pale)', alert: 'var(--street)', update: '#c7d7fe', announcement: '#fde68a'
+  };
+  const notifTypeDark: Record<string, boolean> = { alert: true };
+  const emailStatusColor: Record<string, string> = {
+    delivered: 'var(--canopy-pale)', sent: '#c7d7fe', failed: 'var(--street-pale)', pending: '#fde68a'
+  };
+
+  useEffect(() => { fetchLiveData(); fetchNotifications(); }, []);
 
   // --- PDF GENERATION FUNCTIONS ---
   const downloadDashboardReport = async () => {
@@ -453,6 +501,27 @@ const downloadRecapReport = async () => {
         .btn-load-more:active { transform: none; box-shadow: none; }
         .cal-section-divider { border: none; border-top: 2px solid var(--ink); margin: 24px 0; }
 
+        .notif-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
+        .notif-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .notif-unread-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border: 2px solid var(--ink); text-transform: uppercase; letter-spacing: 0.08em; background: var(--street); color: var(--bone); }
+        .notif-list { display: flex; flex-direction: column; gap: 10px; }
+        .notif-card { background: var(--white); border: 2px solid var(--ink); border-left: 4px solid var(--ink); padding: 16px; box-shadow: 3px 3px 0 0 var(--ink); }
+        .notif-card.unread { border-left-color: var(--street); background: var(--street-pale); }
+        .notif-card.read { border-left-color: var(--canopy); opacity: 0.72; }
+        .notif-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+        .notif-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .notif-type { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; letter-spacing: 0.08em; }
+        .notif-email-status { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; letter-spacing: 0.08em; }
+        .notif-subject { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0 0 6px 0; letter-spacing: -0.01em; }
+        .notif-body { font-size: 12px; font-weight: 500; color: var(--ink); line-height: 1.6; margin: 0; white-space: pre-wrap; word-break: break-word; }
+        .notif-body.collapsed { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+        .notif-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
+        .notif-time { font-size: 10px; font-weight: 500; color: var(--muted); }
+        .notif-footer-actions { display: flex; gap: 6px; }
+        .btn-notif { font-size: 10px; font-weight: 700; padding: 4px 10px; border: 2px solid var(--ink); background: var(--white); cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 2px 2px 0 0 var(--ink); transition: all 0.15s; }
+        .btn-notif:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 var(--ink); }
+        .notif-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 40px 0; }
+        .nav-notif-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--street); color: var(--bone); border: 1px solid var(--bone); font-size: 9px; font-weight: 700; min-width: 16px; height: 15px; padding: 0 3px; margin-left: 5px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @media (max-width: 768px) {
           .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 2px solid rgba(250,240,234,0.2); border-right: none; }
@@ -539,6 +608,12 @@ const downloadRecapReport = async () => {
         <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
         <a className={`nav-item ${activeSection === 'intel' ? 'active' : ''}`} onClick={() => setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
         <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
+        <a className={`nav-item ${activeSection === 'notifications' ? 'active' : ''}`} onClick={() => setActiveSection('notifications')}>
+          <span className="icon">🔔</span> Notifications
+          {notifications.filter(n => !n.read).length > 0 && (
+            <span className="nav-notif-badge">{notifications.filter(n => !n.read).length}</span>
+          )}
+        </a>
       </div>
 
       <div className="main" id="dashboard-export-area">
@@ -673,6 +748,75 @@ const downloadRecapReport = async () => {
                </div>
             ))}
             {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No intel gathered yet.</p>}
+          </div>
+        </div>
+
+        {/* NOTIFICATIONS TAB */}
+        <div className={`section ${activeSection === 'notifications' ? 'active' : ''}`} data-html2canvas-ignore="true">
+          <div className="card">
+            <div className="notif-header">
+              <div>
+                <p className="card-title">Notifications</p>
+                <p className="card-sub">Communications and updates from your Greenline team</p>
+              </div>
+              <div className="notif-header-actions">
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="notif-unread-badge">{notifications.filter(n => !n.read).length} unread</span>
+                )}
+                <button className="btn-action-primary" onClick={fetchNotifications}>↻ Refresh</button>
+                {notifications.some(n => !n.read) && (
+                  <button className="btn-action-primary" onClick={markAllRead}>✓ Mark All Read</button>
+                )}
+              </div>
+            </div>
+            {notifLoading ? (
+              <p className="notif-empty">Loading notifications...</p>
+            ) : notifications.length === 0 ? (
+              <p className="notif-empty">No notifications yet. Check back soon.</p>
+            ) : (
+              <div className="notif-list">
+                {notifications.map((n) => (
+                  <div key={n.id} className={`notif-card ${n.read ? 'read' : 'unread'}`}>
+                    <div className="notif-top">
+                      <div className="notif-badges">
+                        <span
+                          className="notif-type"
+                          style={{
+                            background: notifTypeColor[n.type?.toLowerCase()] || '#e5e7eb',
+                            color: notifTypeDark[n.type?.toLowerCase()] ? 'var(--bone)' : 'var(--ink)'
+                          }}
+                        >
+                          {n.type || 'general'}
+                        </span>
+                        {n.email_status && (
+                          <span
+                            className="notif-email-status"
+                            style={{ background: emailStatusColor[n.email_status?.toLowerCase()] || '#e5e7eb', color: 'var(--ink)' }}
+                          >
+                            ✉ {n.email_status}
+                          </span>
+                        )}
+                      </div>
+                      {!n.read && (
+                        <button className="btn-notif" style={{background: 'var(--canopy-pale)'}} onClick={() => markAsRead(n.id)}>
+                          Mark Read
+                        </button>
+                      )}
+                    </div>
+                    <p className="notif-subject">{n.subject}</p>
+                    <p className={`notif-body ${expandedNotif === n.id ? '' : 'collapsed'}`}>{n.body}</p>
+                    <div className="notif-footer">
+                      <span className="notif-time">{formatNotifTime(n.created_at)}</span>
+                      <div className="notif-footer-actions">
+                        <button className="btn-notif" onClick={() => setExpandedNotif(expandedNotif === n.id ? null : n.id)}>
+                          {expandedNotif === n.id ? 'Collapse ▲' : 'Read More ▼'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
