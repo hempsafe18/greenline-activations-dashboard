@@ -7,28 +7,35 @@ export async function GET() {
   if (!token) return NextResponse.json({ count: 0, debug: 'no_token' });
 
   try {
-    let count = 0;
-    let hasMore = true;
-    let vidOffset = 0;
+    // CRM Object Lists v3 — memberships endpoint returns total directly
+    const res = await fetch(
+      `https://api.hubapi.com/crm/v3/lists/${LIST_ID}/memberships?limit=1`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-    while (hasMore) {
-      const res = await fetch(
-        `https://api.hubapi.com/contacts/v1/lists/${LIST_ID}/contacts/all?count=100&property=vid&vidOffset=${vidOffset}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (!res.ok) {
-        console.error('HubSpot list contacts fetch failed:', res.status, await res.text());
-        break;
-      }
-
+    if (res.ok) {
       const data = await res.json();
-      count += (data.contacts?.length ?? 0);
-      hasMore = data['has-more'] ?? false;
-      vidOffset = data['vid-offset'] ?? 0;
+      if (typeof data.total === 'number') {
+        return NextResponse.json({ count: data.total });
+      }
     }
 
-    return NextResponse.json({ count });
+    // Fallback: CRM Lists v3 metadata
+    const metaRes = await fetch(
+      `https://api.hubapi.com/crm/v3/lists/${LIST_ID}?includeFilters=false`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (metaRes.ok) {
+      const data = await metaRes.json();
+      const count = data.list?.size ?? data.size;
+      if (typeof count === 'number') return NextResponse.json({ count });
+    }
+
+    const debug = `memberships_${res.status}/meta_${metaRes.status}`;
+    console.error('HubSpot CRM list fetch failed:', debug);
+    return NextResponse.json({ count: 0, debug });
+
   } catch (error) {
     console.error('Ambassador API error:', error);
     return NextResponse.json({ count: 0, debug: 'exception' });
