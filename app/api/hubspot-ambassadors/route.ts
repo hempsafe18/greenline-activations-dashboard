@@ -7,19 +7,28 @@ export async function GET() {
   if (!token) return NextResponse.json({ count: 0, debug: 'no_token' });
 
   try {
-    const response = await fetch(
-      `https://api.hubapi.com/contacts/v1/lists/${LIST_ID}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    let count = 0;
+    let hasMore = true;
+    let vidOffset = 0;
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('HubSpot list fetch failed:', err);
-      return NextResponse.json({ count: 0, debug: `list_${response.status}` });
+    while (hasMore) {
+      const res = await fetch(
+        `https://api.hubapi.com/contacts/v1/lists/${LIST_ID}/contacts/all?count=100&property=vid&vidOffset=${vidOffset}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!res.ok) {
+        console.error('HubSpot list contacts fetch failed:', res.status, await res.text());
+        break;
+      }
+
+      const data = await res.json();
+      count += (data.contacts?.length ?? 0);
+      hasMore = data['has-more'] ?? false;
+      vidOffset = data['vid-offset'] ?? 0;
     }
 
-    const data = await response.json();
-    return NextResponse.json({ count: data.metaData?.size ?? 0 });
+    return NextResponse.json({ count });
   } catch (error) {
     console.error('Ambassador API error:', error);
     return NextResponse.json({ count: 0, debug: 'exception' });
