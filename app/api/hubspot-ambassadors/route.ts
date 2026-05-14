@@ -1,35 +1,24 @@
 import { NextResponse } from 'next/server';
 
+const AMBASSADOR_LIST_ID = 60350386;
+
 export async function GET() {
   const token = process.env.HUBSPOT_ACCESS_TOKEN;
   if (!token) return NextResponse.json({ count: 0 });
 
   try {
-    const response = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        filterGroups: [{
-          filters: [
-            { propertyName: 'jobtitle', operator: 'EQ', value: 'Brand Ambassador' },
-            { propertyName: 'category', operator: 'EQ', value: 'Ambassador' },
-          ]
-        }],
-        properties: ['firstname', 'lastname'],
-        limit: 1,
-      }),
-    });
+    const response = await fetch(
+      `https://api.hubapi.com/contacts/v1/lists/${AMBASSADOR_LIST_ID}`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
 
     if (!response.ok) {
-      console.error('HubSpot ambassador fetch failed:', await response.text());
+      console.error('HubSpot list fetch failed:', await response.text());
       return NextResponse.json({ count: 0 });
     }
 
     const data = await response.json();
-    return NextResponse.json({ count: data.total ?? 0 });
+    return NextResponse.json({ count: data.metaData?.size ?? 0 });
   } catch (error) {
     console.error('Ambassador API error:', error);
     return NextResponse.json({ count: 0 });
