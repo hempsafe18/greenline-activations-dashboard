@@ -286,7 +286,6 @@ export default function UnifiedDashboard() {
         .badge { background: var(--canopy); color: var(--white); font-size: 10px; font-weight: 700; padding: 4px 12px; border: 2px solid var(--ink); text-transform: uppercase; letter-spacing: 0.08em; }
         .btn-action-primary { background: var(--white); border: 2px solid var(--ink); padding: 6px 12px; font-size: 10px; font-weight: 700; cursor: pointer; color: var(--ink); transition: all 0.15s; display: flex; align-items: center; gap: 6px; box-shadow: 3px 3px 0 0 var(--ink); text-transform: uppercase; letter-spacing: 0.05em; }
         .btn-action-primary:hover { transform: translate(-2px,-2px); box-shadow: 4px 4px 0 0 var(--ink); }
-        .btn-action-primary:active { transform: translate(0,0); box-shadow: none; }
         .section { display: none; } .section.active { display: block; }
         .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
         .stat-card { background: var(--card); border: 2px solid var(--ink); padding: 20px; box-shadow: var(--shadow); }
@@ -308,50 +307,37 @@ export default function UnifiedDashboard() {
         .cal-card { background: var(--card); border: 2px solid var(--ink); border-left: 4px solid var(--ink); padding: 16px; display: flex; flex-direction: column; box-shadow: 3px 3px 0 0 var(--ink); }
         .cal-card.clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
         .cal-card.clickable:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 0 var(--ink); }
-        .cal-view-details { font-size: 10px; font-weight: 700; color: var(--ink); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.08em; }
         .cal-card.status-Complete { border-left-color: var(--canopy); }
         .cal-card.status-Upcoming { border-left-color: var(--street); }
         .cal-date { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
-        .cal-time { text-transform: none; font-weight: 500; }
         .cal-store { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 4px; margin-top: 0; }
         .cal-market { font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 8px; margin-top: 0; }
-        .cal-products { font-size: 10px; font-weight: 700; color: var(--ink); margin-top: -4px; margin-bottom: 12px; background: var(--canopy-pale); border: 1px solid var(--ink); padding: 3px 8px; display: inline-block; text-transform: uppercase; }
         .cal-footer { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: auto; }
         .cal-status { font-size: 10px; font-weight: 700; padding: 3px 9px; display: inline-block; text-transform: uppercase; border: 2px solid var(--ink); }
         .cal-status.status-Complete { background: var(--canopy); color: var(--white); }
         .cal-status.status-Upcoming { background: var(--street); color: var(--bone); }
         .cal-actions { display: flex; gap: 4px; }
         .btn-action { font-size: 10px; font-weight: 700; padding: 4px 8px; border: 2px solid var(--ink); background: var(--white); cursor: pointer; color: var(--ink); text-transform: uppercase; box-shadow: 2px 2px 0 0 var(--ink); transition: all 0.15s; }
-        .btn-action:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 0 var(--ink); }
         .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--ink); font-size: 13px; align-items: center; }
         .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; }
         .intel-text { color: var(--ink); font-weight: 500; line-height: 1.5; margin: 0; flex: 1; }
-        .intel-link { color: var(--white); text-decoration: none; font-weight: 700; font-size: 10px; padding: 4px 8px; border: 2px solid var(--ink); background: var(--canopy); text-transform: uppercase; box-shadow: 2px 2px 0 0 var(--ink); transition: all 0.15s; }
-        .intel-link:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 0 var(--ink); }
+        .intel-link { color: var(--white); text-decoration: none; font-weight: 700; font-size: 10px; padding: 4px 8px; border: 2px solid var(--ink); background: var(--canopy); text-transform: uppercase; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-group.full { grid-column: 1/-1; }
         .form-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink); }
-        .form-input { font-family: 'Manrope', sans-serif; font-size: 13px; font-weight: 500; padding: 10px 14px; border: 2px solid var(--ink); background: var(--white); color: var(--ink); outline: none; transition: all 0.15s; }
-        .form-input:focus { box-shadow: 3px 3px 0 0 var(--ink); transform: translate(-2px,-2px); }
-        .form-input::placeholder { color: rgba(10,10,10,0.35); }
+        .form-input { font-family: 'Manrope', sans-serif; font-size: 13px; font-weight: 500; padding: 10px 14px; border: 2px solid var(--ink); background: var(--white); color: var(--ink); outline: none; }
         .form-textarea { resize: vertical; min-height: 80px; }
-        .time-inputs { display: flex; align-items: center; gap: 10px; }
-        .btn-submit { font-family: 'Cabinet Grotesk', sans-serif; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--bone); border: 2px solid var(--ink); padding: 12px 28px; cursor: pointer; box-shadow: var(--shadow); transition: all 0.15s; text-transform: uppercase; }
-        .btn-submit:hover { transform: translate(-2px,-2px); box-shadow: var(--shadow-lg); }
-        .btn-submit:active { transform: none; box-shadow: none; }
-        .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-        .success-msg { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; box-shadow: 3px 3px 0 0 var(--ink); }
+        .btn-submit { font-family: 'Cabinet Grotesk', sans-serif; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--bone); border: 2px solid var(--ink); padding: 12px 28px; cursor: pointer; box-shadow: var(--shadow); text-transform: uppercase; }
+        .success-msg { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; }
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(10,10,10,0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
-        .modal-content { background: var(--bone); padding: 24px; border: 2px solid var(--ink); box-shadow: var(--shadow-lg); width: 100%; max-width: 400px; }
+        .modal-content { background: var(--bone); padding: 24px; border: 2px solid var(--ink); box-shadow: var(--shadow); width: 100%; max-width: 400px; }
         .modal-content.large { max-width: 700px; max-height: 85vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 16px; }
         .modal-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 20px; font-weight: 800; margin: 0; }
-        .modal-desc { font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 16px; }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
-        .btn-close-icon { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--ink); padding: 0; line-height: 1; font-weight: 700; }
-        .btn-cancel { background: var(--bone); border: 2px solid var(--ink); padding: 10px 16px; cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; box-shadow: 3px 3px 0 0 var(--ink); transition: all 0.15s; }
-        .btn-cancel:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 0 var(--ink); }
+        .btn-close-icon { background: none; border: none; font-size: 20px; cursor: pointer; }
+        .btn-cancel { background: var(--bone); border: 2px solid var(--ink); padding: 10px 16px; cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; }
         .recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .recap-item { background: var(--white); border: 2px solid var(--ink); padding: 12px; display: flex; flex-direction: column; gap: 4px; }
         .recap-item.full-width { grid-column: 1/-1; }
@@ -363,8 +349,7 @@ export default function UnifiedDashboard() {
         .cal-section-count.upcoming { background: var(--street); color: var(--bone); }
         .cal-section-count.previous { background: var(--canopy); color: var(--white); }
         .cal-load-more-wrap { display: flex; justify-content: center; margin-top: 16px; }
-        .btn-load-more { background: var(--white); border: 2px solid var(--ink); padding: 9px 22px; font-family: 'Manrope',sans-serif; font-size: 11px; font-weight: 700; color: var(--ink); cursor: pointer; box-shadow: 3px 3px 0 0 var(--ink); transition: all 0.15s; text-transform: uppercase; }
-        .btn-load-more:hover { transform: translate(-2px,-2px); box-shadow: 4px 4px 0 0 var(--ink); }
+        .btn-load-more { background: var(--white); border: 2px solid var(--ink); padding: 9px 22px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
         .notif-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
         .notif-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .notif-unread-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border: 2px solid var(--ink); text-transform: uppercase; background: var(--street); color: var(--bone); }
@@ -372,50 +357,34 @@ export default function UnifiedDashboard() {
         .notif-card { background: var(--white); border: 2px solid var(--ink); border-left: 4px solid var(--ink); padding: 16px; box-shadow: 3px 3px 0 0 var(--ink); }
         .notif-card.unread { border-left-color: var(--street); background: var(--street-pale); }
         .notif-card.read { border-left-color: var(--canopy); opacity: 0.72; }
-        .notif-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-        .notif-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .notif-type { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; }
-        .notif-email-status { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; }
         .notif-subject { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0 0 6px 0; }
         .notif-body { font-size: 12px; font-weight: 500; color: var(--ink); line-height: 1.6; margin: 0; white-space: pre-wrap; word-break: break-word; }
         .notif-body.collapsed { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
         .notif-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
         .notif-time { font-size: 10px; font-weight: 500; color: var(--muted); }
         .notif-footer-actions { display: flex; gap: 6px; }
-        .btn-notif { font-size: 10px; font-weight: 700; padding: 4px 10px; border: 2px solid var(--ink); background: var(--white); cursor: pointer; text-transform: uppercase; box-shadow: 2px 2px 0 0 var(--ink); transition: all 0.15s; }
-        .btn-notif:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 0 var(--ink); }
+        .btn-notif { font-size: 10px; font-weight: 700; padding: 4px 10px; border: 2px solid var(--ink); background: var(--white); cursor: pointer; text-transform: uppercase; }
         .notif-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 40px 0; }
         .nav-notif-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--street); color: var(--bone); border: 1px solid var(--bone); font-size: 9px; font-weight: 700; min-width: 16px; height: 15px; padding: 0 3px; margin-left: 5px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .notif-type { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; margin-right: 4px; }
+        .notif-email-status { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; }
         @media (max-width: 768px) {
-          .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 2px solid rgba(250,240,234,0.2); }
+          .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; }
           .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
-          .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; width: 20%; margin-bottom: 0; border: none; }
-          .nav-item .icon { font-size: 18px; width: auto; margin: 0 auto; }
-          .main { margin-left: 0; padding: 16px; padding-bottom: 90px; padding-top: 20px; }
-          .topbar { flex-direction: column; align-items: flex-start; gap: 16px; }
-          .topbar-right { width: 100%; justify-content: space-between; flex-direction: row-reverse; }
+          .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; width: 20%; margin-bottom: 0; }
+          .main { margin-left: 0; padding: 16px; padding-bottom: 90px; }
           .stat-grid { grid-template-columns: 1fr 1fr; }
           .two-col { grid-template-columns: 1fr; }
           .cal-grid { grid-template-columns: 1fr; }
           .form-grid { grid-template-columns: 1fr; }
-          .recap-grid { grid-template-columns: 1fr; }
         }
       `}} />
 
       {changeModal.isOpen && (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setChangeModal({isOpen:false,type:"",event:null,notes:""})}}>
-          <div className="modal-content">
-            <h3 className="modal-title">{changeModal.type} Activation</h3>
-            <p className="modal-desc">{changeModal.event.store} on {changeModal.event.date}</p>
-            <div className="form-group full">
-              <label className="form-label">Details of your request:</label>
-              <textarea className="form-input form-textarea" placeholder={changeModal.type==='Edit'?"e.g. Can we move this to Friday at 5pm?":"Please provide a reason for cancellation."} value={changeModal.notes} onChange={(e)=>setChangeModal({...changeModal,notes:e.target.value})} />
-            </div>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={()=>setChangeModal({isOpen:false,type:"",event:null,notes:""})}>Close</button>
-              <button className="btn-submit" onClick={submitChangeRequest} disabled={isSubmitting}>{isSubmitting?"Sending...":"Submit Request"}</button>
-            </div>
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setChangeModal({isOpen:false,type:"",event:null,notes:""})}}>          <div className="modal-content">
+            <div className="modal-header"><h3 className="modal-title">{changeModal.type} Activation</h3><button className="btn-close-icon" onClick={()=>setChangeModal({isOpen:false,type:"",event:null,notes:""})}>✕</button></div>
+            <div className="form-group full"><label className="form-label">Details:</label><textarea className="form-input form-textarea" value={changeModal.notes} onChange={(e)=>setChangeModal({...changeModal,notes:e.target.value})} /></div>
+            <div className="modal-actions"><button className="btn-cancel" onClick={()=>setChangeModal({isOpen:false,type:"",event:null,notes:""})}>Close</button><button className="btn-submit" onClick={submitChangeRequest}>{isSubmitting?"Sending...":"Submit"}</button></div>
           </div>
         </div>
       )}
@@ -424,34 +393,31 @@ export default function UnifiedDashboard() {
         <div className="modal-overlay" onClick={(e)=>{if(e.target===e.currentTarget)setSelectedRecap(null)}}>
           <div className="modal-content large" id="recap-export-area">
             <div className="modal-header">
-              <div>
-                <h3 className="modal-title">Activation Recap: {selectedRecap.store}</h3>
-                <p className="modal-desc" style={{margin:'4px 0 0 0'}}>{selectedRecap.date} · {selectedRecap.market}</p>
-              </div>
-              <div style={{display:'flex',gap:'12px',alignItems:'center'}}>
-                <button className="btn-action-primary" onClick={downloadRecapReport} disabled={isExportingRecap} data-html2canvas-ignore="true">{isExportingRecap?"Generating PDF...":"⬇ Download Report"}</button>
-                <button className="btn-close-icon" onClick={()=>setSelectedRecap(null)} data-html2canvas-ignore="true">✕</button>
+              <div><h3 className="modal-title">{selectedRecap.store}</h3><p style={{margin:'4px 0 0',fontSize:'12px',color:'var(--muted)'}}>{selectedRecap.date}</p></div>
+              <div style={{display:'flex',gap:'12px'}}>
+                <button className="btn-action-primary" onClick={downloadRecapReport}>{isExportingRecap?"Generating...":"⬇ PDF"}</button>
+                <button className="btn-close-icon" onClick={()=>setSelectedRecap(null)}>✕</button>
               </div>
             </div>
             <div className="recap-grid">
               {Object.entries(selectedRecap.fullData).map(([key,val])=>{
-                if(!val||String(val).trim()===''||key==='Store Name'||key==='Brand Name'||key==='Activation Date'||key==='Timestamp'||key==='City'||key.toLowerCase().includes('email'))return null;
-                const isLongText=String(val).length>60||key.includes("Notes")||key.includes("objections")||key.includes("describe");
-                return(<div className={`recap-item ${isLongText?'full-width':''}`} key={key}><span className="recap-key">{key}</span><span className="recap-val">{renderRecapValue(String(val))}</span></div>);
+                if(!val||String(val).trim()===''||['Store Name','Brand Name','Activation Date','Timestamp','City'].includes(key)||key.toLowerCase().includes('email'))return null;
+                const isLong=String(val).length>60||key.includes('Notes')||key.includes('objections');
+                return(<div className={`recap-item ${isLong?'full-width':''}`} key={key}><span className="recap-key">{key}</span><span className="recap-val">{renderRecapValue(String(val))}</span></div>);
               })}
             </div>
           </div>
         </div>
       )}
 
-      <div className="sidebar" data-html2canvas-ignore="true">
+      <div className="sidebar">
         <p className="sidebar-logo">Greenline Activations</p>
         <p className="sidebar-brand">MELLOW FELLOW</p>
         <p className="nav-label">Menu</p>
         <a className={`nav-item ${activeSection==='dashboard'?'active':''}`} onClick={()=>setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
-        <a className={`nav-item ${activeSection==='calendar'?'active':''}`} onClick={()=>setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
+        <a className={`nav-item ${activeSection==='calendar'?'active':''}`} onClick={()=>setActiveSection('calendar')}><span className="icon">📅</span> Calendar</a>
         <a className={`nav-item ${activeSection==='intel'?'active':''}`} onClick={()=>setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
-        <a className={`nav-item ${activeSection==='request'?'active':''}`} onClick={()=>setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
+        <a className={`nav-item ${activeSection==='request'?'active':''}`} onClick={()=>setActiveSection('request')}><span className="icon">➕</span> Request</a>
         <a className={`nav-item ${activeSection==='notifications'?'active':''}`} onClick={()=>setActiveSection('notifications')}>
           <span className="icon">🔔</span> Notifications
           {notifications.filter(n=>!n.read).length>0&&(<span className="nav-notif-badge">{notifications.filter(n=>!n.read).length}</span>)}
@@ -461,17 +427,13 @@ export default function UnifiedDashboard() {
       <div className="main" id="dashboard-export-area">
         <div className="topbar">
           <div className="topbar-left">
-            <h1>Activation Dashboard
-              <div style={{display:'flex',gap:'8px',marginTop:'10px'}} data-html2canvas-ignore="true">
-                <button className="btn-action-primary" onClick={fetchLiveData}>↻ Sync Data</button>
-                <button className="btn-action-primary" onClick={downloadDashboardReport} disabled={isExportingDashboard}>{isExportingDashboard?"Generating PDF...":"⬇ Export Dashboard"}</button>
-              </div>
-            </h1>
-            <p style={{marginTop:'6px'}}>Live connected to Google Sheets</p>
+            <h1>Activation Dashboard</h1>
+            <p>Live data · Mellow Fellow Cannabis</p>
           </div>
-          <div className="topbar-right" data-html2canvas-ignore="true">
+          <div className="topbar-right">
             <UserButton />
-            <span className="badge">{metrics.activations} Activations Logged</span>
+            <button className="btn-action-primary" onClick={fetchLiveData}>↻ Sync</button>
+            <button className="btn-action-primary" onClick={downloadDashboardReport}>{isExportingDashboard?"Generating...":"⬇ Export"}</button>
           </div>
         </div>
 
@@ -479,101 +441,95 @@ export default function UnifiedDashboard() {
           <div className="stat-grid">
             <div className="stat-card"><p className="stat-label">Consumers Sampled</p><p className="stat-value">{metrics.sampled}</p></div>
             <div className="stat-card"><p className="stat-label">Total Purchases</p><p className="stat-value green">{metrics.sold}</p></div>
-            <div className="stat-card"><p className="stat-label">Avg Conversion Rate</p><p className="stat-value">{metrics.conversion}%</p></div>
+            <div className="stat-card"><p className="stat-label">Conversion Rate</p><p className="stat-value">{metrics.conversion}%</p></div>
             <div className="stat-card"><p className="stat-label">Total Activations</p><p className="stat-value">{metrics.activations}</p></div>
           </div>
-          <div className="two-col">
-            <div className="card">
-              <div className="card-header"><div><p className="card-title">Consumers Reached by Market</p><p className="card-sub">Top 3 Performing Cities</p></div></div>
-              <div className="chart-bars">
-                {metrics.markets.length>0?metrics.markets.map((market,index)=>(
-                  <div className="bar-col" key={index}>
-                    <div className="bar-fill" style={{height:`${(market.value/maxMarketValue)*100}%`}}><span className="bar-val">{market.value}</span></div>
-                    <p className="bar-label">{market.city}</p>
-                  </div>
-                )):<p style={{fontSize:'12px',color:'#888'}}>No data yet — connect your Google Sheet above.</p>}
-              </div>
+          <div className="card">
+            <p className="card-title">Consumers Reached by Market</p>
+            <p className="card-sub">Top 3 Performing Cities</p>
+            <div className="chart-bars" style={{marginTop:'16px'}}>
+              {metrics.markets.length>0?metrics.markets.map((m,i)=>(
+                <div className="bar-col" key={i}>
+                  <div className="bar-fill" style={{height:`${(m.value/maxMarketValue)*100}%`}}><span className="bar-val">{m.value}</span></div>
+                  <p className="bar-label">{m.city}</p>
+                </div>
+              )):<p style={{fontSize:'12px',color:'var(--muted)'}}>No data yet.</p>}
             </div>
           </div>
         </div>
 
         <div className={`section ${activeSection==='calendar'?'active':''}`}>
           <div className="card" style={{marginBottom:'16px'}}>
-            <div className="cal-section-header"><p className="cal-section-title">Upcoming Activations</p><span className="cal-section-count upcoming">{metrics.upcoming.length} scheduled</span></div>
+            <div className="cal-section-header"><p className="cal-section-title">Upcoming</p><span className="cal-section-count upcoming">{metrics.upcoming.length} scheduled</span></div>
             <div className="cal-grid">
-              {metrics.upcoming.slice(0,visibleUpcoming).map((event,index)=>(
-                <div className="cal-card status-Upcoming" key={index}>
-                  <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
-                  <p className="cal-store">{event.store}</p>
-                  <p className="cal-market">{event.market}{event.address&&` · ${event.address}`}</p>
-                  {event.products&&<div className="cal-products">🎁 {event.products}</div>}
+              {metrics.upcoming.slice(0,visibleUpcoming).map((e,i)=>(
+                <div className="cal-card status-Upcoming" key={i}>
+                  <p className="cal-date">{e.date} <span>{e.time}</span></p>
+                  <p className="cal-store">{e.store}</p>
+                  <p className="cal-market">{e.market}</p>
                   <div className="cal-footer">
                     <span className="cal-status status-Upcoming">Upcoming</span>
-                    <div className="cal-actions" data-html2canvas-ignore="true">
-                      <button className="btn-action" onClick={()=>setChangeModal({isOpen:true,type:'Edit',event,notes:''})}>Edit</button>
-                      <button className="btn-action" onClick={()=>setChangeModal({isOpen:true,type:'Cancel',event,notes:''})}>Cancel</button>
+                    <div className="cal-actions">
+                      <button className="btn-action" onClick={()=>setChangeModal({isOpen:true,type:'Edit',event:e,notes:''})}>Edit</button>
+                      <button className="btn-action" onClick={()=>setChangeModal({isOpen:true,type:'Cancel',event:e,notes:''})}>Cancel</button>
                     </div>
                   </div>
                 </div>
               ))}
-              {metrics.upcoming.length===0&&<p style={{fontSize:'12px',color:'#888',gridColumn:'1/-1'}}>No upcoming activations scheduled.</p>}
+              {metrics.upcoming.length===0&&<p style={{fontSize:'12px',color:'var(--muted)',gridColumn:'1/-1'}}>No upcoming activations.</p>}
             </div>
-            {visibleUpcoming<metrics.upcoming.length&&(<div className="cal-load-more-wrap" data-html2canvas-ignore="true"><button className="btn-load-more" onClick={()=>setVisibleUpcoming(v=>v+ITEMS_PER_PAGE)}>Load More ({metrics.upcoming.length-visibleUpcoming} remaining)</button></div>)}
+            {visibleUpcoming<metrics.upcoming.length&&<div className="cal-load-more-wrap"><button className="btn-load-more" onClick={()=>setVisibleUpcoming(v=>v+ITEMS_PER_PAGE)}>Load More</button></div>}
           </div>
           <div className="card">
-            <div className="cal-section-header"><p className="cal-section-title">Previous Activations</p><span className="cal-section-count previous">{metrics.previous.length} completed</span></div>
+            <div className="cal-section-header"><p className="cal-section-title">Previous</p><span className="cal-section-count previous">{metrics.previous.length} completed</span></div>
             <div className="cal-grid">
-              {metrics.previous.slice(0,visiblePrevious).map((event,index)=>(
-                <div className="cal-card status-Complete clickable" key={index} onClick={()=>setSelectedRecap(event)}>
-                  <p className="cal-date">{event.date} <span className="cal-time">{event.time}</span></p>
-                  <p className="cal-store">{event.store}</p>
-                  <p className="cal-market">{event.market}</p>
+              {metrics.previous.slice(0,visiblePrevious).map((e,i)=>(
+                <div className="cal-card status-Complete clickable" key={i} onClick={()=>setSelectedRecap(e)}>
+                  <p className="cal-date">{e.date}</p>
+                  <p className="cal-store">{e.store}</p>
+                  <p className="cal-market">{e.market}</p>
                   <div className="cal-footer"><span className="cal-status status-Complete">Complete</span></div>
-                  <div className="cal-view-details" data-html2canvas-ignore="true">Read Full Report →</div>
                 </div>
               ))}
-              {metrics.previous.length===0&&<p style={{fontSize:'12px',color:'#888',gridColumn:'1/-1'}}>No previous activations found.</p>}
+              {metrics.previous.length===0&&<p style={{fontSize:'12px',color:'var(--muted)',gridColumn:'1/-1'}}>No previous activations.</p>}
             </div>
-            {visiblePrevious<metrics.previous.length&&(<div className="cal-load-more-wrap" data-html2canvas-ignore="true"><button className="btn-load-more" onClick={()=>setVisiblePrevious(v=>v+ITEMS_PER_PAGE)}>Load More ({metrics.previous.length-visiblePrevious} remaining)</button></div>)}
+            {visiblePrevious<metrics.previous.length&&<div className="cal-load-more-wrap"><button className="btn-load-more" onClick={()=>setVisiblePrevious(v=>v+ITEMS_PER_PAGE)}>Load More</button></div>}
           </div>
         </div>
 
         <div className={`section ${activeSection==='intel'?'active':''}`}>
           <div className="card">
-            <div className="card-header"><div><p className="card-title">Market Intelligence</p><p className="card-sub">Latest feedback and photos</p></div></div>
-            {metrics.intel.map((item,index)=>(<div className="intel-item" key={index}><span className="intel-icon">{item.icon}</span><p className="intel-text">{item.text}</p>{item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link" data-html2canvas-ignore="true">View Photo</a>}</div>))}
-            {metrics.intel.length===0&&<p style={{fontSize:'12px',color:'#888'}}>No intel gathered yet.</p>}
+            <p className="card-title">Market Intelligence</p>
+            <p className="card-sub">Latest feedback from the field</p>
+            {metrics.intel.map((item,i)=>(<div className="intel-item" key={i}><span className="intel-icon">{item.icon}</span><p className="intel-text">{item.text}</p>{item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link">View</a>}</div>))}
+            {metrics.intel.length===0&&<p style={{fontSize:'12px',color:'var(--muted)'}}>No intel yet.</p>}
           </div>
         </div>
 
-        <div className={`section ${activeSection==='notifications'?'active':''}`} data-html2canvas-ignore="true">
+        <div className={`section ${activeSection==='notifications'?'active':''}`}>
           <div className="card">
             <div className="notif-header">
-              <div><p className="card-title">Notifications</p><p className="card-sub">Communications and updates from your Greenline team</p></div>
+              <div><p className="card-title">Notifications</p><p className="card-sub">From your Greenline team</p></div>
               <div className="notif-header-actions">
                 {notifications.filter(n=>!n.read).length>0&&<span className="notif-unread-badge">{notifications.filter(n=>!n.read).length} unread</span>}
                 <button className="btn-action-primary" onClick={fetchNotifications}>↻ Refresh</button>
-                {notifications.some(n=>!n.read)&&<button className="btn-action-primary" onClick={markAllRead}>✓ Mark All Read</button>}
+                {notifications.some(n=>!n.read)&&<button className="btn-action-primary" onClick={markAllRead}>✓ All Read</button>}
               </div>
             </div>
-            {notifLoading?(<p className="notif-empty">Loading notifications...</p>):notifications.length===0?(<p className="notif-empty">No notifications yet. Check back soon.</p>):(
+            {notifLoading?<p className="notif-empty">Loading...</p>:notifications.length===0?<p className="notif-empty">No notifications yet.</p>:(
               <div className="notif-list">
-                {notifications.map((n)=>(
+                {notifications.map(n=>(
                   <div key={n.id} className={`notif-card ${n.read?'read':'unread'}`}>
-                    <div className="notif-top">
-                      <div className="notif-badges">
-                        <span className="notif-type" style={{background:notifTypeColor[n.type?.toLowerCase()]||'#e5e7eb',color:notifTypeDark[n.type?.toLowerCase()]?'var(--bone)':'var(--ink)'}}>{n.type||'general'}</span>
-                        {n.email_status&&<span className="notif-email-status" style={{background:emailStatusColor[n.email_status?.toLowerCase()]||'#e5e7eb',color:'var(--ink)'}}>✉ {n.email_status}</span>}
-                      </div>
-                      {!n.read&&<button className="btn-notif" style={{background:'var(--canopy-pale)'}} onClick={()=>markAsRead(n.id)}>Mark Read</button>}
+                    <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'6px',flexWrap:'wrap'}}>
+                      <span className="notif-type" style={{background:notifTypeColor[n.type?.toLowerCase()]||'#e5e7eb',color:notifTypeDark[n.type?.toLowerCase()]?'var(--bone)':'var(--ink)'}}>{n.type||'general'}</span>
+                      {n.email_status&&<span className="notif-email-status" style={{background:emailStatusColor[n.email_status?.toLowerCase()]||'#e5e7eb'}}>{n.email_status}</span>}
+                      {!n.read&&<button className="btn-notif" style={{marginLeft:'auto'}} onClick={()=>markAsRead(n.id)}>Mark Read</button>}
                     </div>
                     <p className="notif-subject">{n.subject}</p>
                     <p className={`notif-body ${expandedNotif===n.id?'':'collapsed'}`}>{n.body}</p>
                     <div className="notif-footer">
                       <span className="notif-time">{formatNotifTime(n.created_at)}</span>
-                      <div className="notif-footer-actions">
-                        <button className="btn-notif" onClick={()=>setExpandedNotif(expandedNotif===n.id?null:n.id)}>{expandedNotif===n.id?'Collapse ▲':'Read More ▼'}</button>
-                      </div>
+                      <button className="btn-notif" onClick={()=>setExpandedNotif(expandedNotif===n.id?null:n.id)}>{expandedNotif===n.id?'▲':'Read More ▼'}</button>
                     </div>
                   </div>
                 ))}
@@ -582,15 +538,15 @@ export default function UnifiedDashboard() {
           </div>
         </div>
 
-        <div className={`section ${activeSection==='request'?'active':''}`} data-html2canvas-ignore="true">
+        <div className={`section ${activeSection==='request'?'active':''}`}>
           <div className="card">
-            <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
-            <div className="form-grid">
+            <p className="card-title">Request Activation</p>
+            <div className="form-grid" style={{marginTop:'16px'}}>
               <div className="form-group"><label className="form-label">Store Name</label><input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Total Wine" /></div>
-              <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
+              <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="123 Main St" /></div>
               <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" /></div>
-              <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex:1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex:1}} /></div></div>
-              <div className="form-group full"><label className="form-label">Additional Notes</label><textarea name="notes" value={formData.notes} onChange={handleInputChange} className="form-input form-textarea" placeholder="Any specific requirements, target demographics, or special instructions..." /></div>
+              <div className="form-group"><label className="form-label">Time (From - To)</label><div style={{display:'flex',gap:'8px',alignItems:'center'}}><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex:1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex:1}} /></div></div>
+              <div className="form-group full"><label className="form-label">Notes</label><textarea name="notes" value={formData.notes} onChange={handleInputChange} className="form-input form-textarea" /></div>
             </div>
             <button className="btn-submit" onClick={submitRequest} disabled={isSubmitting}>{isSubmitting?"Sending...":"Submit Request"}</button>
             {showSuccess&&<div className="success-msg">{uploadMessage}</div>}

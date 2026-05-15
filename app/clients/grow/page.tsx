@@ -14,38 +14,24 @@ export default function GrowDashboard() {
 
   const fetchStats = async () => {
     setLoading(true);
-    try {
-      const res = await fetch("/api/grow/stats");
-      if (res.ok) setStats(await res.json());
-    } catch {}
+    try { const res = await fetch("/api/grow/stats"); if (res.ok) setStats(await res.json()); } catch {}
     setLoading(false);
   };
 
   const fetchNotifications = async () => {
     try {
       const res = await fetch(`/api/notifications?client=${CLIENT_ID}`);
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-      }
+      if (res.ok) { const data = await res.json(); setNotifications(data.notifications || []); }
     } catch {}
   };
 
   const markAsRead = async (id: string) => {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
   const markAllRead = async () => {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client: CLIENT_ID, markAllRead: true }),
-    });
+    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client: CLIENT_ID, markAllRead: true }) });
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
@@ -56,7 +42,6 @@ export default function GrowDashboard() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const lowInventory = stats && stats.inventory <= 30;
-
   const fmt$ = (n: number) => `$${(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
@@ -65,13 +50,7 @@ export default function GrowDashboard() {
         @import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900,500&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #faf0ea; }
-        .db { --ink: #0a0a0a; --bone: #faf0ea; --white: #fff; --muted: #767672;
-          --gold: #d97706; --gold-pale: #fef3c7; --gold-dark: #92400e;
-          --red: #dc2626; --red-pale: #fee2e2;
-          --shadow: 4px 4px 0 0 #0a0a0a;
-          font-family: 'Manrope', sans-serif; min-height: 100vh;
-          background: var(--bone); color: var(--ink); -webkit-font-smoothing: antialiased; }
+        .db { --ink: #0a0a0a; --bone: #faf0ea; --white: #fff; --muted: #767672; --gold: #d97706; --gold-pale: #fef3c7; --gold-dark: #92400e; --red: #dc2626; --red-pale: #fee2e2; --shadow: 4px 4px 0 0 #0a0a0a; font-family: 'Manrope', sans-serif; min-height: 100vh; background: var(--bone); color: var(--ink); }
         .db-layout { display: flex; min-height: 100vh; }
         .db-sidebar { width: 240px; background: var(--ink); display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
         .db-sidebar-header { padding: 24px 20px 20px; border-bottom: 2px solid rgba(255,255,255,0.1); }
@@ -80,11 +59,10 @@ export default function GrowDashboard() {
         .db-sidebar-sub { font-size: 10px; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 3px; }
         .db-nav { padding: 16px 12px; flex: 1; }
         .db-nav-label { font-size: 9px; font-weight: 700; color: rgba(250,240,234,0.3); letter-spacing: 0.16em; text-transform: uppercase; padding: 0 8px; margin-bottom: 8px; margin-top: 12px; }
-        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(250,240,234,0.55); cursor: pointer; transition: all 0.15s; border: 2px solid transparent; position: relative; }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(250,240,234,0.55); cursor: pointer; transition: all 0.15s; border: 2px solid transparent; }
         .nav-item:hover { color: var(--bone); background: rgba(255,255,255,0.06); }
         .nav-item.active { color: var(--ink); background: var(--gold); border-color: var(--gold); }
-        .nav-item .icon { font-size: 14px; flex-shrink: 0; }
-        .nav-notif-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 0; min-width: 18px; text-align: center; }
+        .nav-notif-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 9px; font-weight: 800; padding: 2px 6px; min-width: 18px; text-align: center; }
         .db-sidebar-footer { padding: 16px 20px; border-top: 2px solid rgba(255,255,255,0.1); font-size: 10px; color: rgba(250,240,234,0.4); }
         .db-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
         .db-topbar { background: var(--white); border-bottom: 2px solid var(--ink); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
@@ -92,7 +70,6 @@ export default function GrowDashboard() {
         .db-topbar-meta { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
         .db-content { padding: 32px; flex: 1; }
         .db-alert { background: var(--red-pale); border: 2px solid var(--red); padding: 14px 18px; margin-bottom: 24px; box-shadow: 3px 3px 0 0 var(--red); display: flex; align-items: center; gap: 12px; }
-        .db-alert-icon { font-size: 18px; }
         .db-alert-text { font-size: 13px; font-weight: 700; color: var(--red); }
         .db-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
         .stat-card { background: var(--white); border: 2px solid var(--ink); padding: 20px 22px; box-shadow: var(--shadow); }
@@ -109,49 +86,33 @@ export default function GrowDashboard() {
         .db-table tr:last-child td { border-bottom: none; }
         .db-table tr:hover td { background: var(--gold-pale); }
         .badge { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 8px; border: 1.5px solid var(--ink); }
-        .badge-new { background: var(--gold-pale); }
-        .badge-ret { background: var(--bone); }
+        .badge-new { background: var(--gold-pale); } .badge-ret { background: var(--bone); }
         .comm-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .comm-card { border: 2px solid var(--ink); padding: 20px; box-shadow: var(--shadow); }
-        .comm-card.gold { background: var(--gold-pale); }
-        .comm-card.white { background: var(--white); }
+        .comm-card.gold { background: var(--gold-pale); } .comm-card.white { background: var(--white); }
         .comm-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); margin-bottom: 8px; }
         .comm-value { font-family: 'Cabinet Grotesk', sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
         .comm-note { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 6px; }
         .notif-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
-        .notif-header-actions { display: flex; align-items: center; gap: 12px; }
         .notif-unread-badge { background: var(--red); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 10px; display: inline-block; }
         .notif-list { display: flex; flex-direction: column; gap: 12px; }
         .notif-card { border: 2px solid var(--ink); padding: 16px; cursor: pointer; transition: all 0.15s; }
         .notif-card.unread { background: var(--gold-pale); box-shadow: 3px 3px 0 0 var(--ink); }
         .notif-card.read { background: var(--white); opacity: 0.7; }
-        .notif-top { display: flex; align-items: flex-start; gap: 10px; }
         .notif-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
         .notif-type { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 8px; border: 1.5px solid var(--ink); }
-        .notif-email-status { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 8px; border: 1.5px solid var(--ink); }
         .notif-subject { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
         .notif-body { font-size: 12px; font-weight: 500; color: #444; white-space: pre-wrap; }
         .notif-body.collapsed { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .notif-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(10,10,10,0.12); }
         .notif-time { font-size: 10px; font-weight: 600; color: var(--muted); }
-        .notif-footer-actions { display: flex; gap: 8px; }
         .btn-notif { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 12px; border: 1.5px solid var(--ink); background: var(--white); cursor: pointer; transition: all 0.12s; }
         .btn-notif:hover { background: var(--ink); color: var(--bone); }
         .notif-empty { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 13px; font-weight: 600; }
         .loading { display: flex; align-items: center; justify-content: center; padding: 80px; font-size: 13px; font-weight: 600; color: var(--muted); }
-        @media (max-width: 900px) {
-          .db-layout { flex-direction: column; }
-          .db-sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; }
-          .db-stats { grid-template-columns: 1fr 1fr; }
-          .comm-summary { grid-template-columns: 1fr 1fr; }
-          .db-content { padding: 20px 16px; }
-        }
-        @media (max-width: 600px) {
-          .db-stats { grid-template-columns: 1fr; }
-          .comm-summary { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 900px) { .db-layout { flex-direction: column; } .db-sidebar { width: 100%; height: auto; position: static; } .db-stats { grid-template-columns: 1fr 1fr; } .comm-summary { grid-template-columns: 1fr 1fr; } .db-content { padding: 20px 16px; } }
+        @media (max-width: 600px) { .db-stats { grid-template-columns: 1fr; } .comm-summary { grid-template-columns: 1fr; } }
       `}} />
-
       <div className="db-layout">
         <aside className="db-sidebar">
           <div className="db-sidebar-header">
@@ -161,300 +122,63 @@ export default function GrowDashboard() {
           </div>
           <nav className="db-nav">
             <p className="db-nav-label">Overview</p>
-            <div className={`nav-item ${activeSection === "dashboard" ? "active" : ""}`} onClick={() => setActiveSection("dashboard")}>
-              <span className="icon">📊</span> Dashboard
-            </div>
-            <div className={`nav-item ${activeSection === "accounts" ? "active" : ""}`} onClick={() => setActiveSection("accounts")}>
-              <span className="icon">🏪</span> Accounts
-            </div>
-            <div className={`nav-item ${activeSection === "orders" ? "active" : ""}`} onClick={() => setActiveSection("orders")}>
-              <span className="icon">📦</span> Orders
-            </div>
-            <div className={`nav-item ${activeSection === "commission" ? "active" : ""}`} onClick={() => setActiveSection("commission")}>
-              <span className="icon">💰</span> Commission
-            </div>
+            <div className={`nav-item ${activeSection==="dashboard"?"active":""}`} onClick={()=>setActiveSection("dashboard")}><span>📊</span> Dashboard</div>
+            <div className={`nav-item ${activeSection==="accounts"?"active":""}`} onClick={()=>setActiveSection("accounts")}><span>🏪</span> Accounts</div>
+            <div className={`nav-item ${activeSection==="orders"?"active":""}`} onClick={()=>setActiveSection("orders")}><span>📦</span> Orders</div>
+            <div className={`nav-item ${activeSection==="commission"?"active":""}`} onClick={()=>setActiveSection("commission")}><span>💰</span> Commission</div>
             <p className="db-nav-label">Communications</p>
-            <div className={`nav-item ${activeSection === "notifications" ? "active" : ""}`} onClick={() => setActiveSection("notifications")}>
-              <span className="icon">🔔</span> Notifications
-              {unreadCount > 0 && <span className="nav-notif-badge">{unreadCount}</span>}
+            <div className={`nav-item ${activeSection==="notifications"?"active":""}`} onClick={()=>setActiveSection("notifications")}>
+              <span>🔔</span> Notifications
+              {unreadCount>0&&<span className="nav-notif-badge">{unreadCount}</span>}
             </div>
           </nav>
-          <div className="db-sidebar-footer">
-            {user?.emailAddresses?.[0]?.emailAddress || ""}
-          </div>
+          <div className="db-sidebar-footer">{user?.emailAddresses?.[0]?.emailAddress||""}</div>
         </aside>
-
         <main className="db-main">
           <div className="db-topbar">
             <div>
-              <p className="db-topbar-title">
-                {activeSection === "dashboard" && "Sales Overview"}
-                {activeSection === "accounts" && "Account Directory"}
-                {activeSection === "orders" && "Order History"}
-                {activeSection === "commission" && "Commission Breakdown"}
-                {activeSection === "notifications" && "Notifications"}
-              </p>
+              <p className="db-topbar-title">{activeSection==="dashboard"&&"Sales Overview"}{activeSection==="accounts"&&"Account Directory"}{activeSection==="orders"&&"Order History"}{activeSection==="commission"&&"Commission Breakdown"}{activeSection==="notifications"&&"Notifications"}</p>
               <p className="db-topbar-meta">Grow Cannabis Group · Live Data</p>
             </div>
           </div>
-
           <div className="db-content">
-            {loading ? (
-              <div className="loading">Loading data...</div>
-            ) : (
+            {loading?<div className="loading">Loading data...</div>:(
               <>
-                {activeSection === "dashboard" && (
+                {activeSection==="dashboard"&&(
                   <>
-                    {lowInventory && (
-                      <div className="db-alert">
-                        <span className="db-alert-icon">⚠️</span>
-                        <span className="db-alert-text">
-                          Low Inventory: {stats.inventory} cases remaining — replenishment needed (threshold: 30 cases)
-                        </span>
-                      </div>
-                    )}
+                    {lowInventory&&<div className="db-alert"><span style={{fontSize:'18px'}}>⚠️</span><span className="db-alert-text">Low Inventory: {stats.inventory} cases remaining — replenishment needed (threshold: 30 cases)</span></div>}
                     <div className="db-stats">
-                      <div className="stat-card">
-                        <p className="stat-label">Accounts Visited</p>
-                        <p className="stat-value">{stats?.accountsVisited ?? 0}</p>
-                        <p className="stat-sub">unique locations</p>
-                      </div>
-                      <div className="stat-card">
-                        <p className="stat-label">New Accounts</p>
-                        <p className="stat-value">{stats?.newAccounts ?? 0}</p>
-                        <p className="stat-sub">first-time orders</p>
-                      </div>
-                      <div className="stat-card">
-                        <p className="stat-label">Cases Sold</p>
-                        <p className="stat-value">{stats?.casesSold ?? 0}</p>
-                        <p className="stat-sub">total units ordered</p>
-                      </div>
-                      <div className={`stat-card ${lowInventory ? "red" : ""}`}>
-                        <p className="stat-label">Current Inventory</p>
-                        <p className={`stat-value ${lowInventory ? "red" : ""}`}>{stats?.inventory ?? 100}</p>
-                        <p className="stat-sub">cases remaining of 100</p>
-                      </div>
-                      <div className="stat-card">
-                        <p className="stat-label">Revenue</p>
-                        <p className="stat-value" style={{fontSize: "24px"}}>{fmt$(stats?.revenue ?? 0)}</p>
-                        <p className="stat-sub">total wholesale</p>
-                      </div>
-                      <div className="stat-card" style={{background: "var(--gold-pale)", borderColor: "var(--ink)"}}>
-                        <p className="stat-label">Commission Balance</p>
-                        <p className="stat-value" style={{fontSize: "24px", color: "var(--gold-dark)"}}>{fmt$(stats?.commission ?? 0)}</p>
-                        <p className="stat-sub">10% of revenue</p>
-                      </div>
+                      <div className="stat-card"><p className="stat-label">Accounts Visited</p><p className="stat-value">{stats?.accountsVisited??0}</p><p className="stat-sub">unique locations</p></div>
+                      <div className="stat-card"><p className="stat-label">New Accounts</p><p className="stat-value">{stats?.newAccounts??0}</p><p className="stat-sub">first-time orders</p></div>
+                      <div className="stat-card"><p className="stat-label">Cases Sold</p><p className="stat-value">{stats?.casesSold??0}</p><p className="stat-sub">total units ordered</p></div>
+                      <div className={`stat-card ${lowInventory?"red":""}`}><p className="stat-label">Current Inventory</p><p className={`stat-value ${lowInventory?"red":""}`}>{stats?.inventory??100}</p><p className="stat-sub">cases remaining of 100</p></div>
+                      <div className="stat-card"><p className="stat-label">Revenue</p><p className="stat-value" style={{fontSize:'24px'}}>{fmt$(stats?.revenue??0)}</p><p className="stat-sub">total wholesale</p></div>
+                      <div className="stat-card" style={{background:'var(--gold-pale)'}}><p className="stat-label">Commission Balance</p><p className="stat-value" style={{fontSize:'24px',color:'var(--gold-dark)'}}>{fmt$(stats?.commission??0)}</p><p className="stat-sub">10% of revenue</p></div>
                     </div>
-
                     <p className="db-section-title">Top Accounts</p>
-                    <div className="db-card">
-                      <table className="db-table">
-                        <thead>
-                          <tr>
-                            <th>Account</th>
-                            <th>Status</th>
-                            <th>Visits</th>
-                            <th>Cases</th>
-                            <th>Revenue</th>
-                            <th>Last Visit</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(stats?.accounts || []).slice(0, 5).map((acc: any, i: number) => (
-                            <tr key={i}>
-                              <td style={{fontWeight: 700}}>{acc.name}</td>
-                              <td><span className={`badge ${acc.isNew ? "badge-new" : "badge-ret"}`}>{acc.isNew ? "New" : "Returning"}</span></td>
-                              <td>{acc.visitCount}</td>
-                              <td>{acc.totalCases}</td>
-                              <td>{fmt$(acc.totalRevenue)}</td>
-                              <td style={{color: "var(--muted)"}}>{acc.lastVisit}</td>
-                            </tr>
-                          ))}
-                          {(!stats?.accounts || stats.accounts.length === 0) && (
-                            <tr><td colSpan={6} style={{textAlign: "center", color: "var(--muted)", padding: "32px"}}>No accounts yet</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                    <div className="db-card"><table className="db-table"><thead><tr><th>Account</th><th>Status</th><th>Visits</th><th>Cases</th><th>Revenue</th><th>Last Visit</th></tr></thead><tbody>
+                      {(stats?.accounts||[]).slice(0,5).map((acc:any,i:number)=>(<tr key={i}><td style={{fontWeight:700}}>{acc.name}</td><td><span className={`badge ${acc.isNew?"badge-new":"badge-ret"}`}>{acc.isNew?"New":"Returning"}</span></td><td>{acc.visitCount}</td><td>{acc.totalCases}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{color:'var(--muted)'}}>{acc.lastVisit}</td></tr>))}
+                      {(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={6} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No accounts yet</td></tr>}
+                    </tbody></table></div>
                   </>
                 )}
-
-                {activeSection === "accounts" && (
+                {activeSection==="accounts"&&(<><p className="db-section-title">All Accounts</p><div className="db-card"><table className="db-table"><thead><tr><th>Account</th><th>City</th><th>Status</th><th>Visits</th><th>Cases</th><th>Revenue</th><th>Last Visit</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i}><td style={{fontWeight:700}}>{acc.name}</td><td style={{color:'var(--muted)'}}>{acc.city||'—'}</td><td><span className={`badge ${acc.isNew?'badge-new':'badge-ret'}`}>{acc.isNew?'New':'Returning'}</span></td><td>{acc.visitCount}</td><td>{acc.totalCases}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{color:'var(--muted)'}}>{acc.lastVisit}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={7} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No accounts yet</td></tr>}</tbody></table></div></>)}
+                {activeSection==="orders"&&(<><p className="db-section-title">Order History</p><div className="db-card"><table className="db-table"><thead><tr><th>Date</th><th>Rep</th><th>Account</th><th>City</th><th>SKU</th><th>Cases</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>{(stats?.visits||[]).map((v:any,i:number)=>(<tr key={i}><td>{v.visit_date}</td><td style={{fontWeight:600}}>{v.rep_name}</td><td>{v.account_name}</td><td style={{color:'var(--muted)'}}>{v.city||'—'}</td><td style={{fontFamily:'monospace',fontSize:'11px'}}>{v.sku||'—'}</td><td>{v.qty_ordered}</td><td>{fmt$(v.unit_wholesale)}</td><td style={{fontWeight:700}}>{fmt$(v.line_total)}</td></tr>))}{(!stats?.visits||stats.visits.length===0)&&<tr><td colSpan={8} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No orders yet</td></tr>}</tbody></table></div></>)}
+                {activeSection==="commission"&&(<><p className="db-section-title">Commission Breakdown</p><div className="comm-summary"><div className="comm-card white"><p className="comm-label">Total Revenue</p><p className="comm-value">{fmt$(stats?.revenue??0)}</p><p className="comm-note">All wholesale orders</p></div><div className="comm-card white"><p className="comm-label">Commission Rate</p><p className="comm-value">10%</p></div><div className="comm-card gold"><p className="comm-label">Commission Earned</p><p className="comm-value">{fmt$(stats?.commission??0)}</p></div></div><p className="db-section-title">By Account</p><div className="db-card"><table className="db-table"><thead><tr><th>Account</th><th>Revenue</th><th>Commission (10%)</th><th>Cases</th><th>Visits</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i}><td style={{fontWeight:700}}>{acc.name}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{fontWeight:700,color:'var(--gold-dark)'}}>{fmt$(acc.totalRevenue*0.1)}</td><td>{acc.totalCases}</td><td>{acc.visitCount}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={5} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No data yet</td></tr>}</tbody></table></div></>)}
+                {activeSection==="notifications"&&(
                   <>
-                    <p className="db-section-title">All Accounts</p>
-                    <div className="db-card">
-                      <table className="db-table">
-                        <thead>
-                          <tr>
-                            <th>Account Name</th>
-                            <th>City</th>
-                            <th>Status</th>
-                            <th>Visits</th>
-                            <th>Total Cases</th>
-                            <th>Total Revenue</th>
-                            <th>Last Visit</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(stats?.accounts || []).map((acc: any, i: number) => (
-                            <tr key={i}>
-                              <td style={{fontWeight: 700}}>{acc.name}</td>
-                              <td style={{color: "var(--muted)"}}>{acc.city || "—"}</td>
-                              <td><span className={`badge ${acc.isNew ? "badge-new" : "badge-ret"}`}>{acc.isNew ? "New" : "Returning"}</span></td>
-                              <td>{acc.visitCount}</td>
-                              <td>{acc.totalCases}</td>
-                              <td>{fmt$(acc.totalRevenue)}</td>
-                              <td style={{color: "var(--muted)"}}>{acc.lastVisit}</td>
-                            </tr>
-                          ))}
-                          {(!stats?.accounts || stats.accounts.length === 0) && (
-                            <tr><td colSpan={7} style={{textAlign: "center", color: "var(--muted)", padding: "32px"}}>No accounts yet</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-
-                {activeSection === "orders" && (
-                  <>
-                    <p className="db-section-title">Order History</p>
-                    <div className="db-card">
-                      <table className="db-table">
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Rep</th>
-                            <th>Account</th>
-                            <th>City</th>
-                            <th>SKU</th>
-                            <th>Cases</th>
-                            <th>Unit Price</th>
-                            <th>Line Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(stats?.visits || []).map((v: any, i: number) => (
-                            <tr key={i}>
-                              <td>{v.visit_date}</td>
-                              <td style={{fontWeight: 600}}>{v.rep_name}</td>
-                              <td>{v.account_name}</td>
-                              <td style={{color: "var(--muted)"}}>{v.city || "—"}</td>
-                              <td style={{fontFamily: "monospace", fontSize: "11px"}}>{v.sku || "—"}</td>
-                              <td>{v.qty_ordered}</td>
-                              <td>{fmt$(v.unit_wholesale)}</td>
-                              <td style={{fontWeight: 700}}>{fmt$(v.line_total)}</td>
-                            </tr>
-                          ))}
-                          {(!stats?.visits || stats.visits.length === 0) && (
-                            <tr><td colSpan={8} style={{textAlign: "center", color: "var(--muted)", padding: "32px"}}>No orders yet</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-
-                {activeSection === "commission" && (
-                  <>
-                    <p className="db-section-title">Commission Breakdown</p>
-                    <div className="comm-summary">
-                      <div className="comm-card white">
-                        <p className="comm-label">Total Revenue</p>
-                        <p className="comm-value">{fmt$(stats?.revenue ?? 0)}</p>
-                        <p className="comm-note">All wholesale orders</p>
-                      </div>
-                      <div className="comm-card white">
-                        <p className="comm-label">Commission Rate</p>
-                        <p className="comm-value">10%</p>
-                        <p className="comm-note">Applied to all revenue</p>
-                      </div>
-                      <div className="comm-card gold">
-                        <p className="comm-label">Commission Earned</p>
-                        <p className="comm-value">{fmt$(stats?.commission ?? 0)}</p>
-                        <p className="comm-note">Current balance</p>
-                      </div>
-                    </div>
-
-                    <p className="db-section-title">Commission by Account</p>
-                    <div className="db-card">
-                      <table className="db-table">
-                        <thead>
-                          <tr>
-                            <th>Account</th>
-                            <th>Revenue</th>
-                            <th>Commission (10%)</th>
-                            <th>Cases</th>
-                            <th>Visits</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(stats?.accounts || []).map((acc: any, i: number) => (
-                            <tr key={i}>
-                              <td style={{fontWeight: 700}}>{acc.name}</td>
-                              <td>{fmt$(acc.totalRevenue)}</td>
-                              <td style={{fontWeight: 700, color: "var(--gold-dark)"}}>{fmt$(acc.totalRevenue * 0.1)}</td>
-                              <td>{acc.totalCases}</td>
-                              <td>{acc.visitCount}</td>
-                            </tr>
-                          ))}
-                          {(!stats?.accounts || stats.accounts.length === 0) && (
-                            <tr><td colSpan={5} style={{textAlign: "center", color: "var(--muted)", padding: "32px"}}>No data yet</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-
-                {activeSection === "notifications" && (
-                  <>
-                    <div className="notif-header">
-                      <div style={{display: "flex", alignItems: "center", gap: "12px"}}>
-                        <p className="db-section-title" style={{margin: 0, border: 0, padding: 0}}>Notifications</p>
-                        {unreadCount > 0 && <span className="notif-unread-badge">{unreadCount} unread</span>}
-                      </div>
-                      {unreadCount > 0 && (
-                        <div className="notif-header-actions">
-                          <button className="btn-notif" onClick={markAllRead}>Mark all read</button>
-                        </div>
-                      )}
-                    </div>
-
-                    {notifications.length === 0 ? (
-                      <div className="notif-empty">No notifications yet.</div>
-                    ) : (
-                      <div className="notif-list">
-                        {notifications.map((n: any) => {
-                          const typeColors: Record<string, string> = { email: "var(--gold-pale)", alert: "var(--red-pale)", update: "#c7d7fe", announcement: "#fde68a" };
-                          const emailColors: Record<string, string> = { delivered: "var(--gold-pale)", sent: "#c7d7fe", failed: "var(--red-pale)", pending: "#fde68a" };
-                          const isExpanded = expandedNotif === n.id;
-                          return (
-                            <div
-                              key={n.id}
-                              className={`notif-card ${n.read ? "read" : "unread"}`}
-                              onClick={() => setExpandedNotif(isExpanded ? null : n.id)}
-                            >
-                              <div className="notif-badges">
-                                <span className="notif-type" style={{background: typeColors[n.type] || "#f0f0f0"}}>{n.type}</span>
-                                {n.email_status && (
-                                  <span className="notif-email-status" style={{background: emailColors[n.email_status] || "#f0f0f0"}}>{n.email_status}</span>
-                                )}
-                              </div>
-                              <p className="notif-subject">{n.subject}</p>
-                              <p className={`notif-body ${isExpanded ? "" : "collapsed"}`}>{n.body}</p>
-                              <div className="notif-footer">
-                                <span className="notif-time">{n.created_at ? formatNotifTime(n.created_at) : ""}</span>
-                                <div className="notif-footer-actions">
-                                  {!n.read && (
-                                    <button className="btn-notif" onClick={e => { e.stopPropagation(); markAsRead(n.id); }}>Mark read</button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                    <div className="notif-header"><div style={{display:'flex',alignItems:'center',gap:'12px'}}><p className="db-section-title" style={{margin:0,border:0,padding:0}}>Notifications</p>{unreadCount>0&&<span className="notif-unread-badge">{unreadCount} unread</span>}</div>{unreadCount>0&&<button className="btn-notif" onClick={markAllRead}>Mark all read</button>}</div>
+                    {notifications.length===0?<div className="notif-empty">No notifications yet.</div>:(
+                      <div className="notif-list">{notifications.map((n:any)=>{
+                        const typeColors:Record<string,string>={email:'var(--gold-pale)',alert:'var(--red-pale)',update:'#c7d7fe',announcement:'#fde68a'};
+                        const isExpanded=expandedNotif===n.id;
+                        return(<div key={n.id} className={`notif-card ${n.read?'read':'unread'}`} onClick={()=>setExpandedNotif(isExpanded?null:n.id)}>
+                          <div className="notif-badges"><span className="notif-type" style={{background:typeColors[n.type]||'#f0f0f0'}}>{n.type}</span></div>
+                          <p className="notif-subject">{n.subject}</p>
+                          <p className={`notif-body ${isExpanded?'':'collapsed'}`}>{n.body}</p>
+                          <div className="notif-footer"><span className="notif-time">{n.created_at?formatNotifTime(n.created_at):''}</span><div>{!n.read&&<button className="btn-notif" onClick={e=>{e.stopPropagation();markAsRead(n.id);}}>Mark read</button>}</div></div>
+                        </div>);
+                      })}</div>
                     )}
                   </>
                 )}
