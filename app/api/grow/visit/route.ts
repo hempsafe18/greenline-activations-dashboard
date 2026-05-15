@@ -27,7 +27,6 @@ export async function POST(req: Request) {
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
-    // Recalculate inventory and fire low-stock notification
     const { data: allVisits } = await supabase
       .from('sales_visits')
       .select('qty_ordered')
@@ -47,7 +46,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // HubSpot deal
     const token = process.env.HUBSPOT_ACCESS_TOKEN;
     if (token) {
       await fetch('https://api.hubapi.com/crm/v3/objects/deals', {
