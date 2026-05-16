@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import Link from "next/link";
 
 const CLIENT_ID = "GROW";
 
@@ -121,6 +122,7 @@ export default function GrowDashboard() {
             <p className="db-sidebar-sub">Sales Dashboard</p>
           </div>
           <nav className="db-nav">
+            <Link href="/dashboard" className="nav-item" style={{ marginBottom: 12, opacity: 0.7 }}><span>←</span> Main Dashboard</Link>
             <p className="db-nav-label">Overview</p>
             <div className={`nav-item ${activeSection==="dashboard"?"active":""}`} onClick={()=>setActiveSection("dashboard")}><span>📊</span> Dashboard</div>
             <div className={`nav-item ${activeSection==="accounts"?"active":""}`} onClick={()=>setActiveSection("accounts")}><span>🏪</span> Accounts</div>

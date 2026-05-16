@@ -15,6 +15,11 @@ const CLIENTS = [
     recapUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=2138748497&single=true&output=csv",
     upcomingUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=1988632059&single=true&output=csv",
   },
+  {
+    id: "mellow-fellow", name: "MELLOW FELLOW", color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow",
+    recapUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=1499120296&single=true&output=csv",
+    upcomingUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=974321090&single=true&output=csv",
+  },
 ];
 
 const ADMIN_EMAILS = ["asmar@greenlineactivations.com", "asmar.gary@gmail.com"];
@@ -298,14 +303,10 @@ export default function AdminDashboard() {
           </Link>
         ))}
         <hr className="adm-divider" />
-        <p className="adm-nav-label">Sales Dashboards</p>
+        <p className="adm-nav-label">Other Dashboards</p>
         <Link className="adm-nav-item" href="/clients/grow">
           <span className="adm-nav-dot" style={{ background: "#d97706" }} />
           GROW
-        </Link>
-        <Link className="adm-nav-item" href="/clients/mellow-fellow">
-          <span className="adm-nav-dot" style={{ background: "#9b59b6" }} />
-          MELLOW FELLOW
         </Link>
         <hr className="adm-divider" />
         <p className="adm-nav-label">Account</p>
@@ -595,10 +596,6 @@ export default function AdminDashboard() {
               ))}
               <Link href="/clients/grow" className="adm-quick-card">
                 <span>🌱 GROW Dashboard</span>
-                <span style={{ fontSize: 20 }}>→</span>
-              </Link>
-              <Link href="/clients/mellow-fellow" className="adm-quick-card">
-                <span>😌 MELLOW FELLOW Dashboard</span>
                 <span style={{ fontSize: 20 }}>→</span>
               </Link>
             </div>
