@@ -303,7 +303,7 @@ export default function AdminDashboard() {
           </Link>
         ))}
         <hr className="adm-divider" />
-        <p className="adm-nav-label">Other Dashboards</p>
+        <p className="adm-nav-label">Sales Dashboards</p>
         <Link className="adm-nav-item" href="/clients/grow">
           <span className="adm-nav-dot" style={{ background: "#d97706" }} />
           GROW
