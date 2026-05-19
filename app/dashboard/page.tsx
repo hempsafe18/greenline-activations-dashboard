@@ -31,12 +31,33 @@ interface ClientStats {
   upcoming: number; monthlyData: Record<string, number>;
 }
 
+const CLIENT_IDS = ["3CHI", "AMIGOS", "MELLOW FELLOW", "GROW"];
+
+interface NotifyForm {
+  type: "event" | "staff" | "recap";
+  client: string;
+  storeName: string;
+  eventDate: string;
+  staffName: string;
+  staffRole: string;
+  submittedBy: string;
+  sampled: string;
+  sold: string;
+  notes: string;
+}
+
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const [clientStats, setClientStats] = useState<ClientStats[]>([]);
   const [ambassadors, setAmbassadors] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState("");
+  const [notifyForm, setNotifyForm] = useState<NotifyForm>({
+    type: "event", client: "3CHI", storeName: "", eventDate: "",
+    staffName: "", staffRole: "", submittedBy: "", sampled: "", sold: "", notes: "",
+  });
+  const [notifySending, setNotifySending] = useState(false);
+  const [notifyMsg, setNotifyMsg] = useState("");
 
   // Client-side auth guard
   useEffect(() => {
@@ -137,6 +158,36 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => { if (isLoaded && user) fetchAll(); }, [isLoaded]);
+
+  const sendClientNotification = async () => {
+    const { type, client, storeName, eventDate, staffName, staffRole, submittedBy, sampled, sold, notes } = notifyForm;
+    if (!client || !storeName || !eventDate) { setNotifyMsg("Client, Store Name, and Event Date are required."); return; }
+    setNotifySending(true);
+    setNotifyMsg("");
+    try {
+      let endpoint = "/api/request";
+      let payload: Record<string, string> = {};
+      if (type === "event") {
+        endpoint = "/api/request";
+        payload = { client, storeName, date: eventDate, notes, requestType: "New Activation Request" };
+      } else if (type === "staff") {
+        endpoint = "/api/staff-assign";
+        payload = { client, storeName, eventDate, staffName, staffRole, notes };
+      } else {
+        endpoint = "/api/recap";
+        payload = { client, storeName, eventDate, submittedBy, sampled, sold, notes };
+      }
+      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (data.success) {
+        setNotifyMsg(`✅ Notification sent to ${client} dashboard.`);
+        setNotifyForm(f => ({ ...f, storeName: "", eventDate: "", staffName: "", staffRole: "", submittedBy: "", sampled: "", sold: "", notes: "" }));
+      } else {
+        setNotifyMsg(`❌ Failed: ${data.error || "Unknown error"}`);
+      }
+    } catch { setNotifyMsg("❌ Network error."); }
+    setNotifySending(false);
+  };
 
   // ─── Derived aggregates ──────────────────────────────────────────
   const totalActivations  = clientStats.reduce((s, c) => s + c.activations, 0);
@@ -271,6 +322,19 @@ export default function AdminDashboard() {
         .adm-quick-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:14px; }
         .adm-quick-card { background:var(--white); border:2px solid var(--ink); padding:20px 22px; text-decoration:none; color:var(--ink); box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; font-family:'Cabinet Grotesk',sans-serif; font-weight:800; font-size:15px; transition:all .15s; }
         .adm-quick-card:hover { transform:translate(-2px,-2px); box-shadow:var(--shadow-lg); }
+
+        /* ── Notify Panel ── */
+        .adm-notify-tabs { display:flex; gap:0; margin-bottom:18px; border:2px solid var(--ink); overflow:hidden; }
+        .adm-notify-tab { flex:1; padding:10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; background:var(--bone); border:none; cursor:pointer; border-right:2px solid var(--ink); font-family:'Manrope',sans-serif; }
+        .adm-notify-tab:last-child { border-right:none; }
+        .adm-notify-tab.active { background:var(--ink); color:var(--bone); }
+        .adm-notify-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+        .adm-notify-group { display:flex; flex-direction:column; gap:5px; }
+        .adm-notify-group.full { grid-column:1/-1; }
+        .adm-notify-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); }
+        .adm-notify-input { border:2px solid var(--ink); padding:8px 10px; font-size:13px; font-family:'Manrope',sans-serif; outline:none; width:100%; background:var(--white); }
+        .adm-notify-select { border:2px solid var(--ink); padding:8px 10px; font-size:13px; font-family:'Manrope',sans-serif; outline:none; width:100%; background:var(--white); }
+        .adm-notify-msg { font-size:12px; font-weight:600; margin-top:10px; }
 
         /* ── Loading ── */
         .adm-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:360px; gap:16px; }
@@ -598,6 +662,81 @@ export default function AdminDashboard() {
                 <span>🌱 GROW Dashboard</span>
                 <span style={{ fontSize: 20 }}>→</span>
               </Link>
+            </div>
+
+            {/* ── Notify Client Panel ── */}
+            <div className="adm-card" style={{ marginTop: 14 }}>
+              <p className="adm-card-title">Notify Client</p>
+              <p className="adm-card-sub">Send a notification to a client dashboard — event added, staff assigned, or recap submitted</p>
+
+              <div className="adm-notify-tabs">
+                {(["event", "staff", "recap"] as const).map(t => (
+                  <button
+                    key={t}
+                    className={`adm-notify-tab${notifyForm.type === t ? " active" : ""}`}
+                    onClick={() => setNotifyForm(f => ({ ...f, type: t }))}
+                  >
+                    {t === "event" ? "Event Added" : t === "staff" ? "Staff Assigned" : "Recap Submitted"}
+                  </button>
+                ))}
+              </div>
+
+              <div className="adm-notify-grid">
+                <div className="adm-notify-group">
+                  <label className="adm-notify-label">Client</label>
+                  <select className="adm-notify-select" value={notifyForm.client} onChange={e => setNotifyForm(f => ({ ...f, client: e.target.value }))}>
+                    {CLIENT_IDS.map(id => <option key={id} value={id}>{id}</option>)}
+                  </select>
+                </div>
+                <div className="adm-notify-group">
+                  <label className="adm-notify-label">Store / Event Name</label>
+                  <input className="adm-notify-input" value={notifyForm.storeName} onChange={e => setNotifyForm(f => ({ ...f, storeName: e.target.value }))} placeholder="e.g. Total Wine - Orlando" />
+                </div>
+                <div className="adm-notify-group">
+                  <label className="adm-notify-label">Event Date</label>
+                  <input type="date" className="adm-notify-input" value={notifyForm.eventDate} onChange={e => setNotifyForm(f => ({ ...f, eventDate: e.target.value }))} />
+                </div>
+
+                {notifyForm.type === "staff" && (
+                  <>
+                    <div className="adm-notify-group">
+                      <label className="adm-notify-label">Staff Name</label>
+                      <input className="adm-notify-input" value={notifyForm.staffName} onChange={e => setNotifyForm(f => ({ ...f, staffName: e.target.value }))} placeholder="e.g. Jordan Smith" />
+                    </div>
+                    <div className="adm-notify-group">
+                      <label className="adm-notify-label">Role (optional)</label>
+                      <input className="adm-notify-input" value={notifyForm.staffRole} onChange={e => setNotifyForm(f => ({ ...f, staffRole: e.target.value }))} placeholder="e.g. Brand Ambassador" />
+                    </div>
+                  </>
+                )}
+
+                {notifyForm.type === "recap" && (
+                  <>
+                    <div className="adm-notify-group">
+                      <label className="adm-notify-label">Submitted By</label>
+                      <input className="adm-notify-input" value={notifyForm.submittedBy} onChange={e => setNotifyForm(f => ({ ...f, submittedBy: e.target.value }))} placeholder="e.g. Jordan Smith" />
+                    </div>
+                    <div className="adm-notify-group">
+                      <label className="adm-notify-label">Consumers Sampled</label>
+                      <input type="number" className="adm-notify-input" value={notifyForm.sampled} onChange={e => setNotifyForm(f => ({ ...f, sampled: e.target.value }))} placeholder="e.g. 120" />
+                    </div>
+                    <div className="adm-notify-group">
+                      <label className="adm-notify-label">Units Sold</label>
+                      <input type="number" className="adm-notify-input" value={notifyForm.sold} onChange={e => setNotifyForm(f => ({ ...f, sold: e.target.value }))} placeholder="e.g. 24" />
+                    </div>
+                  </>
+                )}
+
+                <div className="adm-notify-group full">
+                  <label className="adm-notify-label">Notes (optional)</label>
+                  <input className="adm-notify-input" value={notifyForm.notes} onChange={e => setNotifyForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any additional details..." />
+                </div>
+              </div>
+
+              <button className="adm-btn-sync" onClick={sendClientNotification} disabled={notifySending}>
+                {notifySending ? "Sending..." : "Send Notification →"}
+              </button>
+              {notifyMsg && <p className="adm-notify-msg">{notifyMsg}</p>}
             </div>
           </>
         )}
