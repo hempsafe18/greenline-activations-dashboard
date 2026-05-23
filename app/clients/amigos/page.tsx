@@ -56,8 +56,15 @@ export default function UnifiedDashboard() {
       let flavorCounts: Record<string, number> = {};
       let newIntel: any[] = [];
 
+      console.log('AMIGOS Events fetched:', events?.length || 0);
+      if (events && events.length > 0) {
+        console.log('Sample event status values:', events.slice(0, 3).map(e => ({ store_name: e.store_name, status: e.status, date: e.date })));
+      }
+
       const completedEvents = events?.filter(e => e.status === 'completed') || [];
       const upcomingEvents = events?.filter(e => e.status === 'upcoming') || [];
+
+      console.log('Completed events:', completedEvents.length, 'Upcoming events:', upcomingEvents.length);
 
       completedEvents.forEach(row => {
         if (!row.store_name) return;
