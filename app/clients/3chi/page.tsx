@@ -4,7 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 
 import { supabase } from "../../../lib/supabase-client";
 
-const TARGET_BRAND = "3chi";
+const TARGET_BRAND = "3CHI";
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
