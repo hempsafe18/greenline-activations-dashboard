@@ -56,9 +56,13 @@ export default function UnifiedDashboard() {
       let flavorCounts: Record<string, number> = {};
       let newIntel: any[] = [];
 
-      console.log('AMIGOS Events fetched:', events?.length || 0);
+      console.log('AMIGOS Total Events fetched:', events?.length || 0);
       if (events && events.length > 0) {
-        console.log('Sample event status values:', events.slice(0, 3).map(e => ({ location_name: e.location_name, status: e.status, event_date: e.event_date })));
+        console.log('All events by status:', events.reduce((acc: any, e: any) => {
+          acc[e.status] = (acc[e.status] || 0) + 1;
+          return acc;
+        }, {}));
+        console.log('Sample event:', JSON.stringify(events[0], null, 2));
       }
 
       const completedEvents = events?.filter(e => e.status === 'completed') || [];
@@ -93,9 +97,18 @@ export default function UnifiedDashboard() {
         }
 
         newCalendar.push({
-          date: row.event_date, store: row.location_name, market: city,
+          title: row.title || row.location_name,
+          location_name: row.location_name,
+          event_date: row.event_date,
+          start_time: row.shift_start || '',
+          end_time: row.shift_end || '',
+          city: city,
+          date: row.event_date,
+          store: row.location_name,
+          market: city,
           time: row.shift_start && row.shift_end ? `${row.shift_start}-${row.shift_end}` : '',
-          status: "Complete", sortDate: new Date(row.event_date),
+          status: "Complete",
+          sortDate: new Date(row.event_date),
           fullData: row
         });
       });
@@ -104,10 +117,23 @@ export default function UnifiedDashboard() {
         if (!row.location_name || !row.event_date) return;
 
         newCalendar.push({
-          date: row.event_date, store: row.location_name, market: row.market || 'TBD',
-          address: row.address || '', time: row.start_time && row.end_time ? `${row.start_time} - ${row.end_time}` : '',
-          products: row.products || '', samplingType: row.sampling_type || '',
-          purchaseReq: row.product_purchase || '', status: "Upcoming", sortDate: new Date(row.event_date)
+          title: row.title || row.location_name,
+          location_name: row.location_name,
+          event_date: row.event_date,
+          start_time: row.start_time || '',
+          end_time: row.end_time || '',
+          city: row.market || 'TBD',
+          date: row.event_date,
+          store: row.location_name,
+          market: row.market || 'TBD',
+          address: row.address || '',
+          time: row.start_time && row.end_time ? `${row.start_time} - ${row.end_time}` : '',
+          products: row.products || '',
+          samplingType: row.sampling_type || '',
+          purchaseReq: row.product_purchase || '',
+          status: "Upcoming",
+          sortDate: new Date(row.event_date),
+          fullData: row
         });
       });
 
