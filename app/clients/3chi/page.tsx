@@ -42,7 +42,7 @@ export default function UnifiedDashboard() {
       const { data: events, error } = await supabase
         .from('events')
         .select('*')
-        .eq('brand', TARGET_BRAND)
+        .eq('brand_name', TARGET_BRAND)
         .order('date', { ascending: true });
 
       if (error) throw error;
