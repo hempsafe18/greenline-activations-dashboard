@@ -40,6 +40,7 @@ export default function GrowDashboard() {
     new Date(ts).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
   useEffect(() => { fetchStats(); fetchNotifications(); }, []);
+  useEffect(() => { document.title = "Greenline Activations | GROW Dashboard"; }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const lowInventory = stats && stats.inventory <= 30;

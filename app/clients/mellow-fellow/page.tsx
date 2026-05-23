@@ -148,6 +148,7 @@ export default function UnifiedDashboard() {
   const emailStatusColor: Record<string, string> = { delivered: 'var(--canopy-pale)', sent: '#c7d7fe', failed: 'var(--street-pale)', pending: '#fde68a' };
 
   useEffect(() => { fetchLiveData(); fetchNotifications(); }, []);
+  useEffect(() => { document.title = "Greenline Activations | MELLOW FELLOW Dashboard"; }, []);
 
   const downloadDashboardReport = async () => {
     setIsExportingDashboard(true);

@@ -123,6 +123,7 @@ export default function UnifiedDashboard() {
   };
 
   useEffect(() => { fetchLiveData(); }, []);
+  useEffect(() => { document.title = "Greenline Activations | 3CHI Dashboard"; }, []);
 
   // --- PDF GENERATION FUNCTIONS ---
   const downloadDashboardReport = async () => {

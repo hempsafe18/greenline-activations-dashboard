@@ -183,6 +183,7 @@ export default function UnifiedDashboard() {
   };
 
   useEffect(() => { fetchLiveData(); fetchNotifications(); }, []);
+  useEffect(() => { document.title = "Greenline Activations | AMIGOS Dashboard"; }, []);
 
   // --- PDF GENERATION FUNCTIONS ---
   const downloadDashboardReport = async () => {
