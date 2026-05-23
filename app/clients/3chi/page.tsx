@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "../../../lib/supabase-client";
 
 const TARGET_BRAND = "3chi";
 

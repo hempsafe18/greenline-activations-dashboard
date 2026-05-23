@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "../../../lib/supabase-client";
 
 const TARGET_BRAND = "mellow-fellow";
 
