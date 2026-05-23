@@ -62,7 +62,7 @@ export default function UnifiedDashboard() {
       }
 
       const completedEvents = events?.filter(e => e.status === 'completed') || [];
-      const upcomingEvents = events?.filter(e => e.status === 'upcoming') || [];
+      const upcomingEvents = events?.filter(e => e.status === 'upcoming' || e.status === 'open') || [];
 
       console.log('Completed events:', completedEvents.length, 'Upcoming events:', upcomingEvents.length);
 
