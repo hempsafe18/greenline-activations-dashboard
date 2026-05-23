@@ -43,7 +43,7 @@ export default function UnifiedDashboard() {
     try {
       const { data: events, error } = await supabase
         .from('events')
-        .select('*')
+        .select('id,status,store_name,date,market,sampled,sold,top_flavor,objections,photo_link')
         .eq('brand_name', TARGET_BRAND);
 
       if (error) throw error;
