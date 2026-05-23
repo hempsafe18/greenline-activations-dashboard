@@ -7,13 +7,13 @@ import { supabase } from "../../lib/supabase-client";
 // ─── Client Data Sources ─────────────────────────────────────────
 const CLIENTS = [
   {
-    id: "3chi", name: "3CHI", color: "#56e39f", icon: "🌿", href: "/clients/3chi",
+    id: "3CHI", name: "3CHI", color: "#56e39f", icon: "🌿", href: "/clients/3chi",
   },
   {
-    id: "amigos", name: "AMIGOS", color: "#ff4f33", icon: "🍹", href: "/clients/amigos",
+    id: "AMIGOS", name: "AMIGOS", color: "#ff4f33", icon: "🍹", href: "/clients/amigos",
   },
   {
-    id: "mellow-fellow", name: "MELLOW FELLOW", color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow",
+    id: "MELLOW FELLOW", name: "MELLOW FELLOW", color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow",
   },
 ];
 
