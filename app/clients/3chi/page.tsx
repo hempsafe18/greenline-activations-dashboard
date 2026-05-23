@@ -41,7 +41,7 @@ export default function UnifiedDashboard() {
     try {
       const { data: events, error } = await supabase
         .from('events')
-        .select('*')
+        .select('id,status,date,store_name,market,start_time,end_time,sampled,sold,top_flavor,objections,photo_link,address,products,sampling_type,purchase_req')
         .eq('brand_name', TARGET_BRAND)
         .order('date', { ascending: true });
 

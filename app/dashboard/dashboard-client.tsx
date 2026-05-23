@@ -84,11 +84,11 @@ export function AdminDashboardClient() {
           const [{ data: events, error: eventsError }, { data: recaps, error: recapsError }] = await Promise.all([
             supabase
               .from('events')
-              .select('*')
+              .select('id,status,store_name,date,market,sampled,sold')
               .eq('brand_name', client.id),
             supabase
               .from('recaps')
-              .select('*')
+              .select('id,store_name,date,market,market_name,sampled,sold')
               .eq('brand_name', client.id)
           ]);
 
