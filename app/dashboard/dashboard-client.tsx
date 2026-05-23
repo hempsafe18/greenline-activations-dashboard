@@ -7,13 +7,13 @@ import { supabase } from "../../lib/supabase-client";
 // ─── Client Data Sources ─────────────────────────────────────────
 const CLIENTS = [
   {
-    id: "3chi", name: "3CHI", color: "#56e39f", icon: "🌿", href: "/clients/3chi",
+    id: "3CHI", name: "3CHI", color: "#56e39f", icon: "🌿", href: "/clients/3chi",
   },
   {
-    id: "amigos", name: "AMIGOS", color: "#ff4f33", icon: "🍹", href: "/clients/amigos",
+    id: "AMIGOS", name: "AMIGOS", color: "#ff4f33", icon: "🍹", href: "/clients/amigos",
   },
   {
-    id: "mellow-fellow", name: "MELLOW FELLOW", color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow",
+    id: "MELLOW FELLOW", name: "MELLOW FELLOW", color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow",
   },
 ];
 
@@ -81,12 +81,19 @@ export function AdminDashboardClient() {
         const monthlyData: Record<string, number> = {};
 
         try {
-          const { data: events, error } = await supabase
-            .from('events')
-            .select('*')
-            .eq('brand', client.id);
+          const [{ data: events, error: eventsError }, { data: recaps, error: recapsError }] = await Promise.all([
+            supabase
+              .from('events')
+              .select('*')
+              .eq('brand', client.id),
+            supabase
+              .from('recaps')
+              .select('*')
+              .eq('brand', client.id)
+          ]);
 
-          if (error) throw error;
+          if (eventsError) throw eventsError;
+          if (recapsError) throw recapsError;
 
           if (events) {
             events.forEach((event: any) => {
@@ -108,6 +115,24 @@ export function AdminDashboardClient() {
                 if (!event.store_name || !event.date) return;
                 const d = new Date(event.date);
                 if (!isNaN(d.getTime()) && d >= today) upcoming++;
+              }
+            });
+          }
+
+          if (recaps) {
+            recaps.forEach((recap: any) => {
+              if (!recap.store_name) return;
+              activations++;
+              sampled += parseInt(recap.sampled) || 0;
+              sold += parseInt(recap.sold) || 0;
+              const city = recap.market || recap.market_name || 'Unknown';
+              if (city) cityActivations[city] = (cityActivations[city] || 0) + 1;
+              if (recap.date) {
+                const d = new Date(recap.date);
+                if (!isNaN(d.getTime())) {
+                  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                  monthlyData[key] = (monthlyData[key] || 0) + 1;
+                }
               }
             });
           }
