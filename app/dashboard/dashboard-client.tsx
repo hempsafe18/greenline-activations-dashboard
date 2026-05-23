@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useUser, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../lib/supabase-client";
 
 // ─── Client Data Sources ─────────────────────────────────────────
 const CLIENTS = [
