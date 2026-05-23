@@ -129,6 +129,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => { if (isLoaded && user) fetchAll(); }, [isLoaded]);
+  useEffect(() => { document.title = "Greenline Activations | Admin Dashboard"; }, []);
 
   const sendClientNotification = async () => {
     const { type, client, storeName, eventDate, staffName, staffRole, submittedBy, sampled, sold, notes } = notifyForm;
