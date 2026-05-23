@@ -85,11 +85,11 @@ export function AdminDashboardClient() {
             supabase
               .from('events')
               .select('*')
-              .eq('brand', client.id),
+              .eq('brand_name', client.id),
             supabase
               .from('recaps')
               .select('*')
-              .eq('brand', client.id)
+              .eq('brand_name', client.id)
           ]);
 
           if (eventsError) throw eventsError;
