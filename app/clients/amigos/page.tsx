@@ -58,16 +58,16 @@ export default function UnifiedDashboard() {
 
       console.log('AMIGOS Events fetched:', events?.length || 0);
       if (events && events.length > 0) {
-        console.log('Sample event status values:', events.slice(0, 3).map(e => ({ store_name: e.store_name, status: e.status, date: e.date })));
+        console.log('Sample event status values:', events.slice(0, 3).map(e => ({ location_name: e.location_name, status: e.status, event_date: e.event_date })));
       }
 
       const completedEvents = events?.filter(e => e.status === 'completed') || [];
-      const upcomingEvents = events?.filter(e => e.status === 'upcoming') || [];
+      const upcomingEvents = events?.filter(e => e.status === 'upcoming' || e.status === 'open') || [];
 
       console.log('Completed events:', completedEvents.length, 'Upcoming events:', upcomingEvents.length);
 
       completedEvents.forEach(row => {
-        if (!row.store_name) return;
+        if (!row.location_name) return;
 
         totalActivations++;
         totalSampled += row.sampled || 0;
@@ -81,33 +81,33 @@ export default function UnifiedDashboard() {
 
         const objections = row.objections;
         if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
-            newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row.store_name || city}: ${objections}` });
+            newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row.location_name || city}: ${objections}` });
         }
 
         const photoField = row.photo_link;
         if (photoField) {
           const photoUrls = photoField.split(/[\n,]+/).map((s: string) => s.trim()).filter((s: string) => s.startsWith('http'));
           photoUrls.forEach((photoLink: string, idx: number) => {
-            newIntel.push({ type: 'photo', icon: '📸', text: `Engagement photo${photoUrls.length > 1 ? ` ${idx + 1}` : ''} from ${row.store_name || city}.`, link: photoLink });
+            newIntel.push({ type: 'photo', icon: '📸', text: `Engagement photo${photoUrls.length > 1 ? ` ${idx + 1}` : ''} from ${row.location_name || city}.`, link: photoLink });
           });
         }
 
         newCalendar.push({
-          date: row.date, store: row.store_name, market: city,
+          date: row.event_date, store: row.location_name, market: city,
           time: row.shift_start && row.shift_end ? `${row.shift_start}-${row.shift_end}` : '',
-          status: "Complete", sortDate: new Date(row.date),
+          status: "Complete", sortDate: new Date(row.event_date),
           fullData: row
         });
       });
 
       upcomingEvents.forEach(row => {
-        if (!row.store_name || !row.date) return;
+        if (!row.location_name || !row.event_date) return;
 
         newCalendar.push({
-          date: row.date, store: row.store_name, market: row.market || 'TBD',
+          date: row.event_date, store: row.location_name, market: row.market || 'TBD',
           address: row.address || '', time: row.start_time && row.end_time ? `${row.start_time} - ${row.end_time}` : '',
           products: row.products || '', samplingType: row.sampling_type || '',
-          purchaseReq: row.product_purchase || '', status: "Upcoming", sortDate: new Date(row.date)
+          purchaseReq: row.product_purchase || '', status: "Upcoming", sortDate: new Date(row.event_date)
         });
       });
 
