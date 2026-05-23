@@ -2,12 +2,9 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
+import { supabase } from "../../../lib/supabase";
 
-const TARGET_BRAND = "AMIGOS"; 
-
-// 1. PASTE YOUR GOOGLE SHEET LINKS HERE
-const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=2138748497&single=true&output=csv";
-const UPCOMING_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=1988632059&single=true&output=csv";
+const TARGET_BRAND = "amigos";
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -41,101 +38,71 @@ export default function UnifiedDashboard() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
 
-  const parseCSV = (str: string) => {
-    const result = []; let row = []; let cell = ''; let quote = false;
-    for (let i = 0; i < str.length; i++) {
-      let char = str[i], nextChar = str[i + 1];
-      if (char === '"' && quote && nextChar === '"') { cell += '"'; i++; }
-      else if (char === '"') { quote = !quote; }
-      else if (char === ',' && !quote) { row.push(cell); cell = ''; }
-      else if (char === '\n' && !quote) { row.push(cell); result.push(row); row = []; cell = ''; }
-      else { cell += char; }
-    }
-    row.push(cell); result.push(row);
-    return result;
-  };
-
   const fetchLiveData = async () => {
     setIsLoading(true);
     setVisibleUpcoming(ITEMS_PER_PAGE);
     setVisiblePrevious(ITEMS_PER_PAGE);
     try {
-      const [recapRes, upcomingRes] = await Promise.all([
-        fetch(RECAP_CSV_URL).catch(() => null),
-        fetch(UPCOMING_CSV_URL).catch(() => null)
-      ]);
+      const { data: events, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('brand', TARGET_BRAND);
+
+      if (error) throw error;
 
       let newCalendar: any[] = [];
       let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
-      let cityCounts: Record<string, number> = {}; 
+      let cityCounts: Record<string, number> = {};
       let flavorCounts: Record<string, number> = {};
       let newIntel: any[] = [];
 
-      if (recapRes && recapRes.ok) {
-        const text = await recapRes.text();
-        const rows = parseCSV(text);
-        const headers = rows[0].map((h: string) => h.trim());
-        const data = rows.slice(1).map((row: string[]) => {
-          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
-        });
+      const completedEvents = events?.filter(e => e.status === 'completed') || [];
+      const upcomingEvents = events?.filter(e => e.status === 'upcoming') || [];
 
-        data.forEach(row => {
-          if (!row['Store Name']) return; 
-          
-          totalActivations++;
-          totalSampled += parseInt(row['Total consumers sampled']) || 0;
-          totalSold += parseInt(row['Estimated units sold']) || 0;
-          
-          const city = row['City'] || 'Unknown';
-          cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row['Total consumers sampled']) || 0);
-          
-          const flavor = row['Top performing flavor'];
-          if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
+      completedEvents.forEach(row => {
+        if (!row.store_name) return;
 
-          const objections = row['Consumer objections encountered'];
-          if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
-              newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row['Store Name'] || city}: ${objections}` });
-          }
+        totalActivations++;
+        totalSampled += row.sampled || 0;
+        totalSold += row.sold || 0;
 
-          const photoField = row['Engagement photo submission'];
-          if (photoField) {
-            const photoUrls = photoField.split(/[\n,]+/).map((s: string) => s.trim()).filter((s: string) => s.startsWith('http'));
-            photoUrls.forEach((photoLink: string, idx: number) => {
-              newIntel.push({ type: 'photo', icon: '📸', text: `Engagement photo${photoUrls.length > 1 ? ` ${idx + 1}` : ''} from ${row['Store Name'] || city}.`, link: photoLink });
-            });
-          }
+        const city = row.market || 'Unknown';
+        cityCounts[city] = (cityCounts[city] || 0) + (row.sampled || 0);
 
-          if (row['Activation Date']) {
-            newCalendar.push({
-              date: row['Activation Date'], store: row['Store Name'], market: city,
-              time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
-              status: "Complete", sortDate: new Date(row['Activation Date']),
-              fullData: row 
-            });
-          }
-        });
-      }
+        const flavor = row.top_flavor;
+        if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
 
-      if (upcomingRes && upcomingRes.ok) {
-        const text = await upcomingRes.text();
-        const rows = parseCSV(text);
-        const headers = rows[0].map((h: string) => h.trim());
-        const data = rows.slice(1).map((row: string[]) => {
-          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
-        });
+        const objections = row.objections;
+        if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
+            newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row.store_name || city}: ${objections}` });
+        }
 
-        data.forEach(row => {
-          if (!row['Store Name'] || !row['Date']) return; 
-          const startTime = row['Start Time'] || ''; const endTime = row['End Time'] || '';
-          
-          newCalendar.push({
-            date: row['Date'], store: row['Store Name'], market: row['Market'] || 'TBD',
-            address: row['Address'] || '', time: startTime && endTime ? `${startTime} - ${endTime}` : '',
-            products: row['Products'] || '', samplingType: row['Sampling Type'] || '',
-            purchaseReq: row['Product Purchase'] || '', status: "Upcoming", sortDate: new Date(row['Date'])
+        const photoField = row.photo_link;
+        if (photoField) {
+          const photoUrls = photoField.split(/[\n,]+/).map((s: string) => s.trim()).filter((s: string) => s.startsWith('http'));
+          photoUrls.forEach((photoLink: string, idx: number) => {
+            newIntel.push({ type: 'photo', icon: '📸', text: `Engagement photo${photoUrls.length > 1 ? ` ${idx + 1}` : ''} from ${row.store_name || city}.`, link: photoLink });
           });
+        }
+
+        newCalendar.push({
+          date: row.date, store: row.store_name, market: city,
+          time: row.shift_start && row.shift_end ? `${row.shift_start}-${row.shift_end}` : '',
+          status: "Complete", sortDate: new Date(row.date),
+          fullData: row
         });
-      }
+      });
+
+      upcomingEvents.forEach(row => {
+        if (!row.store_name || !row.date) return;
+
+        newCalendar.push({
+          date: row.date, store: row.store_name, market: row.market || 'TBD',
+          address: row.address || '', time: row.start_time && row.end_time ? `${row.start_time} - ${row.end_time}` : '',
+          products: row.products || '', samplingType: row.sampling_type || '',
+          purchaseReq: row.product_purchase || '', status: "Upcoming", sortDate: new Date(row.date)
+        });
+      });
 
       let bestFlavor = "No data"; let maxFlavorCount = 0;
       for (const [flavor, count] of Object.entries(flavorCounts)) {
@@ -149,21 +116,21 @@ export default function UnifiedDashboard() {
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
 
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const upcomingEvents = newCalendar
+      const filteredUpcomingEvents = newCalendar
         .filter(e => e.status === 'Upcoming' && e.sortDate >= today)
-        .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime()); // soonest first
+        .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
 
-      const previousEvents = newCalendar
+      const filteredPreviousEvents = newCalendar
         .filter(e => e.status === 'Complete')
-        .sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime()); // most recent first
+        .sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
 
       if (totalActivations > 0 || newCalendar.length > 0) {
         setMetrics({
           sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
           markets: markets,
-          upcoming: upcomingEvents,
-          previous: previousEvents,
+          upcoming: filteredUpcomingEvents,
+          previous: filteredPreviousEvents,
           intel: newIntel.slice(0, 5)
         });
       }
@@ -630,7 +597,7 @@ const downloadRecapReport = async () => {
                 </button>
               </div>
             </h1>
-            <p style={{marginTop: '6px'}}>Live connected to Google Sheets</p>
+            <p style={{marginTop: '6px'}}>Live connected to Supabase</p>
           </div>
           <div className="topbar-right" data-html2canvas-ignore="true">
             <UserButton />
