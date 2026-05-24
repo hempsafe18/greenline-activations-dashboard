@@ -15,7 +15,7 @@ export async function GET() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          filterGroups: [{ filters: [{ propertyName: 'ambassador_status', operator: 'HAS_PROPERTY' }] }],
+          filterGroups: [{ filters: [{ propertyName: 'category', operator: 'EQ', value: 'Ambassador' }] }],
           limit: 1,
           properties: ['hs_object_id'],
         }),
