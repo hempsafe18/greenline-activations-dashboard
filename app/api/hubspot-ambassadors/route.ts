@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server';
 
-const LIST_ID = 57;
-
 export async function GET() {
   const token = process.env.HUBSPOT_ACCESS_TOKEN;
   if (!token) return NextResponse.json({ count: 0, debug: 'no_token' });
 
   try {
-    // CRM Object Lists v3 — memberships endpoint returns total directly
+    // Count contacts where ambassador_status property is set
     const res = await fetch(
-      `https://api.hubapi.com/crm/v3/lists/${LIST_ID}/memberships?limit=1`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      'https://api.hubapi.com/crm/v3/objects/contacts/search',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filterGroups: [{ filters: [{ propertyName: 'category', operator: 'EQ', value: 'Ambassador' }] }],
+          limit: 1,
+          properties: ['hs_object_id'],
+        }),
+      }
     );
 
     if (res.ok) {
@@ -20,21 +29,8 @@ export async function GET() {
       }
     }
 
-    // Fallback: CRM Lists v3 metadata
-    const metaRes = await fetch(
-      `https://api.hubapi.com/crm/v3/lists/${LIST_ID}?includeFilters=false`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    if (metaRes.ok) {
-      const data = await metaRes.json();
-      const count = data.list?.size ?? data.size;
-      if (typeof count === 'number') return NextResponse.json({ count });
-    }
-
-    const debug = `memberships_${res.status}/meta_${metaRes.status}`;
-    console.error('HubSpot CRM list fetch failed:', debug);
-    return NextResponse.json({ count: 0, debug });
+    console.error('HubSpot ambassador search failed:', res.status);
+    return NextResponse.json({ count: 0, debug: `search_${res.status}` });
 
   } catch (error) {
     console.error('Ambassador API error:', error);
