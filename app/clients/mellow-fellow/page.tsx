@@ -2,9 +2,12 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { supabase } from "../../../lib/supabase-client";
 
-const TARGET_BRAND = "MELLOW-FELLOW";
+const TARGET_BRAND = "MELLOW FELLOW";
+
+// 1. PASTE YOUR GOOGLE SHEET LINKS HERE
+const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=1499120296&single=true&output=csv";
+const UPCOMING_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=974321090&single=true&output=csv";
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -36,15 +39,18 @@ export default function UnifiedDashboard() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
 
-  const parseCSV = (csv: string) => {
-    const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
-      const obj: any = {};
-      headers.forEach((header, i) => { obj[header] = values[i]; });
-      return obj;
-    });
+  const parseCSV = (str: string) => {
+    const result = []; let row = []; let cell = ''; let quote = false;
+    for (let i = 0; i < str.length; i++) {
+      let char = str[i], nextChar = str[i + 1];
+      if (char === '"' && quote && nextChar === '"') { cell += '"'; i++; }
+      else if (char === '"') { quote = !quote; }
+      else if (char === ',' && !quote) { row.push(cell); cell = ''; }
+      else if (char === '\n' && !quote) { row.push(cell); result.push(row); row = []; cell = ''; }
+      else { cell += char; }
+    }
+    row.push(cell); result.push(row);
+    return result;
   };
 
   const fetchLiveData = async () => {
@@ -52,19 +58,10 @@ export default function UnifiedDashboard() {
     setVisibleUpcoming(ITEMS_PER_PAGE);
     setVisiblePrevious(ITEMS_PER_PAGE);
     try {
-      const upcomingUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=974321090&single=true&output=csv';
-      const completedUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=1499120296&single=true&output=csv';
-
-      const [upcomingRes, completedRes] = await Promise.all([
-        fetch(upcomingUrl),
-        fetch(completedUrl)
+      const [recapRes, upcomingRes] = await Promise.all([
+        RECAP_CSV_URL ? fetch(RECAP_CSV_URL).catch(() => null) : Promise.resolve(null),
+        UPCOMING_CSV_URL ? fetch(UPCOMING_CSV_URL).catch(() => null) : Promise.resolve(null)
       ]);
-
-      const upcomingCsv = await upcomingRes.text();
-      const completedCsv = await completedRes.text();
-
-      const completedEvents = parseCSV(completedCsv);
-      const upcomingEvents = parseCSV(upcomingCsv);
 
       let newCalendar: any[] = [];
       let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
@@ -72,45 +69,62 @@ export default function UnifiedDashboard() {
       let flavorCounts: Record<string, number> = {};
       let newIntel: any[] = [];
 
-      completedEvents.forEach(row => {
-        if (!row.store_name) return;
-        totalActivations++;
-        totalSampled += parseInt(row.sampled) || 0;
-        totalSold += parseInt(row.sold) || 0;
-        const city = row.market || 'Unknown';
-        cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row.sampled) || 0);
-        const flavor = row.top_flavor;
-        if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
-        const objections = row.objections;
-        if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
-          newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row.store_name || city}: ${objections}` });
-        }
-        const photoLink = row.photo_link;
-        if (photoLink) {
-          const photoUrls = photoLink.split(/[\n,]+/).map((s: string) => s.trim()).filter((s: string) => s.startsWith('http'));
-          photoUrls.forEach((url: string, idx: number) => {
-            newIntel.push({ type: 'photo', icon: '📸', text: `Engagement photo${photoUrls.length > 1 ? ` ${idx + 1}` : ''} from ${row.store_name || city}.`, link: url });
-          });
-        }
-        if (row.date) {
-          newCalendar.push({
-            date: row.date, store: row.store_name, market: city,
-            time: '',
-            status: "Complete", sortDate: new Date(row.date),
-            fullData: row
-          });
-        }
-      });
-
-      upcomingEvents.forEach(row => {
-        if (!row.store_name || !row.date) return;
-        newCalendar.push({
-          date: row.date, store: row.store_name, market: row.market || 'TBD',
-          address: '', time: '',
-          products: '', samplingType: '',
-          purchaseReq: '', status: "Upcoming", sortDate: new Date(row.date)
+      if (recapRes && recapRes.ok) {
+        const text = await recapRes.text();
+        const rows = parseCSV(text);
+        const headers = rows[0].map((h: string) => h.trim());
+        const data = rows.slice(1).map((row: string[]) => {
+          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
         });
-      });
+        data.forEach(row => {
+          if (!row['Store Name']) return;
+          totalActivations++;
+          totalSampled += parseInt(row['Total consumers sampled']) || 0;
+          totalSold += parseInt(row['Estimated units sold']) || 0;
+          const city = row['City'] || 'Unknown';
+          cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row['Total consumers sampled']) || 0);
+          const flavor = row['Top performing flavor'];
+          if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
+          const objections = row['Consumer objections encountered'];
+          if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
+            newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row['Store Name'] || city}: ${objections}` });
+          }
+          const photoField = row['Engagement photo submission'];
+          if (photoField) {
+            const photoUrls = photoField.split(/[\n,]+/).map((s: string) => s.trim()).filter((s: string) => s.startsWith('http'));
+            photoUrls.forEach((photoLink: string, idx: number) => {
+              newIntel.push({ type: 'photo', icon: '📸', text: `Engagement photo${photoUrls.length > 1 ? ` ${idx + 1}` : ''} from ${row['Store Name'] || city}.`, link: photoLink });
+            });
+          }
+          if (row['Activation Date']) {
+            newCalendar.push({
+              date: row['Activation Date'], store: row['Store Name'], market: city,
+              time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
+              status: "Complete", sortDate: new Date(row['Activation Date']),
+              fullData: row
+            });
+          }
+        });
+      }
+
+      if (upcomingRes && upcomingRes.ok) {
+        const text = await upcomingRes.text();
+        const rows = parseCSV(text);
+        const headers = rows[0].map((h: string) => h.trim());
+        const data = rows.slice(1).map((row: string[]) => {
+          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
+        });
+        data.forEach(row => {
+          if (!row['Store Name'] || !row['Date']) return;
+          const startTime = row['Start Time'] || ''; const endTime = row['End Time'] || '';
+          newCalendar.push({
+            date: row['Date'], store: row['Store Name'], market: row['Market'] || 'TBD',
+            address: row['Address'] || '', time: startTime && endTime ? `${startTime} - ${endTime}` : '',
+            products: row['Products'] || '', samplingType: row['Sampling Type'] || '',
+            purchaseReq: row['Product Purchase'] || '', status: "Upcoming", sortDate: new Date(row['Date'])
+          });
+        });
+      }
 
       let bestFlavor = "No data"; let maxFlavorCount = 0;
       for (const [flavor, count] of Object.entries(flavorCounts)) {
@@ -122,13 +136,13 @@ export default function UnifiedDashboard() {
 
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const upcomingCalendarEvents = newCalendar.filter(e => e.status === 'Upcoming' && e.sortDate >= today).sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
-      const previousCalendarEvents = newCalendar.filter(e => e.status === 'Complete').sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
+      const upcomingEvents = newCalendar.filter(e => e.status === 'Upcoming' && e.sortDate >= today).sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
+      const previousEvents = newCalendar.filter(e => e.status === 'Complete').sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
 
       if (totalActivations > 0 || newCalendar.length > 0) {
         setMetrics({ sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
-          markets, upcoming: upcomingCalendarEvents, previous: previousCalendarEvents, intel: newIntel.slice(0, 5) });
+          markets, upcoming: upcomingEvents, previous: previousEvents, intel: newIntel.slice(0, 5) });
       }
     } catch (error) { console.error("Failed to fetch data", error); }
     setIsLoading(false);
@@ -163,7 +177,6 @@ export default function UnifiedDashboard() {
   const emailStatusColor: Record<string, string> = { delivered: 'var(--canopy-pale)', sent: '#c7d7fe', failed: 'var(--street-pale)', pending: '#fde68a' };
 
   useEffect(() => { fetchLiveData(); fetchNotifications(); }, []);
-  useEffect(() => { document.title = "Greenline Activations | MELLOW FELLOW Dashboard"; }, []);
 
   const downloadDashboardReport = async () => {
     setIsExportingDashboard(true);
