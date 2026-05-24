@@ -2,9 +2,11 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 
-import { supabase } from "../../../lib/supabase-client";
+const TARGET_BRAND = "3CHI"; 
 
-const TARGET_BRAND = "3CHI";
+// 1. PASTE YOUR GOOGLE SHEET LINKS HERE
+const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
+const UPCOMING_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=0&single=true&output=csv";
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -34,15 +36,18 @@ export default function UnifiedDashboard() {
   const [visibleUpcoming, setVisibleUpcoming] = useState(ITEMS_PER_PAGE);
   const [visiblePrevious, setVisiblePrevious] = useState(ITEMS_PER_PAGE);
 
-  const parseCSV = (csv: string) => {
-    const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
-      const obj: any = {};
-      headers.forEach((header, i) => { obj[header] = values[i]; });
-      return obj;
-    });
+  const parseCSV = (str: string) => {
+    const result = []; let row = []; let cell = ''; let quote = false;
+    for (let i = 0; i < str.length; i++) {
+      let char = str[i], nextChar = str[i + 1];
+      if (char === '"' && quote && nextChar === '"') { cell += '"'; i++; }
+      else if (char === '"') { quote = !quote; }
+      else if (char === ',' && !quote) { row.push(cell); cell = ''; }
+      else if (char === '\n' && !quote) { row.push(cell); result.push(row); row = []; cell = ''; }
+      else { cell += char; }
+    }
+    row.push(cell); result.push(row);
+    return result;
   };
 
   const fetchLiveData = async () => {
@@ -50,62 +55,79 @@ export default function UnifiedDashboard() {
     setVisibleUpcoming(ITEMS_PER_PAGE);
     setVisiblePrevious(ITEMS_PER_PAGE);
     try {
-      const upcomingUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=0&single=true&output=csv';
-      const completedUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv';
-
-      const [upcomingRes, completedRes] = await Promise.all([
-        fetch(upcomingUrl),
-        fetch(completedUrl)
+      const [recapRes, upcomingRes] = await Promise.all([
+        fetch(RECAP_CSV_URL).catch(() => null),
+        fetch(UPCOMING_CSV_URL).catch(() => null)
       ]);
-
-      const upcomingCsv = await upcomingRes.text();
-      const completedCsv = await completedRes.text();
-
-      const upcomingEvents = parseCSV(upcomingCsv);
-      const completedEvents = parseCSV(completedCsv);
-      const events = [...upcomingEvents, ...completedEvents];
 
       let newCalendar: any[] = [];
       let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
-      let cityCounts: Record<string, number> = {};
+      let cityCounts: Record<string, number> = {}; 
       let flavorCounts: Record<string, number> = {};
       let newIntel: any[] = [];
 
-      upcomingEvents?.forEach(event => {
-        newCalendar.push({
-          date: event.date || event.event_date, store: event.store_name || event.location_name, market: event.market || 'TBD',
-          address: event.address || '', time: event.start_time && event.end_time ? `${event.start_time} - ${event.end_time}` : '',
-          products: event.products || '', samplingType: event.sampling_type || '',
-          purchaseReq: event.purchase_req || event.product_purchase || '', status: "Upcoming", sortDate: new Date(event.date || event.event_date),
-          id: event.id
+      if (recapRes && recapRes.ok) {
+        const text = await recapRes.text();
+        const rows = parseCSV(text);
+        const headers = rows[0].map((h: string) => h.trim());
+        const data = rows.slice(1).map((row: string[]) => {
+          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
         });
-      });
 
-      completedEvents?.forEach(event => {
-        totalActivations++;
-        totalSampled += parseInt(event.sampled) || 0;
-        totalSold += parseInt(event.sold) || 0;
+        data.forEach(row => {
+          if (!row['Store Name']) return; 
+          
+          totalActivations++;
+          totalSampled += parseInt(row['Total consumers sampled']) || 0;
+          totalSold += parseInt(row['Estimated units sold']) || 0;
+          
+          const city = row['City'] || 'Unknown';
+          cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row['Total consumers sampled']) || 0);
+          
+          const flavor = row['Top performing flavor'];
+          if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
 
-        const city = event.market || 'Unknown';
-        cityCounts[city] = (cityCounts[city] || 0) + (parseInt(event.sampled) || 0);
+          const objections = row['Consumer objections encountered'];
+          if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
+              newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row['Store Name'] || city}: ${objections}` });
+          }
 
-        if (event.top_flavor) flavorCounts[event.top_flavor] = (flavorCounts[event.top_flavor] || 0) + 1;
+          const photoLink = row['Engagement photo submission'];
+          if (photoLink && photoLink.includes('http')) {
+               newIntel.push({ type: 'photo', icon: '📸', text: `New engagement photo from ${row['Store Name'] || city}.`, link: photoLink });
+          }
 
-        if (event.objections && event.objections.trim() !== "" && event.objections.toLowerCase() !== "none") {
-            newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${event.store_name || city}: ${event.objections}` });
-        }
-
-        if (event.photo_link && event.photo_link.includes('http')) {
-             newIntel.push({ type: 'photo', icon: '📸', text: `New engagement photo from ${event.store_name || city}.`, link: event.photo_link });
-        }
-
-        newCalendar.push({
-          date: event.date, store: event.store_name, market: city,
-          time: event.start_time && event.end_time ? `${event.start_time}-${event.end_time}` : '',
-          status: "Complete", sortDate: new Date(event.date),
-          fullData: event
+          if (row['Activation Date']) {
+            newCalendar.push({
+              date: row['Activation Date'], store: row['Store Name'], market: city,
+              time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
+              status: "Complete", sortDate: new Date(row['Activation Date']),
+              fullData: row 
+            });
+          }
         });
-      });
+      }
+
+      if (upcomingRes && upcomingRes.ok) {
+        const text = await upcomingRes.text();
+        const rows = parseCSV(text);
+        const headers = rows[0].map((h: string) => h.trim());
+        const data = rows.slice(1).map((row: string[]) => {
+          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
+        });
+
+        data.forEach(row => {
+          if (!row['Store Name'] || !row['Date']) return; 
+          const startTime = row['Start Time'] || ''; const endTime = row['End Time'] || '';
+          
+          newCalendar.push({
+            date: row['Date'], store: row['Store Name'], market: row['Market'] || 'TBD',
+            address: row['Address'] || '', time: startTime && endTime ? `${startTime} - ${endTime}` : '',
+            products: row['Products'] || '', samplingType: row['Sampling Type'] || '',
+            purchaseReq: row['Product Purchase'] || '', status: "Upcoming", sortDate: new Date(row['Date'])
+          });
+        });
+      }
 
       let bestFlavor = "No data"; let maxFlavorCount = 0;
       for (const [flavor, count] of Object.entries(flavorCounts)) {
@@ -118,20 +140,20 @@ export default function UnifiedDashboard() {
 
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
 
-      const upcomingCalendarEvents = newCalendar
+      const upcomingEvents = newCalendar
         .filter(e => e.status === 'Upcoming')
-        .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
+        .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime()); // soonest first
 
       const previousEvents = newCalendar
         .filter(e => e.status === 'Complete')
-        .sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
+        .sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime()); // most recent first
 
       if (totalActivations > 0 || newCalendar.length > 0) {
         setMetrics({
           sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
           markets: markets,
-          upcoming: upcomingCalendarEvents,
+          upcoming: upcomingEvents,
           previous: previousEvents,
           intel: newIntel.slice(0, 5)
         });
@@ -141,7 +163,6 @@ export default function UnifiedDashboard() {
   };
 
   useEffect(() => { fetchLiveData(); }, []);
-  useEffect(() => { document.title = "Greenline Activations | 3CHI Dashboard"; }, []);
 
   // --- PDF GENERATION FUNCTIONS ---
   const downloadDashboardReport = async () => {
@@ -519,7 +540,7 @@ const downloadRecapReport = async () => {
                 </button>
               </div>
             </h1>
-            <p style={{marginTop: '6px'}}>Live connected to Supabase</p>
+            <p style={{marginTop: '6px'}}>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right" data-html2canvas-ignore="true">
             <UserButton />
