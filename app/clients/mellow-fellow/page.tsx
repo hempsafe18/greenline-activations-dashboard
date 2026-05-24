@@ -15,6 +15,10 @@ export default function UnifiedDashboard() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [eventPhotos, setEventPhotos] = useState<{key:string; title:string; date:string; photos:string[]}[]>([]);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string|null>(null);
+  const [openEvents, setOpenEvents] = useState<Set<string>>(new Set());
 
   const [isExportingDashboard, setIsExportingDashboard] = useState(false);
   const [isExportingRecap, setIsExportingRecap] = useState(false);
@@ -178,6 +182,19 @@ export default function UnifiedDashboard() {
 
   useEffect(() => { fetchLiveData(); fetchNotifications(); }, []);
 
+  const fetchPhotos = async () => {
+    if (photoLoading || eventPhotos.length > 0) return;
+    setPhotoLoading(true);
+    try {
+      const res = await fetch('/api/photos?client=mellow-fellow');
+      const data = await res.json();
+      if (data.events) setEventPhotos(data.events);
+    } catch {}
+    setPhotoLoading(false);
+  };
+
+  useEffect(() => { if (activeSection === 'intel') fetchPhotos(); }, [activeSection]);
+
   const downloadDashboardReport = async () => {
     setIsExportingDashboard(true);
     try {
@@ -323,6 +340,22 @@ export default function UnifiedDashboard() {
         .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; }
         .intel-text { color: var(--ink); font-weight: 500; line-height: 1.5; margin: 0; flex: 1; }
         .intel-link { color: var(--white); text-decoration: none; font-weight: 700; font-size: 10px; padding: 4px 8px; border: 2px solid var(--ink); background: var(--canopy); text-transform: uppercase; }
+
+        .photo-section { margin-top: 16px; }
+        .photo-event { border: 2px solid var(--ink); margin-bottom: 10px; box-shadow: var(--shadow); background: var(--card); }
+        .photo-event-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; cursor: pointer; user-select: none; }
+        .photo-event-header:hover { background: var(--canopy-pale); }
+        .photo-event-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0; letter-spacing: -0.01em; }
+        .photo-event-count { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; display: flex; align-items: center; gap: 10px; }
+        .photo-event-chevron { font-size: 12px; transition: transform 0.2s; display: inline-block; }
+        .photo-event-chevron.open { transform: rotate(180deg); }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; padding: 12px; border-top: 2px solid var(--ink); }
+        .photo-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; cursor: pointer; border: 2px solid var(--ink); display: block; transition: all 0.15s; }
+        .photo-thumb:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 0 var(--ink); }
+        .photo-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 32px 0; }
+        .lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 3000; display: flex; align-items: center; justify-content: center; }
+        .lightbox-img { max-width: 90vw; max-height: 90vh; object-fit: contain; box-shadow: 0 0 0 3px var(--ink); }
+        .lightbox-close { position: absolute; top: 20px; right: 24px; color: #fff; font-size: 28px; cursor: pointer; font-weight: 700; background: none; border: none; line-height: 1; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-group.full { grid-column: 1/-1; }
@@ -387,6 +420,13 @@ export default function UnifiedDashboard() {
             <div className="form-group full"><label className="form-label">Details:</label><textarea className="form-input form-textarea" value={changeModal.notes} onChange={(e)=>setChangeModal({...changeModal,notes:e.target.value})} /></div>
             <div className="modal-actions"><button className="btn-cancel" onClick={()=>setChangeModal({isOpen:false,type:"",event:null,notes:""})}>Close</button><button className="btn-submit" onClick={submitChangeRequest}>{isSubmitting?"Sending...":"Submit"}</button></div>
           </div>
+        </div>
+      )}
+
+      {lightboxPhoto && (
+        <div className="lightbox-overlay" onClick={() => setLightboxPhoto(null)}>
+          <button className="lightbox-close" onClick={() => setLightboxPhoto(null)}>✕</button>
+          <img src={lightboxPhoto} alt="Event photo" className="lightbox-img" onClick={e => e.stopPropagation()} />
         </div>
       )}
 
@@ -506,6 +546,36 @@ export default function UnifiedDashboard() {
             <p className="card-sub">Latest feedback from the field</p>
             {metrics.intel.map((item,i)=>(<div className="intel-item" key={i}><span className="intel-icon">{item.icon}</span><p className="intel-text">{item.text}</p>{item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link">View</a>}</div>))}
             {metrics.intel.length===0&&<p style={{fontSize:'12px',color:'var(--muted)'}}>No intel yet.</p>}
+          </div>
+
+          <div className="card" style={{marginTop: '14px'}}>
+            <div className="card-header"><div><p className="card-title">Event Photos</p><p className="card-sub">Recap photos organized by activation</p></div></div>
+            {photoLoading && <p className="photo-empty">Loading photos…</p>}
+            {!photoLoading && eventPhotos.length === 0 && <p className="photo-empty">No event photos uploaded yet.</p>}
+            <div className="photo-section">
+              {eventPhotos.map(ev => (
+                <div className="photo-event" key={ev.key}>
+                  <div className="photo-event-header" onClick={() => setOpenEvents(prev => {
+                    const next = new Set(prev);
+                    next.has(ev.key) ? next.delete(ev.key) : next.add(ev.key);
+                    return next;
+                  })}>
+                    <p className="photo-event-title">{ev.title}</p>
+                    <span className="photo-event-count">
+                      {ev.photos.length} photo{ev.photos.length !== 1 ? 's' : ''}
+                      <span className={`photo-event-chevron${openEvents.has(ev.key) ? ' open' : ''}`}>▼</span>
+                    </span>
+                  </div>
+                  {openEvents.has(ev.key) && (
+                    <div className="photo-grid">
+                      {ev.photos.map((url, i) => (
+                        <img key={i} src={url} alt={`${ev.title} photo ${i + 1}`} className="photo-thumb" onClick={() => setLightboxPhoto(url)} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
