@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "migrate:storage": "node scripts/migrate-storage.mjs",
+    "migrate:storage:execute": "node scripts/migrate-storage.mjs --execute"
   },
   "dependencies": {
     "@clerk/nextjs": "latest",
