@@ -1,16 +1,25 @@
 /**
- * One-time migration: moves legacy type-folder photos to client/event folder structure.
+ * One-time migration: moves legacy root-level type-folder photos into the
+ * correct client/type folder structure.
  *
- * Legacy layout:  recap-photos/shelf/{RepName}_{timestamp}_{hash}.jpeg
- * New layout:     recap-photos/{client-slug}/{YYYY-MM-DD}_{store-slug}/{type}-{n}.jpeg
+ * Legacy layout:  recap-photos/shelf/{filename}
+ *                 recap-photos/engagement/{filename}
+ *                 recap-photos/setup/{filename}
+ *
+ * New layout:     recap-photos/{client-folder}/{type}/{filename}
+ *
+ * Client folder names (must match Supabase Storage exactly):
+ *   amigos        → amigos
+ *   3chi          → 3chi
+ *   mellow-fellow → mellow_fellow
  *
  * Matching logic: extract the upload timestamp from the filename, then find the
- * recap row whose submitted_at is within 48 hours of that timestamp. If a match
- * is found the file is moved; if not it is logged and left in place.
+ * recap row whose submitted_at is within 48 hours. If a match is found the file
+ * is moved; unmatched files are logged and left in place for manual review.
  *
  * Usage:
  *   node scripts/migrate-storage.mjs            # dry run (prints plan, moves nothing)
- *   node scripts/migrate-storage.mjs --execute  # performs the moves + deletes placeholders
+ *   node scripts/migrate-storage.mjs --execute  # performs the moves
  *
  * Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY in .env.local
  */
@@ -59,43 +68,36 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const BUCKET = 'recap-photos';
 const DRY_RUN = !process.argv.includes('--execute');
 
+// Storage folder name for each brand (must match exactly what's in the bucket)
+const BRAND_TO_FOLDER = {
+  'amigos':        'amigos',
+  'Amigos':        'amigos',
+  'AMIGOS':        'amigos',
+  '3chi':          '3chi',
+  '3CHI':          '3chi',
+  'mellow fellow': 'mellow_fellow',
+  'MELLOW FELLOW': 'mellow_fellow',
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Slugify a store name: "Total Wine #805" → "total-wine-805" */
-function slugify(str) {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')   // non-alphanumeric runs → single dash
-    .replace(/^-|-$/g, '');         // trim leading/trailing dashes
-}
-
-/** Slugify a brand name to a folder name: "Amigos" → "amigos", "3CHI" → "3chi" */
-function clientSlug(brand) {
-  return brand.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '');
-}
-
-/** Extract ISO timestamp from filename: "Maryam_Kosoko_2026-05-23T00-45-41-269Z_hash.jpeg"
- *  The pattern is: anything_YYYY-MM-DDTHH-MM-SS-mmmZ_hash.ext
- */
+/** Extract ISO timestamp from legacy filenames: "RepName_2026-05-23T00-45-41-269Z_hash.jpeg" */
 function parseTimestampFromName(name) {
   const match = name.match(/_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d+Z)_/);
   if (!match) return null;
-  // Convert dashes-in-time back to colons: "00-45-41-269Z" → "00:45:41.269Z"
-  const raw = match[1]; // "2026-05-23T00-45-41-269Z"
+  const raw = match[1];
   const [datePart, timePart] = raw.split('T');
-  const timeFixed = timePart
-    .replace(/^(\d{2})-(\d{2})-(\d{2})-(\d+)Z$/, '$1:$2:$3.$4Z');
+  const timeFixed = timePart.replace(/^(\d{2})-(\d{2})-(\d{2})-(\d+)Z$/, '$1:$2:$3.$4Z');
   return new Date(`${datePart}T${timeFixed}`);
 }
 
-/** Find the best matching recap for a given upload timestamp (within 48 h window) */
+/** Find the best recap within a 48-hour window of the upload timestamp */
 function findBestRecap(uploadTime, recaps) {
   const WINDOW_MS = 48 * 60 * 60 * 1000;
   let best = null;
   let bestDelta = Infinity;
-
   for (const recap of recaps) {
     const submitted = new Date(recap.submitted_at);
     const delta = Math.abs(submitted - uploadTime);
@@ -107,7 +109,7 @@ function findBestRecap(uploadTime, recaps) {
   return best;
 }
 
-/** List all files recursively under a folder prefix */
+/** List all real files (non-placeholder) recursively under a prefix */
 async function listAllFiles(prefix) {
   const { data, error } = await supabase.storage.from(BUCKET).list(prefix, {
     limit: 1000,
@@ -116,9 +118,8 @@ async function listAllFiles(prefix) {
   if (error) throw new Error(`list("${prefix}") failed: ${error.message}`);
   const results = [];
   for (const item of data || []) {
-    const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
+    const fullPath = `${prefix}/${item.name}`;
     if (!item.id && item.metadata === null) {
-      // It's a folder — recurse
       const children = await listAllFiles(fullPath);
       results.push(...children);
     } else {
@@ -146,14 +147,20 @@ async function main() {
   if (recapErr) throw new Error(`recaps query failed: ${recapErr.message}`);
   console.log(`Found ${recaps.length} recap(s) in database.\n`);
 
-  // 2. Collect legacy type-folder files (shelf/, engagement/, setup/)
+  // 2. Collect files from legacy root-level type folders (not inside a client folder)
   const LEGACY_TYPES = ['shelf', 'engagement', 'setup'];
   const legacyFiles = [];
 
   for (const type of LEGACY_TYPES) {
-    const files = await listAllFiles(type);
+    let files;
+    try {
+      files = await listAllFiles(type);
+    } catch {
+      // Folder doesn't exist — already cleaned up
+      continue;
+    }
     for (const f of files) {
-      if (f.name.startsWith('.') || f.size === 0) continue; // skip placeholders
+      if (f.name.startsWith('.') || f.size === 0) continue;
       legacyFiles.push({ ...f, photoType: type });
     }
   }
@@ -165,10 +172,9 @@ async function main() {
 
   console.log(`Found ${legacyFiles.length} legacy file(s) to migrate:\n`);
 
-  // 3. Build migration plan
-  const plan = [];    // { from, to, matched }
+  // 3. Build migration plan — target: {client-folder}/{type}/{original-filename}
+  const plan = [];
   const unmatched = [];
-  const typeCounters = {}; // track per-event per-type counter for numbering
 
   for (const file of legacyFiles) {
     const uploadTime = parseTimestampFromName(file.name);
@@ -179,14 +185,8 @@ async function main() {
       continue;
     }
 
-    const slug = clientSlug(recap.brand_name);
-    const storeSlug = slugify(recap.store_name);
-    const eventKey = `${slug}/${recap.activation_date}_${storeSlug}`;
-    const counterKey = `${eventKey}/${file.photoType}`;
-    typeCounters[counterKey] = (typeCounters[counterKey] || 0) + 1;
-    const n = typeCounters[counterKey];
-    const ext = file.name.split('.').pop() || 'jpeg';
-    const toPath = `${eventKey}/${file.photoType}-${n}.${ext}`;
+    const clientFolder = BRAND_TO_FOLDER[recap.brand_name] ?? recap.brand_name.toLowerCase().replace(/\s+/g, '_');
+    const toPath = `${clientFolder}/${file.photoType}/${file.name}`;
 
     plan.push({ from: file.path, to: toPath, recap });
   }
@@ -195,11 +195,11 @@ async function main() {
   for (const { from, to, recap } of plan) {
     console.log(`  MOVE  ${from}`);
     console.log(`    →   ${to}`);
-    console.log(`  (matched recap: ${recap.brand_name} / ${recap.store_name} / ${recap.activation_date})\n`);
+    console.log(`  (matched: ${recap.brand_name} / ${recap.store_name} / ${recap.activation_date})\n`);
   }
 
   if (unmatched.length > 0) {
-    console.log('⚠️  The following files could not be matched to any recap and will be left in place:');
+    console.log('⚠️  Could not match to a recap — left in place:');
     for (const f of unmatched) console.log(`    ${f.path}`);
     console.log();
   }
@@ -212,27 +212,16 @@ async function main() {
   // 5. Execute moves
   let moved = 0;
   let failed = 0;
+
   for (const { from, to } of plan) {
     const { error } = await supabase.storage.from(BUCKET).move(from, to);
     if (error) {
-      console.error(`  ❌  FAILED to move ${from}: ${error.message}`);
+      console.error(`  ❌  FAILED  ${from}: ${error.message}`);
       failed++;
     } else {
-      console.log(`  ✅  Moved: ${from} → ${to}`);
+      console.log(`  ✅  Moved   ${from} → ${to}`);
       moved++;
     }
-  }
-
-  // 6. Remove placeholder files
-  const placeholderPaths = [
-    'engagement/.emptyFolderPlaceholder',
-    'setup/.emptyFolderPlaceholder',
-    'setup/Untitled folder/.emptyFolderPlaceholder',
-  ];
-
-  for (const p of placeholderPaths) {
-    const { error } = await supabase.storage.from(BUCKET).remove([p]);
-    if (!error) console.log(`  🗑️   Removed placeholder: ${p}`);
   }
 
   console.log(`\n✅  Migration complete: ${moved} moved, ${failed} failed, ${unmatched.length} unmatched.`);
