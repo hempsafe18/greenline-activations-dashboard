@@ -6,7 +6,7 @@ export async function GET(req: Request) {
   if (!client) return NextResponse.json({ notifications: [] });
   const { data, error } = await supabase
     .from('client_notifications')
-    .select('id,client_id,created_at,read,subject,body,type,email_status')
+    .select('*')
     .eq('client_id', client)
     .order('created_at', { ascending: false });
   if (error) return NextResponse.json({ notifications: [], error: error.message });
