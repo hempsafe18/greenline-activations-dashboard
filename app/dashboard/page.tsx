@@ -22,7 +22,7 @@ const CLIENTS = [
   },
 ];
 
-const ADMIN_EMAILS = ["asmar@greenlineactivations.com", sedell@greenlineactivations.com" "asmar.gary@gmail.com"];
+const ADMIN_EMAILS = ["asmar@greenlineactivations.com", "sedell@greenlineactivations.com", "asmar.gary@gmail.com"];
 
 interface ClientStats {
   name: string; color: string; icon: string; href: string;
