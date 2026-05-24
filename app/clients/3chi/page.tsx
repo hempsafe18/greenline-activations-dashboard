@@ -34,18 +34,36 @@ export default function UnifiedDashboard() {
   const [visibleUpcoming, setVisibleUpcoming] = useState(ITEMS_PER_PAGE);
   const [visiblePrevious, setVisiblePrevious] = useState(ITEMS_PER_PAGE);
 
+  const parseCSV = (csv: string) => {
+    const lines = csv.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+      const values = line.split(',').map(v => v.trim());
+      const obj: any = {};
+      headers.forEach((header, i) => { obj[header] = values[i]; });
+      return obj;
+    });
+  };
+
   const fetchLiveData = async () => {
     setIsLoading(true);
     setVisibleUpcoming(ITEMS_PER_PAGE);
     setVisiblePrevious(ITEMS_PER_PAGE);
     try {
-      const { data: events, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('brand_name', TARGET_BRAND)
-        .order('date', { ascending: true });
+      const upcomingUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=0&single=true&output=csv';
+      const completedUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv';
 
-      if (error) throw error;
+      const [upcomingRes, completedRes] = await Promise.all([
+        fetch(upcomingUrl),
+        fetch(completedUrl)
+      ]);
+
+      const upcomingCsv = await upcomingRes.text();
+      const completedCsv = await completedRes.text();
+
+      const upcomingEvents = parseCSV(upcomingCsv);
+      const completedEvents = parseCSV(completedCsv);
+      const events = [...upcomingEvents, ...completedEvents];
 
       let newCalendar: any[] = [];
       let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
@@ -53,40 +71,40 @@ export default function UnifiedDashboard() {
       let flavorCounts: Record<string, number> = {};
       let newIntel: any[] = [];
 
-      events?.forEach(event => {
-        if (event.status === 'completed') {
-          totalActivations++;
-          totalSampled += parseInt(event.sampled) || 0;
-          totalSold += parseInt(event.sold) || 0;
+      upcomingEvents?.forEach(event => {
+        newCalendar.push({
+          date: event.date || event.event_date, store: event.store_name || event.location_name, market: event.market || 'TBD',
+          address: event.address || '', time: event.start_time && event.end_time ? `${event.start_time} - ${event.end_time}` : '',
+          products: event.products || '', samplingType: event.sampling_type || '',
+          purchaseReq: event.purchase_req || event.product_purchase || '', status: "Upcoming", sortDate: new Date(event.date || event.event_date),
+          id: event.id
+        });
+      });
 
-          const city = event.market || 'Unknown';
-          cityCounts[city] = (cityCounts[city] || 0) + (parseInt(event.sampled) || 0);
+      completedEvents?.forEach(event => {
+        totalActivations++;
+        totalSampled += parseInt(event.sampled) || 0;
+        totalSold += parseInt(event.sold) || 0;
 
-          if (event.top_flavor) flavorCounts[event.top_flavor] = (flavorCounts[event.top_flavor] || 0) + 1;
+        const city = event.market || 'Unknown';
+        cityCounts[city] = (cityCounts[city] || 0) + (parseInt(event.sampled) || 0);
 
-          if (event.objections && event.objections.trim() !== "" && event.objections.toLowerCase() !== "none") {
-              newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${event.store_name || city}: ${event.objections}` });
-          }
+        if (event.top_flavor) flavorCounts[event.top_flavor] = (flavorCounts[event.top_flavor] || 0) + 1;
 
-          if (event.photo_link && event.photo_link.includes('http')) {
-               newIntel.push({ type: 'photo', icon: '📸', text: `New engagement photo from ${event.store_name || city}.`, link: event.photo_link });
-          }
-
-          newCalendar.push({
-            date: event.date, store: event.store_name, market: city,
-            time: event.start_time && event.end_time ? `${event.start_time}-${event.end_time}` : '',
-            status: "Complete", sortDate: new Date(event.date),
-            fullData: event
-          });
-        } else if (event.status === 'upcoming') {
-          newCalendar.push({
-            date: event.date, store: event.store_name, market: event.market || 'TBD',
-            address: event.address || '', time: event.start_time && event.end_time ? `${event.start_time} - ${event.end_time}` : '',
-            products: event.products || '', samplingType: event.sampling_type || '',
-            purchaseReq: event.purchase_req || '', status: "Upcoming", sortDate: new Date(event.date),
-            id: event.id
-          });
+        if (event.objections && event.objections.trim() !== "" && event.objections.toLowerCase() !== "none") {
+            newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${event.store_name || city}: ${event.objections}` });
         }
+
+        if (event.photo_link && event.photo_link.includes('http')) {
+             newIntel.push({ type: 'photo', icon: '📸', text: `New engagement photo from ${event.store_name || city}.`, link: event.photo_link });
+        }
+
+        newCalendar.push({
+          date: event.date, store: event.store_name, market: city,
+          time: event.start_time && event.end_time ? `${event.start_time}-${event.end_time}` : '',
+          status: "Complete", sortDate: new Date(event.date),
+          fullData: event
+        });
       });
 
       let bestFlavor = "No data"; let maxFlavorCount = 0;
@@ -100,7 +118,7 @@ export default function UnifiedDashboard() {
 
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
 
-      const upcomingEvents = newCalendar
+      const upcomingCalendarEvents = newCalendar
         .filter(e => e.status === 'Upcoming')
         .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
 
@@ -113,7 +131,7 @@ export default function UnifiedDashboard() {
           sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
           markets: markets,
-          upcoming: upcomingEvents,
+          upcoming: upcomingCalendarEvents,
           previous: previousEvents,
           intel: newIntel.slice(0, 5)
         });
