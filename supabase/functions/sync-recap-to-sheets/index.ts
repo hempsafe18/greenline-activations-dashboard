@@ -51,13 +51,14 @@ serve(async (req) => {
       );
     }
 
-    // Forward to Apps Script with the resolved GID attached
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (APPS_SCRIPT_SECRET) headers["x-webhook-secret"] = APPS_SCRIPT_SECRET;
+    // Forward to Apps Script — secret as query param (Apps Script drops custom headers)
+    const url = APPS_SCRIPT_SECRET
+      ? `${APPS_SCRIPT_URL}?secret=${encodeURIComponent(APPS_SCRIPT_SECRET)}`
+      : APPS_SCRIPT_URL;
 
-    const res  = await fetch(APPS_SCRIPT_URL, {
+    const res  = await fetch(url, {
       method:  "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ record: { ...recap, sheet_gid: gid } }),
     });
 

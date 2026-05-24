@@ -76,9 +76,9 @@ var HEADER_TO_FIELD = {
 
 function doPost(e) {
   try {
-    // ── Auth check ────────────────────────────────────────────────────────────
+    // ── Auth check (secret passed as ?secret= query param) ───────────────────
     var secret = PropertiesService.getScriptProperties().getProperty("WEBHOOK_SECRET");
-    var incoming = e.headers && e.headers["x-webhook-secret"];
+    var incoming = e.parameter && e.parameter.secret;
     if (secret && incoming !== secret) {
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
