@@ -221,8 +221,9 @@ export default function UnifiedDashboard() {
 
   useEffect(() => { fetchLiveData(); fetchNotifications(); }, []);
 
-  const fetchPhotos = async () => {
-    if (photoLoading || eventPhotos.length > 0) return;
+  const fetchPhotos = async (force = false) => {
+    if (photoLoading || (!force && eventPhotos.length > 0)) return;
+    if (force) setEventPhotos([]);
     setPhotoLoading(true);
     try {
       const res = await fetch('/api/photos?client=amigos');
@@ -794,7 +795,7 @@ const downloadRecapReport = async () => {
           </div>
 
           <div className="card" style={{marginTop: '14px'}}>
-            <div className="card-header"><div><p className="card-title">Event Photos</p><p className="card-sub">Recap photos organized by activation</p></div></div>
+            <div className="card-header"><div><p className="card-title">Event Photos</p><p className="card-sub">Recap photos organized by activation</p></div><button className="btn-action-primary" onClick={() => fetchPhotos(true)} disabled={photoLoading}>↻ Sync Photos</button></div>
             {photoLoading && <p className="photo-empty">Loading photos…</p>}
             {!photoLoading && eventPhotos.length === 0 && <p className="photo-empty">No event photos uploaded yet.</p>}
             <div className="photo-section">
