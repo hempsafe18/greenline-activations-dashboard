@@ -1,29 +1,23 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 
-// ── Env vars (set in Supabase Dashboard → Edge Functions → Secrets) ──────────
-// GOOGLE_SPREADSHEET_ID   – the ID from your sheet URL (/spreadsheets/d/<ID>/edit)
-// GOOGLE_SERVICE_ACCOUNT_JSON – the full JSON key for your service account
-// SHEET_NAME_AMIGOS        – exact tab name in the sheet, e.g. "AMIGOS Recaps"
-// SHEET_NAME_3CHI          – exact tab name, e.g. "3CHI Recaps"
-// SHEET_NAME_MELLOW_FELLOW – exact tab name, e.g. "Mellow Fellow Recaps"
+// ── Env vars ──────────────────────────────────────────────────────────────────
+// GOOGLE_SHEET_ID             – spreadsheet ID from your sheet URL (/spreadsheets/d/<ID>/edit)
+// GOOGLE_SERVICE_ACCOUNT_JSON – full JSON key for your service account
+// SHEET_GID_AMIGOS            – numeric GID for the AMIGOS tab
+// SHEET_GID_3CHI              – numeric GID for the 3CHI tab
+// SHEET_GID_MELLOW_FELLOW     – numeric GID for the Mellow Fellow tab
 
-const SPREADSHEET_ID = Deno.env.get("GOOGLE_SPREADSHEET_ID") ?? "";
+const SPREADSHEET_ID       = Deno.env.get("GOOGLE_SHEET_ID")             ?? "";
 const SERVICE_ACCOUNT_JSON = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON") ?? "";
 
-// Brand name (from recaps.brand_name) → Google Sheet tab name
-const BRAND_TO_SHEET: Record<string, string> = {
-  "AMIGOS":        Deno.env.get("SHEET_NAME_AMIGOS")        ?? "AMIGOS",
-  "Amigos":        Deno.env.get("SHEET_NAME_AMIGOS")        ?? "AMIGOS",
-  "3CHI":          Deno.env.get("SHEET_NAME_3CHI")          ?? "3CHI",
-  "3chi":          Deno.env.get("SHEET_NAME_3CHI")          ?? "3CHI",
-  "MELLOW FELLOW": Deno.env.get("SHEET_NAME_MELLOW_FELLOW") ?? "Mellow Fellow",
-  "Mellow Fellow": Deno.env.get("SHEET_NAME_MELLOW_FELLOW") ?? "Mellow Fellow",
+// Brand name (normalised to uppercase) → sheet GID
+const BRAND_TO_GID: Record<string, string> = {
+  "AMIGOS":        Deno.env.get("SHEET_GID_AMIGOS")        ?? "",
+  "3CHI":          Deno.env.get("SHEET_GID_3CHI")          ?? "",
+  "MELLOW FELLOW": Deno.env.get("SHEET_GID_MELLOW_FELLOW") ?? "",
 };
 
 // ── Column mapping: Google Sheet header → recaps table field ─────────────────
-// The function reads row 1 of the target sheet to get the actual column order,
-// then builds the row using this map. Add or rename entries here if your sheet
-// headers differ from the defaults below.
 const HEADER_TO_FIELD: Record<string, string | ((r: Recap) => string)> = {
   "Timestamp":                        (r) => r.submitted_at ? new Date(r.submitted_at).toLocaleString("en-US") : new Date().toLocaleString("en-US"),
   "Brand Name":                       "brand_name",
@@ -32,7 +26,7 @@ const HEADER_TO_FIELD: Record<string, string | ((r: Recap) => string)> = {
   "City":                             "city",
   "Activation Date":                  "activation_date",
   "Shift Start Time":                 "shift_start_time",
-  "Shift Start Time ":                "shift_start_time", // trailing-space variant common in Form exports
+  "Shift Start Time ":                "shift_start_time",
   "Shift End Time":                   "shift_end_time",
   "Geo Check-In":                     "geo_checkin",
   "Arrival Status":                   "arrival_status",
@@ -139,6 +133,20 @@ async function getAccessToken(sa: { client_email: string; private_key: string })
 }
 
 // ── Sheets API helpers ────────────────────────────────────────────────────────
+
+// Resolve a numeric GID to the sheet's title by fetching spreadsheet metadata
+async function getSheetNameByGid(token: string, gid: string): Promise<string> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties`;
+  const res  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Sheets metadata error: ${JSON.stringify(data)}`);
+
+  const sheets = data.sheets as Array<{ properties: { sheetId: number; title: string } }>;
+  const match  = sheets.find((s) => String(s.properties.sheetId) === String(gid));
+  if (!match) throw new Error(`No sheet found with GID ${gid} in spreadsheet`);
+  return match.properties.title;
+}
+
 async function getSheetHeaders(token: string, sheetName: string): Promise<string[]> {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(sheetName)}!1:1`;
   const res  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -161,8 +169,8 @@ async function appendRow(token: string, sheetName: string, values: string[]): Pr
 function buildRow(recap: Recap, headers: string[]): string[] {
   return headers.map((h) => {
     const mapping = HEADER_TO_FIELD[h];
-    if (!mapping)                          return "";
-    if (typeof mapping === "function")     return String(mapping(recap) ?? "");
+    if (!mapping)                      return "";
+    if (typeof mapping === "function") return String(mapping(recap) ?? "");
     return String(recap[mapping as string] ?? "");
   });
 }
@@ -176,45 +184,42 @@ serve(async (req) => {
   }
 
   try {
-    if (!SPREADSHEET_ID)       throw new Error("GOOGLE_SPREADSHEET_ID is not set");
+    if (!SPREADSHEET_ID)       throw new Error("GOOGLE_SHEET_ID is not set");
     if (!SERVICE_ACCOUNT_JSON) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not set");
 
     const body = await req.json();
-
-    // Accept Supabase DB webhook format ({ type, record, ... }) or direct call ({ ...recapFields })
     const recap: Recap = body.record ?? body.recap ?? body;
 
     if (!recap.store_name && !recap.brand_name) {
       return new Response(JSON.stringify({ error: "Payload missing recap data (store_name / brand_name)" }), { status: 400 });
     }
 
-    // Normalise to upper-case so "Amigos", "AMIGOS", "amigos" all resolve correctly.
-    // The function only writes to the sheet belonging to this recap's brand — no cross-brand writes.
-    const rawBrand   = String(recap.brand_name ?? "").trim();
+    const rawBrand  = String(recap.brand_name ?? "").trim();
     const normalised = rawBrand.toUpperCase();
-    const sheetName  = BRAND_TO_SHEET[rawBrand] ?? BRAND_TO_SHEET[normalised];
+    const gid        = BRAND_TO_GID[rawBrand] ?? BRAND_TO_GID[normalised];
 
-    if (!sheetName) {
+    if (!gid) {
       return new Response(
-        JSON.stringify({ error: `No sheet mapping for brand "${rawBrand}". Check SHEET_NAME_* secrets.` }),
+        JSON.stringify({ error: `No sheet GID mapping for brand "${rawBrand}". Check SHEET_GID_* secrets.` }),
         { status: 400 },
       );
     }
 
-    const sa          = JSON.parse(SERVICE_ACCOUNT_JSON);
-    const token       = await getAccessToken(sa);
-    const headers     = await getSheetHeaders(token, sheetName);
+    const sa        = JSON.parse(SERVICE_ACCOUNT_JSON);
+    const token     = await getAccessToken(sa);
+    const sheetName = await getSheetNameByGid(token, gid);
+    const headers   = await getSheetHeaders(token, sheetName);
 
     if (headers.length === 0) {
-      return new Response(JSON.stringify({ error: `Sheet "${sheetName}" not found or has no header row` }), { status: 404 });
+      return new Response(JSON.stringify({ error: `Sheet "${sheetName}" (GID ${gid}) has no header row` }), { status: 404 });
     }
 
     const row = buildRow(recap, headers);
     await appendRow(token, sheetName, row);
 
-    console.log(`Appended recap for "${rawBrand}" → sheet "${sheetName}" (${row.length} columns)`);
+    console.log(`Appended recap for "${rawBrand}" → sheet "${sheetName}" GID ${gid} (${row.length} columns)`);
 
-    return new Response(JSON.stringify({ success: true, brand: rawBrand, sheet: sheetName, columns: row.length }), {
+    return new Response(JSON.stringify({ success: true, brand: rawBrand, sheet: sheetName, gid, columns: row.length }), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
