@@ -118,7 +118,7 @@ export default function UnifiedDashboard() {
 
       const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
 
-      const upcomingEvents = newCalendar
+      const upcomingCalendarEvents = newCalendar
         .filter(e => e.status === 'Upcoming')
         .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
 
@@ -131,7 +131,7 @@ export default function UnifiedDashboard() {
           sampled: totalSampled, sold: totalSold, activations: totalActivations,
           conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
           markets: markets,
-          upcoming: upcomingEvents,
+          upcoming: upcomingCalendarEvents,
           previous: previousEvents,
           intel: newIntel.slice(0, 5)
         });
