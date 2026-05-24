@@ -540,7 +540,8 @@ const downloadRecapReport = async () => {
                 </button>
               </div>
             </h1>
-            <p style={{marginTop: '6px'}}>Live connected to Google Sheets</p>
+            <p style={{marginTop: '4px', marginBottom: '2px'}}>Welcome back, Peter</p>
+            <p style={{marginTop: '2px'}}>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right" data-html2canvas-ignore="true">
             <UserButton />

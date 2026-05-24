@@ -140,7 +140,7 @@ export default function GrowDashboard() {
           <div className="db-topbar">
             <div>
               <p className="db-topbar-title">{activeSection==="dashboard"&&"Sales Overview"}{activeSection==="accounts"&&"Account Directory"}{activeSection==="orders"&&"Order History"}{activeSection==="commission"&&"Commission Breakdown"}{activeSection==="notifications"&&"Notifications"}</p>
-              <p className="db-topbar-meta">Grow Cannabis Group · Live Data</p>
+              <p className="db-topbar-meta">Welcome back, Hunter &nbsp;·&nbsp; Grow Cannabis Group · Live Data</p>
             </div>
           </div>
           <div className="db-content">
