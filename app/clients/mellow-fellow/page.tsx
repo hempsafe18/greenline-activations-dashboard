@@ -430,6 +430,7 @@ export default function UnifiedDashboard() {
         <div className="topbar">
           <div className="topbar-left">
             <h1>Activation Dashboard</h1>
+            <p style={{marginBottom: '2px'}}>Welcome back, Scott</p>
             <p>Live data · Mellow Fellow Cannabis</p>
           </div>
           <div className="topbar-right">
