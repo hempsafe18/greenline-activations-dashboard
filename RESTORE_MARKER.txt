@@ -1,0 +1,3 @@
+Site restored to May 19, 2026 version
+Commit: 358440aea1294d612f1e6801bdd643efa1685cf5
+This file marks the restoration point.
