@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
 
-type EventPhoto = {
+type PhotoGroup = {
   key: string;
   title: string;
   date: string;
   photos: string[];
+};
+
+// Storage folder names differ from URL-friendly client slugs in some cases
+const STORAGE_SLUG: Record<string, string> = {
+  'mellow-fellow': 'mellow_fellow',
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  engagement: 'Engagement Photos',
+  setup: 'Setup Photos',
+  shelf: 'Shelf Photos',
 };
 
 export async function GET(req: Request) {
@@ -16,13 +27,14 @@ export async function GET(req: Request) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const storageFolder = STORAGE_SLUG[client] ?? client;
 
+  // List type subfolders under the client folder (engagement, setup, shelf)
   const { data: items, error } = await supabase.storage
     .from('recap-photos')
-    .list(client, { limit: 200, sortBy: { column: 'name', order: 'desc' } });
+    .list(storageFolder, { limit: 100, sortBy: { column: 'name', order: 'asc' } });
 
   if (error) {
-    // If the client folder doesn't exist yet, return empty gracefully
     if (error.message.includes('not found') || error.message.includes('does not exist')) {
       return NextResponse.json({ events: [] });
     }
@@ -33,44 +45,47 @@ export async function GET(req: Request) {
     return NextResponse.json({ events: [] });
   }
 
+  // Folders have no id / null metadata; files have metadata
   type StorageItem = (typeof items)[number];
-  const folders = items.filter((item: StorageItem) => !item.id || item.metadata === null);
-  const directFiles = items.filter(
-    (item: StorageItem) => item.id && item.metadata && (item.metadata as Record<string, unknown>)['size'] && !item.name.startsWith('.')
-  );
+  const typeFolders = items.filter((item: StorageItem) => !item.id || item.metadata === null);
 
-  const events: EventPhoto[] = [];
+  const groups: PhotoGroup[] = [];
 
-  for (const folder of folders) {
+  for (const folder of typeFolders) {
     if (folder.name.startsWith('.')) continue;
 
     const { data: files } = await supabase.storage
       .from('recap-photos')
-      .list(`${client}/${folder.name}`, { limit: 100 });
+      .list(`${storageFolder}/${folder.name}`, { limit: 200 });
 
-    const photos = (files || [])
-      .filter((f: StorageItem) => f.metadata && (f.metadata as Record<string, unknown>)['size'] && !f.name.startsWith('.'))
-      .map((f: StorageItem) => `${supabaseUrl}/storage/v1/object/public/recap-photos/${client}/${folder.name}/${f.name}`);
+    const photos = (files ?? [])
+      .filter((f: StorageItem) => {
+        const size = (f.metadata as Record<string, unknown> | null)?.[
+          'size'
+        ] as number | undefined;
+        return size && size > 0 && !f.name.startsWith('.');
+      })
+      .map(
+        (f: StorageItem) =>
+          `${supabaseUrl}/storage/v1/object/public/recap-photos/${storageFolder}/${folder.name}/${encodeURIComponent(f.name)}`
+      );
 
     if (photos.length === 0) continue;
 
-    // Folder name convention: "2026-05-22_total-wine-805"
-    // Parse into a human-readable title
-    const underscoreIdx = folder.name.indexOf('_');
-    const datePart = underscoreIdx > -1 ? folder.name.slice(0, underscoreIdx) : '';
-    const storePart = underscoreIdx > -1 ? folder.name.slice(underscoreIdx + 1) : folder.name;
-    const storeTitle = storePart.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
-    const title = datePart ? `${storeTitle} · ${datePart}` : storeTitle;
-
-    events.push({ key: folder.name, title, date: datePart, photos });
+    groups.push({
+      key: folder.name,
+      title: TYPE_LABELS[folder.name] ?? folder.name.charAt(0).toUpperCase() + folder.name.slice(1),
+      date: '',
+      photos,
+    });
   }
 
-  if (directFiles.length > 0) {
-    const photos = directFiles.map(
-      (f: StorageItem) => `${supabaseUrl}/storage/v1/object/public/recap-photos/${client}/${f.name}`
-    );
-    events.unshift({ key: '__recent', title: 'Recent Photos', date: '', photos });
-  }
+  // Order: engagement → shelf → setup
+  const ORDER = ['engagement', 'shelf', 'setup'];
+  groups.sort(
+    (a, b) => (ORDER.indexOf(a.key) === -1 ? 99 : ORDER.indexOf(a.key)) -
+               (ORDER.indexOf(b.key) === -1 ? 99 : ORDER.indexOf(b.key))
+  );
 
-  return NextResponse.json({ events });
+  return NextResponse.json({ events: groups });
 }
