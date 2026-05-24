@@ -36,17 +36,35 @@ export default function UnifiedDashboard() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
 
+  const parseCSV = (csv: string) => {
+    const lines = csv.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+      const values = line.split(',').map(v => v.trim());
+      const obj: any = {};
+      headers.forEach((header, i) => { obj[header] = values[i]; });
+      return obj;
+    });
+  };
+
   const fetchLiveData = async () => {
     setIsLoading(true);
     setVisibleUpcoming(ITEMS_PER_PAGE);
     setVisiblePrevious(ITEMS_PER_PAGE);
     try {
-      const { data: events, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('brand_name', TARGET_BRAND);
+      const upcomingUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=974321090&single=true&output=csv';
+      const completedUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=1499120296&single=true&output=csv';
 
-      if (error) throw error;
+      const [upcomingRes, completedRes] = await Promise.all([
+        fetch(upcomingUrl),
+        fetch(completedUrl)
+      ]);
+
+      const upcomingCsv = await upcomingRes.text();
+      const completedCsv = await completedRes.text();
+
+      const completedEvents = parseCSV(completedCsv);
+      const upcomingEvents = parseCSV(upcomingCsv);
 
       let newCalendar: any[] = [];
       let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
@@ -54,16 +72,13 @@ export default function UnifiedDashboard() {
       let flavorCounts: Record<string, number> = {};
       let newIntel: any[] = [];
 
-      const completedEvents = events?.filter(e => e.status === 'completed') || [];
-      const upcomingEvents = events?.filter(e => e.status === 'upcoming') || [];
-
       completedEvents.forEach(row => {
         if (!row.store_name) return;
         totalActivations++;
-        totalSampled += row.sampled || 0;
-        totalSold += row.sold || 0;
+        totalSampled += parseInt(row.sampled) || 0;
+        totalSold += parseInt(row.sold) || 0;
         const city = row.market || 'Unknown';
-        cityCounts[city] = (cityCounts[city] || 0) + (row.sampled || 0);
+        cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row.sampled) || 0);
         const flavor = row.top_flavor;
         if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
         const objections = row.objections;
