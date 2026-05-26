@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 
 const CLIENT_ID = "GROW";
@@ -140,7 +140,10 @@ export default function GrowDashboard() {
           <div className="db-topbar">
             <div>
               <p className="db-topbar-title">{activeSection==="dashboard"&&"Sales Overview"}{activeSection==="accounts"&&"Account Directory"}{activeSection==="orders"&&"Order History"}{activeSection==="commission"&&"Commission Breakdown"}{activeSection==="notifications"&&"Notifications"}</p>
-              <p className="db-topbar-meta">Welcome back, Hunter &nbsp;·&nbsp; Grow Cannabis Group · Live Data</p>
+              <p className="db-topbar-meta">Welcome back, {user?.firstName||user?.emailAddresses?.[0]?.emailAddress?.split("@")[0]||"User"} &nbsp;·&nbsp; Grow Cannabis Group · Live Data</p>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:'16px',marginLeft:'auto'}}>
+              <UserButton />
             </div>
           </div>
           <div className="db-content">
