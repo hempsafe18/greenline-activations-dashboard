@@ -22,7 +22,7 @@ export default async function HomePage() {
         redirect("/clients/amigos");
       } else if (email.endsWith("@growcannabis.group")) {
         redirect("/clients/grow");
-      } else if (email.endsWith("@mellowfellowcannabis.com")) {
+      } else if (email.endsWith("@mellowfellowcannabis.com", "@mfdrinks.com")) {
         redirect("/clients/mellow-fellow");  
       } else if (email.endsWith("@greenlineactivations.com")) {
         // Admin Routing - Change this if you have a specific master dashboard!
