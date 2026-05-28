@@ -12,13 +12,14 @@
   "dependencies": {
     "@clerk/nextjs": "latest",
     "@supabase/supabase-js": "^2.45.0",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "googleapis": "^172.0.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "typescript": "latest",
-    "@types/react": "latest",
-    "@types/node": "latest",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1"
+    "typescript": "latest"
   }
 }

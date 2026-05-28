@@ -27,7 +27,7 @@ export default function UnifiedDashboard() {
   const [selectedRecap, setSelectedRecap] = useState<any>(null);
 
   const [formData, setFormData] = useState({
-    storeName: "", address: "", date: "", startTime: "", endTime: "", notes: ""
+    storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "", market: "", brand: "", samplingType: "", productPurchase: "", products: ""
   });
 
   const [metrics, setMetrics] = useState({
@@ -243,7 +243,7 @@ export default function UnifiedDashboard() {
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, client: TARGET_BRAND, requestType: "New Activation Request" }) });
-      if (response.ok) { setUploadMessage("✅ Request submitted successfully. The team has been notified."); setShowSuccess(true); setFormData({ storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "" }); }
+      if (response.ok) { setUploadMessage("✅ Request submitted successfully. The team has been notified."); setShowSuccess(true); setFormData({ storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "", market: "", brand: "", samplingType: "", productPurchase: "", products: "" }); }
       else { setUploadMessage("❌ Failed to send request. Please try again."); setShowSuccess(true); }
     } catch (error) { setUploadMessage("❌ Network error."); setShowSuccess(true); }
     setIsSubmitting(false); setTimeout(() => setShowSuccess(false), 5000);
@@ -260,7 +260,7 @@ export default function UnifiedDashboard() {
     setIsSubmitting(false); setTimeout(() => setShowSuccess(false), 5000);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -616,10 +616,15 @@ export default function UnifiedDashboard() {
           <div className="card">
             <p className="card-title">Request Activation</p>
             <div className="form-grid" style={{marginTop:'16px'}}>
+              <div className="form-group"><label className="form-label">Market</label><input type="text" name="market" value={formData.market} onChange={handleInputChange} className="form-input" placeholder="e.g. Tampa, Miami" /></div>
+              <div className="form-group"><label className="form-label">Brand</label><select name="brand" value={formData.brand} onChange={handleInputChange} className="form-input"><option value="">Select Brand</option><option value="MELLOW FELLOW">MELLOW FELLOW</option></select></div>
               <div className="form-group"><label className="form-label">Store Name</label><input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Total Wine" /></div>
               <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="123 Main St" /></div>
               <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" /></div>
               <div className="form-group"><label className="form-label">Time (From - To)</label><div style={{display:'flex',gap:'8px',alignItems:'center'}}><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex:1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex:1}} /></div></div>
+              <div className="form-group"><label className="form-label">Sampling Type</label><input type="text" name="samplingType" value={formData.samplingType} onChange={handleInputChange} className="form-input" placeholder="e.g. In-store, Mobile" /></div>
+              <div className="form-group"><label className="form-label">Product Purchase Required</label><select name="productPurchase" value={formData.productPurchase} onChange={handleInputChange} className="form-input"><option value="">Select Option</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
+              <div className="form-group full"><label className="form-label">Products</label><textarea name="products" value={formData.products} onChange={handleInputChange} className="form-input form-textarea" placeholder="List products to be sampled..." /></div>
               <div className="form-group full"><label className="form-label">Notes</label><textarea name="notes" value={formData.notes} onChange={handleInputChange} className="form-input form-textarea" /></div>
             </div>
             <button className="btn-submit" onClick={submitRequest} disabled={isSubmitting}>{isSubmitting?"Sending...":"Submit Request"}</button>

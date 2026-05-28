@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// 1. Define which pages are public (just the homepage/login screen)
-const isPublicRoute = createRouteMatcher(['/']);
+// 1. Define which pages are public (just the homepage/login screen and API routes)
+const isPublicRoute = createRouteMatcher(['/', '/api/request']);
 
 // 2. The Bouncer: If it's NOT a public route, protect it!
 export default clerkMiddleware(async (auth, req) => {
