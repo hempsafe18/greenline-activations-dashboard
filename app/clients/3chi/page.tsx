@@ -31,6 +31,14 @@ export default function UnifiedDashboard() {
     storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "", market: "", brand: "", samplingType: "", productPurchase: "", products: ""
   });
 
+  const [dropdownOptions, setDropdownOptions] = useState({
+    market: [] as string[],
+    brand: [] as string[],
+    samplingType: [] as string[],
+    productPurchase: [] as string[],
+    products: [] as string[]
+  });
+
   const [metrics, setMetrics] = useState({
     sampled: 0, sold: 0, activations: 0, conversion: 0,
     markets: [] as any[], upcoming: [] as any[], previous: [] as any[], intel: [] as any[]
@@ -167,6 +175,21 @@ export default function UnifiedDashboard() {
   };
 
   useEffect(() => { fetchLiveData(); }, []);
+
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const res = await fetch('/api/dropdown-data?client=3CHI');
+        if (res.ok) {
+          const data = await res.json();
+          setDropdownOptions(data);
+        }
+      } catch (error) {
+        console.error("Error fetching dropdown data:", error);
+      }
+    };
+    fetchDropdownData();
+  }, []);
 
   const fetchPhotos = async (force = false) => {
     if (photoLoading || (!force && eventPhotos.length > 0)) return;
@@ -740,18 +763,18 @@ const downloadRecapReport = async () => {
           <div className="card">
             <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
             <div className="form-grid">
-              <div className="form-group"><label className="form-label">Market</label><input type="text" name="market" value={formData.market} onChange={handleInputChange} className="form-input" placeholder="e.g. Orlando, Tampa" /></div>
-              <div className="form-group"><label className="form-label">Brand</label><select name="brand" value={formData.brand} onChange={handleInputChange} className="form-input"><option value="">Select Brand</option><option value="3CHI">3CHI</option></select></div>
+              <div className="form-group"><label className="form-label">Market</label><select name="market" value={formData.market} onChange={handleInputChange} className="form-input"><option value="">Select Market</option>{dropdownOptions.market.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+              <div className="form-group"><label className="form-label">Brand</label><select name="brand" value={formData.brand} onChange={handleInputChange} className="form-input"><option value="">Select Brand</option>{dropdownOptions.brand.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
               <div className="form-group"><label className="form-label">Store Name</label><input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Total Wine" /></div>
               <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
               <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" /></div>
               <div className="form-group"><label className="form-label">Time (From - To)</label><div className="time-inputs"><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex: 1}} /></div></div>
-              <div className="form-group"><label className="form-label">Sampling Type</label><input type="text" name="samplingType" value={formData.samplingType} onChange={handleInputChange} className="form-input" placeholder="e.g. In-store, Mobile" /></div>
-              <div className="form-group"><label className="form-label">Product Purchase Required</label><select name="productPurchase" value={formData.productPurchase} onChange={handleInputChange} className="form-input"><option value="">Select Option</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
+              <div className="form-group"><label className="form-label">Sampling Type</label><select name="samplingType" value={formData.samplingType} onChange={handleInputChange} className="form-input"><option value="">Select Sampling Type</option>{dropdownOptions.samplingType.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+              <div className="form-group"><label className="form-label">Product Purchase Required</label><select name="productPurchase" value={formData.productPurchase} onChange={handleInputChange} className="form-input"><option value="">Select Option</option>{dropdownOptions.productPurchase.length > 0 ? dropdownOptions.productPurchase.map(p => <option key={p} value={p}>{p}</option>) : [<option key="Yes" value="Yes">Yes</option>, <option key="No" value="No">No</option>]}</select></div>
 
               <div className="form-group full">
                 <label className="form-label">Products</label>
-                <textarea name="products" value={formData.products} onChange={handleInputChange} className="form-input form-textarea" placeholder="List products to be sampled..." />
+                <select name="products" value={formData.products} onChange={handleInputChange} className="form-input"><option value="">Select Products</option>{dropdownOptions.products.map(p => <option key={p} value={p}>{p}</option>)}</select>
               </div>
 
               <div className="form-group full">
