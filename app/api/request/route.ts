@@ -15,10 +15,6 @@ const sheetsConfig: Record<string, { spreadsheetId: string; sheetName: string }>
   "MELLOW_FELLOW": {
     spreadsheetId: "1WUR_nR0Xo8O8YaNd-D4m3Xg7GzMORsHcRoq1bzfXPMU",
     sheetName: "MELLOW FELLOW SPRINT 1 EVENTS"
-  },
-  "GROW": {
-    spreadsheetId: process.env.UPCOMING_ACTIVATIONS_SHEET_ID || "",
-    sheetName: "Upcoming"
   }
 };
 
