@@ -1,10 +1,62 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
+import { google } from 'googleapis';
+
+// Brand to Google Sheets configuration mapping
+const sheetsConfig: Record<string, { spreadsheetId: string; sheetName: string }> = {
+  "AMIGOS": {
+    spreadsheetId: process.env.AMIGOS_SPREADSHEET_ID || "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    sheetName: "Upcoming"
+  },
+  "3CHI": {
+    spreadsheetId: process.env.THREE_CHI_SPREADSHEET_ID || "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    sheetName: "Upcoming - 3Chi"
+  },
+  "MELLOW_FELLOW": {
+    spreadsheetId: process.env.MELLOW_FELLOW_SPREADSHEET_ID || "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    sheetName: "Upcoming - Mellow Fellow"
+  },
+  "GROW": {
+    spreadsheetId: process.env.GROW_SPREADSHEET_ID || "",
+    sheetName: "Upcoming"
+  }
+};
+
+async function appendToGoogleSheets(spreadsheetId: string, sheetName: string, values: string[][]): Promise<boolean> {
+  try {
+    const credentialsStr = process.env.GOOGLE_SHEETS_CREDENTIALS;
+    if (!credentialsStr) {
+      console.warn("No Google Sheets credentials found");
+      return false;
+    }
+
+    const credentials = JSON.parse(credentialsStr);
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${sheetName}!A:F`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values
+      }
+    });
+
+    return !!response.data.updates;
+  } catch (error) {
+    console.error("Google Sheets append error:", error);
+    return false;
+  }
+}
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    // Added 'notes' and 'requestType' to the incoming data
     const { storeName, address, date, startTime, endTime, client, notes, requestType = "New Activation Request" } = body;
 
     const notificationText = `
@@ -17,50 +69,24 @@ export async function POST(req: Request) {
       Notes: ${notes || 'None provided'}
     `;
 
-    const companyMap: Record<string, string> = {
-      "3CHI": "PASTE_3CHI_COMPANY_ID",
-      "Plift": "PASTE_PLIFT_COMPANY_ID",
-      "Gigli": "PASTE_GIGLI_COMPANY_ID"
-    };
+    // Append to Google Sheets for the respective brand
+    if (client && sheetsConfig[client]) {
+      const config = sheetsConfig[client];
+      if (config.spreadsheetId) {
+        const values = [[
+          storeName,
+          date,
+          startTime || '',
+          endTime || '',
+          address || '',
+          notes || ''
+        ]];
 
-    const targetCompanyId = companyMap[client];
-    const isRealCompanyId = targetCompanyId && !targetCompanyId.startsWith('PASTE_');
-    const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-
-    if (hubspotToken) {
-      const payload: any = {
-        properties: {
-          dealname: `${requestType}: ${storeName} (${client})`,
-          description: notificationText,
-          pipeline: "883257455",
-          dealstage: "1327057675"
+        const sheetsSuccess = await appendToGoogleSheets(config.spreadsheetId, config.sheetName, values);
+        if (!sheetsSuccess) {
+          console.warn("Failed to append to Google Sheets, but continuing with notification");
         }
-      };
-
-      if (isRealCompanyId) {
-        payload.associations = [
-          {
-            to: { id: targetCompanyId },
-            types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 5 }]
-          }
-        ];
       }
-
-      const response = await fetch('https://api.hubapi.com/crm/v3/objects/deals', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${hubspotToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        console.error("HubSpot Error:", await response.text());
-        return NextResponse.json({ success: false, error: "Failed to create deal in HubSpot" }, { status: 500 });
-      }
-    } else {
-      console.warn("No HubSpot token found in environment variables.");
     }
 
     const notifSubjectMap: Record<string, string> = {
