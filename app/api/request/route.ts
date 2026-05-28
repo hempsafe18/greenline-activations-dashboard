@@ -5,19 +5,19 @@ import { google } from 'googleapis';
 // Brand to Google Sheets configuration mapping
 const sheetsConfig: Record<string, { spreadsheetId: string; sheetName: string }> = {
   "AMIGOS": {
-    spreadsheetId: process.env.AMIGOS_SPREADSHEET_ID || "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    spreadsheetId: process.env.SHEET_GID_AMIGOS || "",
     sheetName: "Upcoming"
   },
   "3CHI": {
-    spreadsheetId: process.env.THREE_CHI_SPREADSHEET_ID || "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    spreadsheetId: process.env.SHEET_GID_3CHI || "",
     sheetName: "Upcoming - 3Chi"
   },
   "MELLOW_FELLOW": {
-    spreadsheetId: process.env.MELLOW_FELLOW_SPREADSHEET_ID || "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    spreadsheetId: process.env.SHEET_GID_MELLOW_FELLOW || "",
     sheetName: "Upcoming - Mellow Fellow"
   },
   "GROW": {
-    spreadsheetId: process.env.GROW_SPREADSHEET_ID || "",
+    spreadsheetId: process.env.UPCOMING_ACTIVATIONS_SHEET_ID || "",
     sheetName: "Upcoming"
   }
 };
