@@ -42,7 +42,7 @@ async function appendToGoogleSheets(spreadsheetId: string, sheetName: string, va
 
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${sheetName}!A:F`,
+      range: `${sheetName}!A:L`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values
@@ -77,13 +77,20 @@ export async function POST(req: Request) {
       const config = sheetsConfig[client];
       console.log(`[Request] Client: ${client}, Sheet: ${config.sheetName}`);
       if (config.spreadsheetId) {
+        // Map to correct columns: Market, Brand, Date, Store Name, Address, Start Time, End Time, Sampling Type, Product Purchase, Products, Pay Rate, Spots
         const values = [[
-          storeName,
-          date,
-          startTime || '',
-          endTime || '',
-          address || '',
-          notes || ''
+          '', // Market
+          client, // Brand
+          date, // Date
+          storeName, // Store Name
+          address || '', // Address
+          startTime || '', // Start Time
+          endTime || '', // End Time
+          '', // Sampling Type
+          '', // Product Purchase
+          notes || '', // Products
+          '', // Pay Rate
+          '' // Spots
         ]];
 
         const sheetsSuccess = await appendToGoogleSheets(config.spreadsheetId, config.sheetName, values);
