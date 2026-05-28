@@ -24,6 +24,8 @@ const sheetsConfig: Record<string, { spreadsheetId: string; sheetName: string }>
 
 async function appendToGoogleSheets(spreadsheetId: string, sheetName: string, values: string[][]): Promise<boolean> {
   try {
+    console.log(`[Sheets Debug] Attempting append - Spreadsheet: ${spreadsheetId.substring(0, 20)}..., Sheet: ${sheetName}, Data rows: ${values.length}`);
+
     const credentialsStr = process.env.GOOGLE_SHEETS_CREDENTIALS;
     if (!credentialsStr) {
       console.warn("No Google Sheets credentials found");
@@ -47,6 +49,7 @@ async function appendToGoogleSheets(spreadsheetId: string, sheetName: string, va
       }
     });
 
+    console.log(`[Sheets Debug] Append successful - Updates: ${response.data.updates?.updatedRows || 0} rows`);
     return !!response.data.updates;
   } catch (error) {
     console.error("Google Sheets append error:", error);
@@ -72,6 +75,7 @@ export async function POST(req: Request) {
     // Append to Google Sheets for the respective brand
     if (client && sheetsConfig[client]) {
       const config = sheetsConfig[client];
+      console.log(`[Request] Client: ${client}, Sheet: ${config.sheetName}`);
       if (config.spreadsheetId) {
         const values = [[
           storeName,
@@ -86,7 +90,11 @@ export async function POST(req: Request) {
         if (!sheetsSuccess) {
           console.warn("Failed to append to Google Sheets, but continuing with notification");
         }
+      } else {
+        console.warn(`[Request] No spreadsheet ID found for client: ${client}`);
       }
+    } else {
+      console.warn(`[Request] Client not found or not configured: ${client}`);
     }
 
     const notifSubjectMap: Record<string, string> = {
