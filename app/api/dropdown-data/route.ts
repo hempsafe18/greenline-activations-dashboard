@@ -48,11 +48,11 @@ async function fetchDropdownData(client: string) {
     }
 
     const columnIndices = {
-      market: 0,      // Column A
-      brand: 1,       // Column B
-      samplingType: 7, // Column H
-      productPurchase: 8, // Column I
-      products: 9     // Column J
+      market: 0,
+      brand: 1,
+      samplingType: 7,
+      productPurchase: 8,
+      products: 9
     };
 
     const dropdownData: Record<string, Set<string>> = {
