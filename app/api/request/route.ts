@@ -5,16 +5,16 @@ import { google } from 'googleapis';
 // Brand to Google Sheets configuration mapping
 const sheetsConfig: Record<string, { spreadsheetId: string; sheetName: string }> = {
   "AMIGOS": {
-    spreadsheetId: process.env.SHEET_GID_AMIGOS || "",
-    sheetName: "Upcoming"
+    spreadsheetId: "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    sheetName: "AMIGOS SPRINT 1 EVENTS"
   },
   "3CHI": {
-    spreadsheetId: process.env.SHEET_GID_3CHI || "",
-    sheetName: "Upcoming - 3Chi"
+    spreadsheetId: "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    sheetName: "3CHI SPRINT 2 EVENTS"
   },
   "MELLOW_FELLOW": {
-    spreadsheetId: process.env.SHEET_GID_MELLOW_FELLOW || "",
-    sheetName: "Upcoming - Mellow Fellow"
+    spreadsheetId: "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    sheetName: "MELLOW FELLOW SPRINT 1 EVENTS"
   },
   "GROW": {
     spreadsheetId: process.env.UPCOMING_ACTIVATIONS_SHEET_ID || "",
