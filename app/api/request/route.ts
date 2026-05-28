@@ -5,15 +5,15 @@ import { google } from 'googleapis';
 // Brand to Google Sheets configuration mapping
 const sheetsConfig: Record<string, { spreadsheetId: string; sheetName: string }> = {
   "AMIGOS": {
-    spreadsheetId: "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    spreadsheetId: "1WUR_nR0Xo8O8YaNd-D4m3Xg7GzMORsHcRoq1bzfXPMU",
     sheetName: "AMIGOS SPRINT 1 EVENTS"
   },
   "3CHI": {
-    spreadsheetId: "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    spreadsheetId: "1WUR_nR0Xo8O8YaNd-D4m3Xg7GzMORsHcRoq1bzfXPMU",
     sheetName: "3CHI SPRINT 2 EVENTS"
   },
   "MELLOW_FELLOW": {
-    spreadsheetId: "2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw",
+    spreadsheetId: "1WUR_nR0Xo8O8YaNd-D4m3Xg7GzMORsHcRoq1bzfXPMU",
     sheetName: "MELLOW FELLOW SPRINT 1 EVENTS"
   },
   "GROW": {
