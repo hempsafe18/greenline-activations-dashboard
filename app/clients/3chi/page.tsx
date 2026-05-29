@@ -495,21 +495,96 @@ const downloadRecapReport = async () => {
         .cal-section-divider { border: none; border-top: 2px solid var(--ink); margin: 24px 0; }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @media (max-width: 768px) {
+        /* ── Tablet (900px and below) ── */
+        @media (max-width: 900px) {
           .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 2px solid rgba(250,240,234,0.2); border-right: none; }
           .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
           .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; width: 25%; margin-bottom: 0; border: none; }
           .nav-item .icon { font-size: 18px; width: auto; text-align: center; margin: 0 auto; }
-          .main { margin-left: 0; padding: 16px; padding-bottom: 90px; padding-top: 20px; }
-          .topbar { flex-direction: column; align-items: flex-start; gap: 16px; }
+          .main { margin-left: 0; padding: 18px; padding-bottom: 90px; padding-top: 20px; }
+          .topbar { flex-direction: column; align-items: flex-start; gap: 14px; }
+          .topbar-left h1 { font-size: 22px; }
           .topbar-right { width: 100%; justify-content: space-between; flex-direction: row-reverse; }
-          .stat-grid { grid-template-columns: 1fr 1fr; }
+          .stat-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+          .stat-card { padding: 18px; }
+          .stat-value { font-size: 30px; }
           .two-col { grid-template-columns: 1fr; }
-          .cal-grid { grid-template-columns: 1fr; }
-          .form-grid { grid-template-columns: 1fr; }
+          .card { padding: 18px; }
+          .cal-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+          .form-grid { grid-template-columns: 1fr; gap: 14px; }
           .time-inputs { flex-direction: column; align-items: flex-start; gap: 8px; }
           .time-inputs span { display: none; }
+          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 5px; }
+          .modal-content { max-width: 90vw; }
           .recap-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── Mobile (600px and below) ── */
+        @media (max-width: 600px) {
+          .main { padding: 14px; margin-left: 0; }
+          .topbar { flex-direction: column; gap: 10px; }
+          .topbar-left h1 { font-size: 18px; }
+          .topbar-left p { font-size: 11px; }
+          .topbar-right { width: 100%; justify-content: flex-start; gap: 10px; flex-direction: row; }
+          .btn-action-primary { padding: 5px 10px; font-size: 9px; }
+          .stat-grid { grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
+          .stat-card { padding: 14px 16px; }
+          .stat-value { font-size: 26px; }
+          .stat-label { font-size: 9px; margin-bottom: 6px; }
+          .card { padding: 14px; margin-bottom: 10px; }
+          .card-title { font-size: 14px; }
+          .card-sub { font-size: 10px; }
+          .cal-grid { grid-template-columns: 1fr; gap: 8px; }
+          .cal-card { padding: 12px; }
+          .cal-store { font-size: 13px; }
+          .cal-market { font-size: 10px; }
+          .form-grid { grid-template-columns: 1fr; gap: 12px; }
+          .form-label { font-size: 9px; }
+          .form-input { padding: 8px 12px; font-size: 13px; }
+          .btn-submit { padding: 10px 20px; font-size: 11px; }
+          .chart-bars { height: 120px; }
+          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 4px; padding: 10px; }
+          .photo-thumb { aspect-ratio: 1; }
+          .modal-content { max-width: 95vw; padding: 16px; }
+          .modal-title { font-size: 16px; }
+          .recap-grid { grid-template-columns: 1fr; gap: 10px; }
+          .recap-item { padding: 10px; }
+          .recap-key { font-size: 8px; }
+          .recap-val { font-size: 12px; }
+          .time-inputs { flex-direction: column; gap: 8px; }
+        }
+
+        /* ── Extra small (480px and below) ── */
+        @media (max-width: 480px) {
+          .main { padding: 12px; }
+          .topbar { gap: 8px; }
+          .topbar-left h1 { font-size: 16px; }
+          .topbar-left p { font-size: 10px; }
+          .topbar-right { flex-direction: column; width: 100%; gap: 8px; }
+          .btn-action-primary { padding: 4px 8px; font-size: 8px; width: 100%; justify-content: center; }
+          .stat-grid { gap: 8px; }
+          .stat-card { padding: 12px 14px; }
+          .stat-value { font-size: 22px; }
+          .stat-label { font-size: 8px; }
+          .card { padding: 12px; }
+          .card-title { font-size: 13px; }
+          .cal-grid { gap: 6px; }
+          .cal-card { padding: 10px; }
+          .cal-store { font-size: 12px; }
+          .cal-date { font-size: 9px; }
+          .form-grid { gap: 10px; }
+          .form-label { font-size: 8px; }
+          .form-input { padding: 8px 10px; font-size: 12px; }
+          .btn-submit { padding: 8px 16px; font-size: 10px; width: 100%; }
+          .chart-bars { height: 100px; }
+          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 3px; padding: 8px; }
+          .modal-content { padding: 14px; }
+          .modal-title { font-size: 14px; }
+          .modal-desc { font-size: 11px; }
+          .recap-item { padding: 8px; }
+          .recap-key { font-size: 7px; }
+          .recap-val { font-size: 11px; }
+          .btn-cancel, .btn-submit { padding: 8px 14px; font-size: 9px; }
         }
       `}} />
 
