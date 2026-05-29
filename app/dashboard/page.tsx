@@ -349,6 +349,89 @@ export default function AdminDashboard() {
           .adm-main { margin-left:0; padding:16px; }
           .adm-stat-grid { grid-template-columns:1fr 1fr; }
           .adm-two-col { grid-template-columns:1fr; }
+          .adm-topbar { flex-direction:column; gap:12px; }
+          .adm-topbar-title { font-size:24px; }
+          .adm-topbar-right { width:100%; justify-content:flex-start; }
+          .adm-card { padding:16px; }
+          .adm-stat-card { padding:16px 18px; }
+          .adm-stat-value { font-size:32px; }
+          .adm-vbars { height:120px; }
+          .adm-status-row { gap:12px; }
+          .adm-status-item { padding:12px 14px; }
+          .adm-status-num { font-size:24px; }
+          .adm-hbar-label { width:70px; font-size:10px; }
+          .adm-hbar-val { width:45px; }
+          .adm-notify-grid { grid-template-columns:1fr; }
+          .adm-table th, .adm-table td { padding:10px 8px; font-size:12px; }
+          .adm-quick-grid { grid-template-columns:1fr; }
+        }
+
+        /* ── Mobile (600px and below) ── */
+        @media (max-width:600px) {
+          .admin-wrap { position:static; }
+          .adm-main { padding:14px; margin-left:0; }
+          .adm-topbar-title { font-size:20px; }
+          .adm-topbar-sub { font-size:11px; }
+          .adm-btn-sync { padding:6px 12px; font-size:9px; box-shadow:2px 2px 0 0 var(--ink); }
+          .adm-stat-grid { grid-template-columns:1fr; gap:10px; margin-bottom:10px; }
+          .adm-stat-card { padding:14px 16px; }
+          .adm-stat-value { font-size:28px; }
+          .adm-stat-label { font-size:9px; margin-bottom:6px; }
+          .adm-stat-sub { font-size:10px; }
+          .adm-card { padding:14px; margin-bottom:10px; box-shadow:2px 2px 0 0 var(--ink); }
+          .adm-card-title { font-size:14px; }
+          .adm-card-sub { font-size:10px; margin-bottom:12px; }
+          .adm-vbars { height:110px; gap:8px; padding-bottom:20px; }
+          .adm-vbar-fill { min-height:3px; }
+          .adm-vbar-val { font-size:9px; top:-18px; }
+          .adm-vbar-label { font-size:9px; }
+          .adm-hbar-row { gap:8px; margin-bottom:8px; }
+          .adm-hbar-label { width:60px; font-size:9px; }
+          .adm-hbar-track { height:20px; }
+          .adm-hbar-val { width:40px; font-size:9px; }
+          .adm-status-row { flex-direction:column; gap:10px; }
+          .adm-status-item { padding:10px 12px; }
+          .adm-status-num { font-size:22px; }
+          .adm-status-label { font-size:9px; }
+          .adm-table { font-size:11px; }
+          .adm-table th { padding:6px 4px; font-size:8px; }
+          .adm-table td { padding:8px 4px; }
+          .adm-client-name { font-size:13px; }
+          .adm-open-btn { font-size:9px; padding:4px 8px; }
+          .adm-notify-tabs { margin-bottom:12px; }
+          .adm-notify-tab { padding:8px 6px; font-size:9px; }
+          .adm-notify-grid { gap:8px; }
+          .adm-notify-label { font-size:9px; }
+          .adm-notify-input, .adm-notify-select { padding:6px 8px; font-size:12px; }
+          .adm-quick-grid { gap:8px; margin-top:10px; }
+          .adm-quick-card { padding:14px 12px; font-size:13px; }
+        }
+
+        /* ── Extra small (480px and below) ── */
+        @media (max-width:480px) {
+          .adm-main { padding:10px; padding-bottom:80px; }
+          .adm-topbar { gap:8px; }
+          .adm-topbar-title { font-size:18px; }
+          .adm-topbar-right { flex-direction:column; gap:8px; width:100%; }
+          .adm-btn-sync { width:100%; justify-content:center; }
+          .adm-stat-grid { gap:8px; }
+          .adm-stat-card { padding:12px 14px; }
+          .adm-stat-value { font-size:24px; }
+          .adm-card { padding:12px; }
+          .adm-vbars { height:100px; }
+          .adm-hbar-row { gap:6px; }
+          .adm-table { display:block; overflow-x:auto; }
+          .adm-quick-card { flex-direction:column; text-align:center; gap:8px; }
+        }
+
+        /* ── Bottom Menu ── */
+        .adm-bottom-menu { display:none; }
+        @media (max-width:600px) {
+          .adm-bottom-menu { position:fixed; bottom:0; left:0; right:0; background:var(--ink); border-top:2px solid var(--ink); display:flex; justify-content:space-around; align-items:center; z-index:90; height:70px; }
+          .adm-menu-item { display:flex; flex-direction:column; align-items:center; gap:4px; text-decoration:none; color:rgba(250,240,234,.6); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; flex:1; height:100%; justify-content:center; transition:all .15s; border:none; background:none; cursor:pointer; font-family:'Manrope',sans-serif; }
+          .adm-menu-item:hover { background:rgba(250,240,234,.08); color:var(--bone); }
+          .adm-menu-item.active { background:var(--canopy); color:var(--ink); }
+          .adm-menu-item-icon { font-size:16px; margin-bottom:2px; }
         }
       `}} />
 
@@ -737,6 +820,30 @@ export default function AdminDashboard() {
                 {notifySending ? "Sending..." : "Send Notification →"}
               </button>
               {notifyMsg && <p className="adm-notify-msg">{notifyMsg}</p>}
+            </div>
+
+            {/* ── Bottom Menu ── */}
+            <div className="adm-bottom-menu">
+              <Link href="/dashboard" className="adm-menu-item active">
+                <div className="adm-menu-item-icon">📊</div>
+                <div>Dashboard</div>
+              </Link>
+              <a href="#activations" className="adm-menu-item">
+                <div className="adm-menu-item-icon">📅</div>
+                <div>Activation Calendar</div>
+              </a>
+              <a href="#markets" className="adm-menu-item">
+                <div className="adm-menu-item-icon">🔍</div>
+                <div>Market Intel</div>
+              </a>
+              <a href="#request" className="adm-menu-item">
+                <div className="adm-menu-item-icon">➕</div>
+                <div>Request Activation</div>
+              </a>
+              <Link href="/dashboard" className="adm-menu-item">
+                <div className="adm-menu-item-icon">⬅️</div>
+                <div>Admin Dashboard</div>
+              </Link>
             </div>
           </>
         )}
