@@ -68,7 +68,12 @@ async function fetchDropdownData(client: string) {
       if (row[columnIndices.brand]) dropdownData.brand.add(row[columnIndices.brand]);
       if (row[columnIndices.samplingType]) dropdownData.samplingType.add(row[columnIndices.samplingType]);
       if (row[columnIndices.productPurchase]) dropdownData.productPurchase.add(row[columnIndices.productPurchase]);
-      if (row[columnIndices.products]) dropdownData.products.add(row[columnIndices.products]);
+      if (row[columnIndices.products]) {
+        row[columnIndices.products].split(',').forEach(product => {
+          const trimmed = product.trim();
+          if (trimmed) dropdownData.products.add(trimmed);
+        });
+      }
     });
 
     return {

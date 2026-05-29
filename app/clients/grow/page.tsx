@@ -111,8 +111,62 @@ export default function GrowDashboard() {
         .btn-notif:hover { background: var(--ink); color: var(--bone); }
         .notif-empty { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 13px; font-weight: 600; }
         .loading { display: flex; align-items: center; justify-content: center; padding: 80px; font-size: 13px; font-weight: 600; color: var(--muted); }
-        @media (max-width: 900px) { .db-layout { flex-direction: column; } .db-sidebar { width: 100%; height: auto; position: static; } .db-stats { grid-template-columns: 1fr 1fr; } .comm-summary { grid-template-columns: 1fr 1fr; } .db-content { padding: 20px 16px; } }
-        @media (max-width: 600px) { .db-stats { grid-template-columns: 1fr; } .comm-summary { grid-template-columns: 1fr; } }
+        /* ── Tablet (900px and below) ── */
+        @media (max-width: 900px) {
+          .db-layout { flex-direction: column; }
+          .db-sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 2px solid var(--ink); padding: 12px; }
+          .db-nav { flex-direction: row; gap: 8px; flex-wrap: wrap; }
+          .db-nav-item { padding: 6px 10px; font-size: 10px; }
+          .db-content { padding: 18px; }
+          .db-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+          .db-header h1 { font-size: 20px; }
+          .db-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+          .db-stat-card { padding: 16px; }
+          .db-stat-value { font-size: 28px; }
+          .comm-summary { grid-template-columns: 1fr 1fr; gap: 10px; }
+          .comm-card { padding: 14px; }
+          .comm-value { font-size: 24px; }
+        }
+
+        /* ── Mobile (600px and below) ── */
+        @media (max-width: 600px) {
+          .db-content { padding: 14px; }
+          .db-header { gap: 10px; }
+          .db-header h1 { font-size: 16px; }
+          .db-header p { font-size: 11px; }
+          .db-stats { grid-template-columns: 1fr; gap: 8px; }
+          .db-stat-card { padding: 12px 14px; }
+          .db-stat-label { font-size: 9px; }
+          .db-stat-value { font-size: 22px; }
+          .db-stat-sub { font-size: 10px; }
+          .comm-summary { grid-template-columns: 1fr; gap: 8px; }
+          .comm-card { padding: 12px; }
+          .comm-label { font-size: 9px; }
+          .comm-value { font-size: 20px; }
+          .notif-list { grid-template-columns: 1fr; gap: 8px; }
+          .notif-card { padding: 12px; }
+          .notif-title { font-size: 13px; }
+          .notif-time { font-size: 9px; }
+          .btn-notif { padding: 4px 8px; font-size: 9px; }
+        }
+
+        /* ── Extra small (480px and below) ── */
+        @media (max-width: 480px) {
+          .db-content { padding: 12px; }
+          .db-header h1 { font-size: 14px; }
+          .db-header p { font-size: 10px; }
+          .db-stats { gap: 6px; }
+          .db-stat-card { padding: 10px 12px; }
+          .db-stat-label { font-size: 8px; }
+          .db-stat-value { font-size: 18px; }
+          .comm-summary { gap: 6px; }
+          .comm-card { padding: 10px; }
+          .comm-label { font-size: 8px; }
+          .comm-value { font-size: 16px; }
+          .notif-card { padding: 10px; }
+          .notif-title { font-size: 12px; }
+          .btn-notif { padding: 3px 6px; font-size: 8px; }
+        }
       `}} />
       <div className="db-layout">
         <aside className="db-sidebar">
