@@ -424,6 +424,16 @@ export default function AdminDashboard() {
           .adm-table { display:block; overflow-x:auto; }
           .adm-quick-card { flex-direction:column; text-align:center; gap:8px; }
         }
+
+        /* ── Bottom Menu ── */
+        .adm-bottom-menu { display:none; }
+        @media (max-width:600px) {
+          .adm-bottom-menu { position:fixed; bottom:0; left:0; right:0; background:var(--ink); border-top:2px solid var(--ink); display:flex; justify-content:space-around; align-items:center; z-index:90; height:70px; }
+          .adm-menu-item { display:flex; flex-direction:column; align-items:center; gap:4px; text-decoration:none; color:rgba(250,240,234,.6); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; flex:1; height:100%; justify-content:center; transition:all .15s; border:none; background:none; cursor:pointer; font-family:'Manrope',sans-serif; }
+          .adm-menu-item:hover { background:rgba(250,240,234,.08); color:var(--bone); }
+          .adm-menu-item.active { background:var(--canopy); color:var(--ink); }
+          .adm-menu-item-icon { font-size:16px; margin-bottom:2px; }
+        }
       `}} />
 
       {/* ── Sidebar ── */}
@@ -811,6 +821,30 @@ export default function AdminDashboard() {
                 {notifySending ? "Sending..." : "Send Notification →"}
               </button>
               {notifyMsg && <p className="adm-notify-msg">{notifyMsg}</p>}
+            </div>
+
+            {/* ── Bottom Menu ── */}
+            <div className="adm-bottom-menu">
+              <Link href="/dashboard" className="adm-menu-item active">
+                <div className="adm-menu-item-icon">📊</div>
+                <div>Dashboard</div>
+              </Link>
+              <a href="#activations" className="adm-menu-item">
+                <div className="adm-menu-item-icon">📅</div>
+                <div>Activation Calendar</div>
+              </a>
+              <a href="#markets" className="adm-menu-item">
+                <div className="adm-menu-item-icon">🔍</div>
+                <div>Market Intel</div>
+              </a>
+              <a href="#request" className="adm-menu-item">
+                <div className="adm-menu-item-icon">➕</div>
+                <div>Request Activation</div>
+              </a>
+              <Link href="/dashboard" className="adm-menu-item">
+                <div className="adm-menu-item-icon">⬅️</div>
+                <div>Admin Dashboard</div>
+              </Link>
             </div>
           </>
         )}
