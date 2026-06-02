@@ -12,6 +12,7 @@ export default function GrowDashboard() {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -111,6 +112,20 @@ export default function GrowDashboard() {
         .btn-notif:hover { background: var(--ink); color: var(--bone); }
         .notif-empty { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 13px; font-weight: 600; }
         .loading { display: flex; align-items: center; justify-content: center; padding: 80px; font-size: 13px; font-weight: 600; color: var(--muted); }
+        .db-table.clickable tbody tr { cursor: pointer; transition: background-color 0.15s; }
+        .db-table.clickable tbody tr:hover td { background: var(--gold-pale); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,10,10,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal { background: var(--white); border: 2px solid var(--ink); box-shadow: 8px 8px 0 0 var(--ink); max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { padding: 24px; border-bottom: 2px solid var(--ink); display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+        .modal-close { background: var(--red); color: var(--white); border: none; font-size: 18px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .modal-close:hover { background: #b91c1c; }
+        .modal-content { padding: 24px; }
+        .recap-section { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(10,10,10,0.08); }
+        .recap-section:last-child { border-bottom: none; margin-bottom: 0; }
+        .recap-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 6px; }
+        .recap-value { font-size: 13px; font-weight: 600; color: var(--ink); }
+        .recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         /* ── Tablet (900px and below) ── */
         @media (max-width: 900px) {
           .db-layout { flex-direction: column; }
@@ -221,7 +236,7 @@ export default function GrowDashboard() {
                     </tbody></table></div>
                   </>
                 )}
-                {activeSection==="accounts"&&(<><p className="db-section-title">All Accounts</p><div className="db-card"><table className="db-table"><thead><tr><th>Account</th><th>City</th><th>Status</th><th>Visits</th><th>Cases</th><th>Revenue</th><th>Last Visit</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i}><td style={{fontWeight:700}}>{acc.name}</td><td style={{color:'var(--muted)'}}>{acc.city||'—'}</td><td><span className={`badge ${acc.isNew?'badge-new':'badge-ret'}`}>{acc.isNew?'New':'Returning'}</span></td><td>{acc.visitCount}</td><td>{acc.totalCases}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{color:'var(--muted)'}}>{acc.lastVisit}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={7} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No accounts yet</td></tr>}</tbody></table></div></>)}
+                {activeSection==="accounts"&&(<><p className="db-section-title">All Accounts</p><div className="db-card"><table className="db-table clickable"><thead><tr><th>Account</th><th>City</th><th>Status</th><th>Visits</th><th>Cases</th><th>Revenue</th><th>Last Visit</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i} onClick={()=>setSelectedAccount(acc.name)}><td style={{fontWeight:700}}>{acc.name}</td><td style={{color:'var(--muted)'}}>{acc.city||'—'}</td><td><span className={`badge ${acc.isNew?'badge-new':'badge-ret'}`}>{acc.isNew?'New':'Returning'}</span></td><td>{acc.visitCount}</td><td>{acc.totalCases}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{color:'var(--muted)'}}>{acc.lastVisit}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={7} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No accounts yet</td></tr>}</tbody></table></div></>)}
                 {activeSection==="orders"&&(<><p className="db-section-title">Order History</p><div className="db-card"><table className="db-table"><thead><tr><th>Date</th><th>Rep</th><th>Account</th><th>City</th><th>SKU</th><th>Cases</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>{(stats?.visits||[]).map((v:any,i:number)=>(<tr key={i}><td>{v.visit_date}</td><td style={{fontWeight:600}}>{v.rep_name}</td><td>{v.account_name}</td><td style={{color:'var(--muted)'}}>{v.city||'—'}</td><td style={{fontFamily:'monospace',fontSize:'11px'}}>{v.sku||'—'}</td><td>{v.qty_ordered}</td><td>{fmt$(v.unit_wholesale)}</td><td style={{fontWeight:700}}>{fmt$(v.line_total)}</td></tr>))}{(!stats?.visits||stats.visits.length===0)&&<tr><td colSpan={8} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No orders yet</td></tr>}</tbody></table></div></>)}
                 {activeSection==="commission"&&(<><p className="db-section-title">Commission Breakdown</p><div className="comm-summary"><div className="comm-card white"><p className="comm-label">Total Revenue</p><p className="comm-value">{fmt$(stats?.revenue??0)}</p><p className="comm-note">All wholesale orders</p></div><div className="comm-card white"><p className="comm-label">Commission Rate</p><p className="comm-value">10%</p></div><div className="comm-card gold"><p className="comm-label">Commission Earned</p><p className="comm-value">{fmt$(stats?.commission??0)}</p></div></div><p className="db-section-title">By Account</p><div className="db-card"><table className="db-table"><thead><tr><th>Account</th><th>Revenue</th><th>Commission (10%)</th><th>Cases</th><th>Visits</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i}><td style={{fontWeight:700}}>{acc.name}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{fontWeight:700,color:'var(--gold-dark)'}}>{fmt$(acc.totalRevenue*0.1)}</td><td>{acc.totalCases}</td><td>{acc.visitCount}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={5} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No data yet</td></tr>}</tbody></table></div></>)}
                 {activeSection==="notifications"&&(
@@ -242,6 +257,61 @@ export default function GrowDashboard() {
                   </>
                 )}
               </>
+            )}
+            {selectedAccount&&(
+              <div className="modal-overlay" onClick={()=>setSelectedAccount(null)}>
+                <div className="modal" onClick={e=>e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h2 className="modal-title">{selectedAccount} — Visit Recaps</h2>
+                    <button className="modal-close" onClick={()=>setSelectedAccount(null)}>✕</button>
+                  </div>
+                  <div className="modal-content">
+                    {stats?.visits?.filter((v:any)=>v.account_name===selectedAccount).map((visit:any,i:number)=>(
+                      <div key={i} className="recap-section">
+                        <div className="recap-grid">
+                          <div>
+                            <p className="recap-label">Visit Date</p>
+                            <p className="recap-value">{visit.visit_date}</p>
+                          </div>
+                          <div>
+                            <p className="recap-label">Rep Name</p>
+                            <p className="recap-value">{visit.rep_name}</p>
+                          </div>
+                          <div>
+                            <p className="recap-label">City</p>
+                            <p className="recap-value">{visit.city||'—'}</p>
+                          </div>
+                          <div>
+                            <p className="recap-label">SKU</p>
+                            <p className="recap-value" style={{fontFamily:'monospace',fontSize:'11px'}}>{visit.sku||'—'}</p>
+                          </div>
+                          <div>
+                            <p className="recap-label">Cases Ordered</p>
+                            <p className="recap-value">{visit.qty_ordered}</p>
+                          </div>
+                          <div>
+                            <p className="recap-label">Line Total</p>
+                            <p className="recap-value">{fmt$(visit.line_total)}</p>
+                          </div>
+                        </div>
+                        {visit.recap_data&&(
+                          <>
+                            {visit.recap_data.notes&&(
+                              <div style={{marginTop:12}}>
+                                <p className="recap-label">Notes</p>
+                                <p className="recap-value" style={{whiteSpace:'pre-wrap'}}>{visit.recap_data.notes}</p>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    {(!stats?.visits||stats.visits.filter((v:any)=>v.account_name===selectedAccount).length===0)&&(
+                      <p style={{color:'var(--muted)',textAlign:'center',padding:'24px'}}>No visit recaps for this account</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </main>
