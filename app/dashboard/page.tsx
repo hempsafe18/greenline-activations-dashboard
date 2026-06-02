@@ -410,7 +410,7 @@ export default function AdminDashboard() {
 
         /* ── Extra small (480px and below) ── */
         @media (max-width:480px) {
-          .adm-main { padding:10px; padding-bottom:80px; }
+          .adm-main { padding:10px; }
           .adm-topbar { gap:8px; }
           .adm-topbar-title { font-size:18px; }
           .adm-topbar-right { flex-direction:column; gap:8px; width:100%; }
