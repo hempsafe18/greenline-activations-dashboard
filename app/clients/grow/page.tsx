@@ -258,7 +258,13 @@ export default function GrowDashboard() {
                 )}
               </>
             )}
-            {selectedAccount&&(
+            {selectedAccount&&(()=>{
+              const account=(stats?.accounts||[]).find((a:any)=>a.name===selectedAccount);
+              const recaps=account?.recaps||[];
+              const field=(label:string,value:any)=>(value!==''&&value!==null&&value!==undefined&&value!==0)?(
+                <div><p className="recap-label">{label}</p><p className="recap-value" style={{whiteSpace:'pre-wrap'}}>{value}</p></div>
+              ):null;
+              return(
               <div className="modal-overlay" onClick={()=>setSelectedAccount(null)}>
                 <div className="modal" onClick={e=>e.stopPropagation()}>
                   <div className="modal-header">
@@ -266,53 +272,39 @@ export default function GrowDashboard() {
                     <button className="modal-close" onClick={()=>setSelectedAccount(null)}>✕</button>
                   </div>
                   <div className="modal-content">
-                    {stats?.visits?.filter((v:any)=>v.account_name===selectedAccount).map((visit:any,i:number)=>(
+                    {recaps.map((rc:any,i:number)=>(
                       <div key={i} className="recap-section">
                         <div className="recap-grid">
-                          <div>
-                            <p className="recap-label">Visit Date</p>
-                            <p className="recap-value">{visit.visit_date}</p>
-                          </div>
-                          <div>
-                            <p className="recap-label">Rep Name</p>
-                            <p className="recap-value">{visit.rep_name}</p>
-                          </div>
-                          <div>
-                            <p className="recap-label">City</p>
-                            <p className="recap-value">{visit.city||'—'}</p>
-                          </div>
-                          <div>
-                            <p className="recap-label">SKU</p>
-                            <p className="recap-value" style={{fontFamily:'monospace',fontSize:'11px'}}>{visit.sku||'—'}</p>
-                          </div>
-                          <div>
-                            <p className="recap-label">Cases Ordered</p>
-                            <p className="recap-value">{visit.qty_ordered}</p>
-                          </div>
-                          <div>
-                            <p className="recap-label">Line Total</p>
-                            <p className="recap-value">{fmt$(visit.line_total)}</p>
-                          </div>
+                          {field('Visit Date',rc.visit_date)}
+                          {field('Rep Name',rc.rep_name)}
+                          {field('City',rc.city)}
+                          {field('Buyer Met With',rc.buyer_met_with)}
+                          {field('Time In',rc.time_in)}
+                          {field('Time Out',rc.time_out)}
+                          {field('Outcome',rc.outcome)}
+                          {field('Buyer Receptiveness',rc.buyer_receptiveness?`${rc.buyer_receptiveness}/5`:'')}
+                          {field('SKU',rc.sku)}
+                          {field('Cases Ordered',rc.qty_ordered)}
+                          {rc.line_total>0?field('Order Total',fmt$(rc.line_total)):null}
+                          {field('PO Number',rc.po_number)}
+                          {field('Expected Delivery',rc.expected_delivery)}
+                          {field('Next Visit Timing',rc.next_visit_timing)}
                         </div>
-                        {visit.recap_data&&(
-                          <>
-                            {visit.recap_data.notes&&(
-                              <div style={{marginTop:12}}>
-                                <p className="recap-label">Notes</p>
-                                <p className="recap-value" style={{whiteSpace:'pre-wrap'}}>{visit.recap_data.notes}</p>
-                              </div>
-                            )}
-                          </>
-                        )}
+                        {rc.summary&&(<div style={{marginTop:12}}><p className="recap-label">Summary</p><p className="recap-value" style={{whiteSpace:'pre-wrap'}}>{rc.summary}</p></div>)}
+                        {rc.objections&&(<div style={{marginTop:12}}><p className="recap-label">Objections Raised</p><p className="recap-value" style={{whiteSpace:'pre-wrap'}}>{rc.objections}</p></div>)}
+                        {rc.objection_handling&&(<div style={{marginTop:12}}><p className="recap-label">Objection Handling</p><p className="recap-value" style={{whiteSpace:'pre-wrap'}}>{rc.objection_handling}</p></div>)}
+                        {rc.next_visit_notes&&(<div style={{marginTop:12}}><p className="recap-label">Next Visit Notes</p><p className="recap-value" style={{whiteSpace:'pre-wrap'}}>{rc.next_visit_notes}</p></div>)}
+                        {rc.rep_notes&&(<div style={{marginTop:12}}><p className="recap-label">Rep Notes</p><p className="recap-value" style={{whiteSpace:'pre-wrap'}}>{rc.rep_notes}</p></div>)}
                       </div>
                     ))}
-                    {(!stats?.visits||stats.visits.filter((v:any)=>v.account_name===selectedAccount).length===0)&&(
+                    {recaps.length===0&&(
                       <p style={{color:'var(--muted)',textAlign:'center',padding:'24px'}}>No visit recaps for this account</p>
                     )}
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </div>
         </main>
       </div>
