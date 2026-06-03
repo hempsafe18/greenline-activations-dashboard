@@ -13,6 +13,7 @@ export default function GrowDashboard() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>([]);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -24,6 +25,13 @@ export default function GrowDashboard() {
     try {
       const res = await fetch(`/api/notifications?client=${CLIENT_ID}`);
       if (res.ok) { const data = await res.json(); setNotifications(data.notifications || []); }
+    } catch {}
+  };
+
+  const fetchUpcomingMeetings = async () => {
+    try {
+      const res = await fetch('/api/grow/upcoming-meetings');
+      if (res.ok) { const data = await res.json(); setUpcomingMeetings(data.meetings || []); }
     } catch {}
   };
 
@@ -40,7 +48,7 @@ export default function GrowDashboard() {
   const formatNotifTime = (ts: string) =>
     new Date(ts).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
-  useEffect(() => { fetchStats(); fetchNotifications(); }, []);
+  useEffect(() => { fetchStats(); fetchNotifications(); fetchUpcomingMeetings(); }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const lowInventory = stats && stats.inventory <= 30;
@@ -197,6 +205,8 @@ export default function GrowDashboard() {
             <div className={`nav-item ${activeSection==="accounts"?"active":""}`} onClick={()=>setActiveSection("accounts")}><span>🏪</span> Accounts</div>
             <div className={`nav-item ${activeSection==="orders"?"active":""}`} onClick={()=>setActiveSection("orders")}><span>📦</span> Orders</div>
             <div className={`nav-item ${activeSection==="commission"?"active":""}`} onClick={()=>setActiveSection("commission")}><span>💰</span> Commission</div>
+            <p className="db-nav-label">Pipeline</p>
+            <div className={`nav-item ${activeSection==="upcoming"?"active":""}`} onClick={()=>setActiveSection("upcoming")}><span>📅</span> Upcoming Meetings</div>
             <p className="db-nav-label">Communications</p>
             <div className={`nav-item ${activeSection==="notifications"?"active":""}`} onClick={()=>setActiveSection("notifications")}>
               <span>🔔</span> Notifications
@@ -208,7 +218,7 @@ export default function GrowDashboard() {
         <main className="db-main">
           <div className="db-topbar">
             <div>
-              <p className="db-topbar-title">{activeSection==="dashboard"&&"Sales Overview"}{activeSection==="accounts"&&"Account Directory"}{activeSection==="orders"&&"Order History"}{activeSection==="commission"&&"Commission Breakdown"}{activeSection==="notifications"&&"Notifications"}</p>
+              <p className="db-topbar-title">{activeSection==="dashboard"&&"Sales Overview"}{activeSection==="accounts"&&"Account Directory"}{activeSection==="orders"&&"Order History"}{activeSection==="commission"&&"Commission Breakdown"}{activeSection==="upcoming"&&"Upcoming Meetings"}{activeSection==="notifications"&&"Notifications"}</p>
               <p className="db-topbar-meta">Welcome back, {user?.firstName||user?.emailAddresses?.[0]?.emailAddress?.split("@")[0]||"User"} &nbsp;·&nbsp; Grow Cannabis Group · Live Data</p>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:'16px',marginLeft:'auto'}}>
@@ -239,6 +249,18 @@ export default function GrowDashboard() {
                 {activeSection==="accounts"&&(<><p className="db-section-title">All Accounts</p><div className="db-card"><table className="db-table clickable"><thead><tr><th>Account</th><th>City</th><th>Status</th><th>Visits</th><th>Cases</th><th>Revenue</th><th>Last Visit</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i} onClick={()=>setSelectedAccount(acc.name)}><td style={{fontWeight:700}}>{acc.name}</td><td style={{color:'var(--muted)'}}>{acc.city||'—'}</td><td><span className={`badge ${acc.isNew?'badge-new':'badge-ret'}`}>{acc.isNew?'New':'Returning'}</span></td><td>{acc.visitCount}</td><td>{acc.totalCases}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{color:'var(--muted)'}}>{acc.lastVisit}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={7} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No accounts yet</td></tr>}</tbody></table></div></>)}
                 {activeSection==="orders"&&(<><p className="db-section-title">Order History</p><div className="db-card"><table className="db-table"><thead><tr><th>Date</th><th>Rep</th><th>Account</th><th>City</th><th>SKU</th><th>Cases</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>{(stats?.visits||[]).map((v:any,i:number)=>(<tr key={i}><td>{v.visit_date}</td><td style={{fontWeight:600}}>{v.rep_name}</td><td>{v.account_name}</td><td style={{color:'var(--muted)'}}>{v.city||'—'}</td><td style={{fontFamily:'monospace',fontSize:'11px'}}>{v.sku||'—'}</td><td>{v.qty_ordered}</td><td>{fmt$(v.unit_wholesale)}</td><td style={{fontWeight:700}}>{fmt$(v.line_total)}</td></tr>))}{(!stats?.visits||stats.visits.length===0)&&<tr><td colSpan={8} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No orders yet</td></tr>}</tbody></table></div></>)}
                 {activeSection==="commission"&&(<><p className="db-section-title">Commission Breakdown</p><div className="comm-summary"><div className="comm-card white"><p className="comm-label">Total Revenue</p><p className="comm-value">{fmt$(stats?.revenue??0)}</p><p className="comm-note">All wholesale orders</p></div><div className="comm-card white"><p className="comm-label">Commission Rate</p><p className="comm-value">10%</p></div><div className="comm-card gold"><p className="comm-label">Commission Earned</p><p className="comm-value">{fmt$(stats?.commission??0)}</p></div></div><p className="db-section-title">By Account</p><div className="db-card"><table className="db-table"><thead><tr><th>Account</th><th>Revenue</th><th>Commission (10%)</th><th>Cases</th><th>Visits</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i}><td style={{fontWeight:700}}>{acc.name}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{fontWeight:700,color:'var(--gold-dark)'}}>{fmt$(acc.totalRevenue*0.1)}</td><td>{acc.totalCases}</td><td>{acc.visitCount}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={5} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No data yet</td></tr>}</tbody></table></div></>)}
+                {activeSection==="upcoming"&&(<><p className="db-section-title">Upcoming Meetings</p>{upcomingMeetings.length===0?<div style={{color:'var(--muted)',textAlign:'center',padding:'48px',fontSize:'14px',fontWeight:'600'}}>All caught up! No upcoming meetings.</div>:(<div className="db-card">{Object.entries(upcomingMeetings.reduce((acc:any,m:any)=>{const date=m.meeting_date;if(!acc[date])acc[date]=[];acc[date].push(m);return acc;},{})).sort(([dateA]:[string,any],[dateB]:[string,any])=>dateA.localeCompare(dateB)).map(([date,meetings]:[string,any])=>(<div key={date} style={{marginBottom:'24px',paddingBottom:'24px',borderBottom:'1px solid rgba(10,10,10,0.08)'}}>
+                  <p style={{fontSize:'12px',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:'12px'}}>{new Date(date).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</p>
+                  <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>{meetings.map((m:any,i:number)=>(<div key={i} style={{padding:'12px 14px',border:'1px solid rgba(10,10,10,0.12)',backgroundColor:'var(--white)',transition:'all 0.15s'}}>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'8px'}}>
+                      <div><p style={{fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'4px'}}>Time</p><p style={{fontSize:'13px',fontWeight:600,color:'var(--ink)'}}>{m.meeting_time?new Date(`2000-01-01T${m.meeting_time}`).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'TBD'}</p></div>
+                      <div><p style={{fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'4px'}}>Company</p><p style={{fontSize:'13px',fontWeight:700,color:'var(--ink)'}}>{m.company_name?.trim()||'—'}</p></div>
+                      <div><p style={{fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'4px'}}>Location</p><p style={{fontSize:'13px',fontWeight:500,color:'var(--ink)'}}>{m.location_name||'—'}</p></div>
+                      <div><p style={{fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'4px'}}>Contact</p><p style={{fontSize:'13px',fontWeight:500,color:'var(--ink)'}}>{m.contact_name||'—'}</p></div>
+                    </div>
+                  </div>))}</div>
+                </div>))}
+                {(upcomingMeetings||[]).length>0&&<div style={{fontSize:'12px',color:'var(--muted)',paddingTop:'16px'}}>Meetings are automatically removed once a recap is submitted.</div>}</div>)}</>)}
                 {activeSection==="notifications"&&(
                   <>
                     <div className="notif-header"><div style={{display:'flex',alignItems:'center',gap:'12px'}}><p className="db-section-title" style={{margin:0,border:0,padding:0}}>Notifications</p>{unreadCount>0&&<span className="notif-unread-badge">{unreadCount} unread</span>}</div>{unreadCount>0&&<button className="btn-notif" onClick={markAllRead}>Mark all read</button>}</div>
