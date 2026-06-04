@@ -14,6 +14,7 @@ export default function GrowDashboard() {
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>([]);
+  const [upcomingView, setUpcomingView] = useState<'list'|'calendar'>('list');
 
   const fetchStats = async () => {
     setLoading(true);
@@ -249,18 +250,41 @@ export default function GrowDashboard() {
                 {activeSection==="accounts"&&(<><p className="db-section-title">All Accounts</p><div className="db-card"><table className="db-table clickable"><thead><tr><th>Account</th><th>City</th><th>Status</th><th>Visits</th><th>Cases</th><th>Revenue</th><th>Last Visit</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i} onClick={()=>setSelectedAccount(acc.name)}><td style={{fontWeight:700}}>{acc.name}</td><td style={{color:'var(--muted)'}}>{acc.city||'—'}</td><td><span className={`badge ${acc.isNew?'badge-new':'badge-ret'}`}>{acc.isNew?'New':'Returning'}</span></td><td>{acc.visitCount}</td><td>{acc.totalCases}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{color:'var(--muted)'}}>{acc.lastVisit}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={7} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No accounts yet</td></tr>}</tbody></table></div></>)}
                 {activeSection==="orders"&&(<><p className="db-section-title">Order History</p><div className="db-card"><table className="db-table"><thead><tr><th>Date</th><th>Rep</th><th>Account</th><th>City</th><th>SKU</th><th>Cases</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>{(stats?.visits||[]).map((v:any,i:number)=>(<tr key={i}><td>{v.visit_date}</td><td style={{fontWeight:600}}>{v.rep_name}</td><td>{v.account_name}</td><td style={{color:'var(--muted)'}}>{v.city||'—'}</td><td style={{fontFamily:'monospace',fontSize:'11px'}}>{v.sku||'—'}</td><td>{v.qty_ordered}</td><td>{fmt$(v.unit_wholesale)}</td><td style={{fontWeight:700}}>{fmt$(v.line_total)}</td></tr>))}{(!stats?.visits||stats.visits.length===0)&&<tr><td colSpan={8} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No orders yet</td></tr>}</tbody></table></div></>)}
                 {activeSection==="commission"&&(<><p className="db-section-title">Commission Breakdown</p><div className="comm-summary"><div className="comm-card white"><p className="comm-label">Total Revenue</p><p className="comm-value">{fmt$(stats?.revenue??0)}</p><p className="comm-note">All wholesale orders</p></div><div className="comm-card white"><p className="comm-label">Commission Rate</p><p className="comm-value">10%</p></div><div className="comm-card gold"><p className="comm-label">Commission Earned</p><p className="comm-value">{fmt$(stats?.commission??0)}</p></div></div><p className="db-section-title">By Account</p><div className="db-card"><table className="db-table"><thead><tr><th>Account</th><th>Revenue</th><th>Commission (10%)</th><th>Cases</th><th>Visits</th></tr></thead><tbody>{(stats?.accounts||[]).map((acc:any,i:number)=>(<tr key={i}><td style={{fontWeight:700}}>{acc.name}</td><td>{fmt$(acc.totalRevenue)}</td><td style={{fontWeight:700,color:'var(--gold-dark)'}}>{fmt$(acc.totalRevenue*0.1)}</td><td>{acc.totalCases}</td><td>{acc.visitCount}</td></tr>))}{(!stats?.accounts||stats.accounts.length===0)&&<tr><td colSpan={5} style={{textAlign:'center',color:'var(--muted)',padding:'32px'}}>No data yet</td></tr>}</tbody></table></div></>)}
-                {activeSection==="upcoming"&&(<><p className="db-section-title">Upcoming Meetings</p>{upcomingMeetings.length===0?<div style={{color:'var(--muted)',textAlign:'center',padding:'48px',fontSize:'14px',fontWeight:'600'}}>All caught up! No upcoming meetings.</div>:(<div className="db-card">{Object.entries(upcomingMeetings.reduce((acc:any,m:any)=>{const date=m.meeting_date;if(!acc[date])acc[date]=[];acc[date].push(m);return acc;},{})).sort(([dateA]:[string,any],[dateB]:[string,any])=>dateA.localeCompare(dateB)).map(([date,meetings]:[string,any])=>(<div key={date} style={{marginBottom:'24px',paddingBottom:'24px',borderBottom:'1px solid rgba(10,10,10,0.08)'}}>
-                  <p style={{fontSize:'12px',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:'12px'}}>{new Date(date).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</p>
-                  <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>{meetings.map((m:any,i:number)=>(<div key={i} style={{padding:'12px 14px',border:'1px solid rgba(10,10,10,0.12)',backgroundColor:'var(--white)',transition:'all 0.15s'}}>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'8px'}}>
-                      <div><p style={{fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'4px'}}>Time</p><p style={{fontSize:'13px',fontWeight:600,color:'var(--ink)'}}>{m.meeting_time?new Date(`2000-01-01T${m.meeting_time}`).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'TBD'}</p></div>
-                      <div><p style={{fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'4px'}}>Company</p><p style={{fontSize:'13px',fontWeight:700,color:'var(--ink)'}}>{m.company_name?.trim()||'—'}</p></div>
-                      <div><p style={{fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'4px'}}>Location</p><p style={{fontSize:'13px',fontWeight:500,color:'var(--ink)'}}>{m.location_name||'—'}</p></div>
-                      <div><p style={{fontSize:'9px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'4px'}}>Contact</p><p style={{fontSize:'13px',fontWeight:500,color:'var(--ink)'}}>{m.contact_name||'—'}</p></div>
+                {activeSection==="upcoming"&&(<><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+                  <p className="db-section-title" style={{margin:0,flex:1}}>Upcoming Meetings</p>
+                  <div style={{display:'flex',gap:'6px'}}>
+                    <button onClick={()=>setUpcomingView('list')} style={{padding:'6px 12px',fontSize:'11px',fontWeight:700,textTransform:'uppercase',border:'2px solid',borderColor:upcomingView==='list'?'var(--ink)':'rgba(10,10,10,0.2)',backgroundColor:upcomingView==='list'?'var(--ink)':'transparent',color:upcomingView==='list'?'var(--bone)':'var(--ink)',cursor:'pointer',transition:'all 0.15s'}}>📋 List</button>
+                    <button onClick={()=>setUpcomingView('calendar')} style={{padding:'6px 12px',fontSize:'11px',fontWeight:700,textTransform:'uppercase',border:'2px solid',borderColor:upcomingView==='calendar'?'var(--ink)':'rgba(10,10,10,0.2)',backgroundColor:upcomingView==='calendar'?'var(--ink)':'transparent',color:upcomingView==='calendar'?'var(--bone)':'var(--ink)',cursor:'pointer',transition:'all 0.15s'}}>📅 Calendar</button>
+                  </div>
+                </div>
+                {upcomingMeetings.length===0?<div style={{color:'var(--muted)',textAlign:'center',padding:'48px',fontSize:'14px',fontWeight:'600'}}>All caught up! No upcoming meetings.</div>:(
+                  upcomingView==='list'?(
+                    <div className="db-card"><table className="db-table"><thead><tr><th>Date</th><th>Time</th><th>Company</th><th>Location</th><th>Contact</th></tr></thead><tbody>{upcomingMeetings.map((m:any,i:number)=>(<tr key={i}><td style={{color:'var(--muted)'}}>{m.meeting_date}</td><td style={{fontWeight:600}}>{m.meeting_time?new Date(`2000-01-01T${m.meeting_time}`).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'TBD'}</td><td style={{fontWeight:700}}>{m.company_name?.trim()||'—'}</td><td>{m.location_name||'—'}</td><td>{m.contact_name||'—'}</td></tr>))}</tbody></table></div>
+                  ):(
+                    <div>
+                      <div className="db-card" style={{marginBottom:'20px',padding:'14px 16px'}}>
+                        <p style={{fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'12px'}}>Week View</p>
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'8px'}}>
+                          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day,i)=>{
+                            const today=new Date();
+                            const dayDate=new Date(today);
+                            dayDate.setDate(today.getDate()-today.getDay()+i);
+                            const dateStr=dayDate.toISOString().split('T')[0];
+                            const dayMeetings=upcomingMeetings.filter(m=>m.meeting_date===dateStr);
+                            return(<div key={i} style={{padding:'10px',border:'1px solid rgba(10,10,10,0.08)',textAlign:'center',backgroundColor:dayMeetings.length>0?'var(--gold-pale)':'var(--white)'}}>
+                              <p style={{fontSize:'9px',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',marginBottom:'4px'}}>{day}</p>
+                              <p style={{fontSize:'12px',fontWeight:600,marginBottom:'4px'}}>{dayDate.getDate()}</p>
+                              {dayMeetings.length>0&&<p style={{fontSize:'10px',fontWeight:700,color:'var(--gold-dark)'}}>{dayMeetings.length} meeting{dayMeetings.length>1?'s':''}</p>}
+                            </div>);
+                          })}
+                        </div>
+                      </div>
+                      <p style={{fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'12px',paddingTop:'8px'}}>Agenda</p>
+                      <div className="db-card"><table className="db-table"><thead><tr><th>Date</th><th>Time</th><th>Company</th><th>Location</th><th>Contact</th></tr></thead><tbody>{upcomingMeetings.sort((a:any,b:any)=>new Date(`${a.meeting_date}T${a.meeting_time||'00:00'}`).getTime()-new Date(`${b.meeting_date}T${b.meeting_time||'00:00'}`).getTime()).map((m:any,i:number)=>(<tr key={i}><td style={{color:'var(--muted)'}}>{m.meeting_date}</td><td style={{fontWeight:600}}>{m.meeting_time?new Date(`2000-01-01T${m.meeting_time}`).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'TBD'}</td><td style={{fontWeight:700}}>{m.company_name?.trim()||'—'}</td><td>{m.location_name||'—'}</td><td>{m.contact_name||'—'}</td></tr>))}</tbody></table></div>
                     </div>
-                  </div>))}</div>
-                </div>))}
-                {(upcomingMeetings||[]).length>0&&<div style={{fontSize:'12px',color:'var(--muted)',paddingTop:'16px'}}>Meetings are automatically removed once a recap is submitted.</div>}</div>)}</>)}
+                  )
+                )}
+                {(upcomingMeetings||[]).length>0&&<div style={{fontSize:'12px',color:'var(--muted)',paddingTop:'16px'}}>Meetings are automatically removed once a recap is submitted.</div>}</> )}
                 {activeSection==="notifications"&&(
                   <>
                     <div className="notif-header"><div style={{display:'flex',alignItems:'center',gap:'12px'}}><p className="db-section-title" style={{margin:0,border:0,padding:0}}>Notifications</p>{unreadCount>0&&<span className="notif-unread-badge">{unreadCount} unread</span>}</div>{unreadCount>0&&<button className="btn-notif" onClick={markAllRead}>Mark all read</button>}</div>
