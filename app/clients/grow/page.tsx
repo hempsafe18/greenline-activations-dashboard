@@ -79,7 +79,7 @@ export default function GrowDashboard() {
         .db-topbar { background: var(--white); border-bottom: 2px solid var(--ink); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
         .db-topbar-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
         .db-topbar-meta { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
-        .db-content { padding: 32px; flex: 1; }
+        .db-content { padding: 32px; flex: 1; overflow-x: hidden; }
         .db-alert { background: var(--red-pale); border: 2px solid var(--red); padding: 14px 18px; margin-bottom: 24px; box-shadow: 3px 3px 0 0 var(--red); display: flex; align-items: center; gap: 12px; }
         .db-alert-text { font-size: 13px; font-weight: 700; color: var(--red); }
         .db-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
@@ -140,6 +140,8 @@ export default function GrowDashboard() {
           .db-layout { flex-direction: column; }
           .db-sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 2px solid var(--ink); padding: 12px; }
           .db-nav { flex-direction: row; gap: 8px; flex-wrap: wrap; }
+          .db-topbar { padding: 12px 16px; }
+          .db-topbar-title { font-size: 16px; }
           .db-nav-item { padding: 6px 10px; font-size: 10px; }
           .db-content { padding: 18px; }
           .db-header { flex-direction: column; gap: 12px; align-items: flex-start; }
@@ -150,46 +152,78 @@ export default function GrowDashboard() {
           .comm-summary { grid-template-columns: 1fr 1fr; gap: 10px; }
           .comm-card { padding: 14px; }
           .comm-value { font-size: 24px; }
+          .db-table th { padding: 8px 12px; font-size: 8px; }
+          .db-table td { padding: 8px 12px; font-size: 11px; }
         }
 
         /* ── Mobile (600px and below) ── */
         @media (max-width: 600px) {
-          .db-content { padding: 14px; }
+          .db-content { padding: 12px; }
+          .db-topbar { padding: 12px; flex-direction: column; gap: 8px; align-items: flex-start; }
+          .db-topbar-title { font-size: 14px; }
+          .db-topbar-meta { font-size: 9px; }
           .db-header { gap: 10px; }
           .db-header h1 { font-size: 16px; }
           .db-header p { font-size: 11px; }
           .db-stats { grid-template-columns: 1fr; gap: 8px; }
-          .db-stat-card { padding: 12px 14px; }
-          .db-stat-label { font-size: 9px; }
-          .db-stat-value { font-size: 22px; }
-          .db-stat-sub { font-size: 10px; }
+          .db-stat-card { padding: 12px; border-width: 1px; }
+          .stat-label { font-size: 8px; margin-bottom: 6px; }
+          .stat-value { font-size: 20px; }
+          .stat-sub { font-size: 9px; }
           .comm-summary { grid-template-columns: 1fr; gap: 8px; }
-          .comm-card { padding: 12px; }
-          .comm-label { font-size: 9px; }
-          .comm-value { font-size: 20px; }
-          .notif-list { grid-template-columns: 1fr; gap: 8px; }
-          .notif-card { padding: 12px; }
-          .notif-title { font-size: 13px; }
-          .notif-time { font-size: 9px; }
-          .btn-notif { padding: 4px 8px; font-size: 9px; }
+          .comm-card { padding: 12px; border-width: 1px; }
+          .comm-label { font-size: 8px; }
+          .comm-value { font-size: 18px; }
+          .db-section-title { font-size: 10px; margin-bottom: 12px; padding-bottom: 8px; border-width: 1px; }
+          .db-card { border-width: 1px; margin-bottom: 12px; }
+          .db-table { font-size: 11px; }
+          .db-table th { padding: 8px; font-size: 7px; }
+          .db-table td { padding: 8px; font-size: 10px; }
+          .notif-card { padding: 10px; border-width: 1px; }
+          .notif-title { font-size: 12px; }
+          .notif-subject { font-size: 12px; }
+          .notif-body { font-size: 11px; }
+          .notif-time { font-size: 8px; }
+          .btn-notif { padding: 4px 8px; font-size: 8px; border-width: 1px; }
+          .modal { width: 95%; max-width: none; }
+          .modal-header { padding: 16px; }
+          .modal-title { font-size: 14px; }
+          .modal-content { padding: 14px; }
+          .recap-grid { grid-template-columns: 1fr; }
         }
 
         /* ── Extra small (480px and below) ── */
         @media (max-width: 480px) {
-          .db-content { padding: 12px; }
+          .db-content { padding: 10px; }
+          .db-topbar { padding: 10px; }
+          .db-topbar-title { font-size: 12px; }
+          .db-topbar-meta { font-size: 8px; }
           .db-header h1 { font-size: 14px; }
           .db-header p { font-size: 10px; }
           .db-stats { gap: 6px; }
-          .db-stat-card { padding: 10px 12px; }
-          .db-stat-label { font-size: 8px; }
-          .db-stat-value { font-size: 18px; }
+          .db-stat-card { padding: 10px; }
+          .stat-label { font-size: 7px; }
+          .stat-value { font-size: 18px; }
+          .stat-sub { font-size: 8px; }
           .comm-summary { gap: 6px; }
           .comm-card { padding: 10px; }
-          .comm-label { font-size: 8px; }
+          .comm-label { font-size: 7px; }
           .comm-value { font-size: 16px; }
-          .notif-card { padding: 10px; }
-          .notif-title { font-size: 12px; }
-          .btn-notif { padding: 3px 6px; font-size: 8px; }
+          .db-section-title { font-size: 9px; margin-bottom: 10px; }
+          .db-table th { padding: 6px; font-size: 6px; }
+          .db-table td { padding: 6px; font-size: 9px; }
+          .notif-card { padding: 8px; }
+          .notif-subject { font-size: 11px; }
+          .notif-body { font-size: 10px; }
+          .notif-time { font-size: 7px; }
+          .btn-notif { padding: 3px 6px; font-size: 7px; }
+          .modal { width: 98%; }
+          .modal-header { padding: 12px; }
+          .modal-title { font-size: 12px; }
+          .modal-close { width: 24px; height: 24px; font-size: 14px; }
+          .modal-content { padding: 10px; }
+          .recap-label { font-size: 7px; }
+          .recap-value { font-size: 12px; }
         }
       `}} />
       <div className="db-layout">
