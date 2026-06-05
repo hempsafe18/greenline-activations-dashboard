@@ -18,38 +18,38 @@ const parseCity = (address: string | null): string => {
 };
 
 export async function GET() {
-  const { data: recaps, error } = await supabase
-    .from('sales_meeting_recaps')
-    .select('*, sales_meetings(location_address)')
-    .eq('brand', 'Grow')
+  const { data: visits, error } = await supabase
+    .from('sales_visits')
+    .select('*')
+    .eq('client_id', 'GROW')
     .order('visit_date', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const visits: any[] = [];
+  const visitsArray: any[] = [];
   const accountMap: Record<string, any> = {};
 
-  (recaps || []).forEach((r: any) => {
-    const accountName = r.account_visited || r.account_name || '';
+  (visits || []).forEach((v: any) => {
+    const accountName = v.account_name || '';
     if (!accountName) return;
 
-    const totalQty = r.order_skus?.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0) || 0;
-    const totalRevenue = Number(r.order_total) || 0;
+    const totalQty = Number(v.qty_ordered) || 0;
+    const totalRevenue = Number(v.line_total) || 0;
     const hasOrder = totalQty > 0 || totalRevenue > 0;
-    const city = parseCity(r.sales_meetings?.location_address || '');
+    const city = v.city || '';
 
     // Order History: only confirmed orders with case quantity or revenue.
     if (hasOrder) {
-      visits.push({
-        visit_date: r.visit_date,
-        rep_name: r.rep_name,
+      visitsArray.push({
+        visit_date: v.visit_date,
+        rep_name: v.rep_name,
         account_name: accountName,
         city,
-        sku: r.order_skus?.[0]?.sku || '',
+        sku: v.sku || '',
         qty_ordered: totalQty,
-        unit_wholesale: 0,
+        unit_wholesale: Number(v.unit_wholesale) || 0,
         line_total: totalRevenue,
-        recap_id: r.id,
+        visit_id: v.id,
       });
     }
 
@@ -58,8 +58,8 @@ export async function GET() {
       accountMap[accountName] = {
         name: accountName,
         city,
-        isNew: false,
-        lastVisit: r.visit_date,
+        isNew: Boolean(v.is_new_account),
+        lastVisit: v.visit_date,
         totalCases: 0,
         totalRevenue: 0,
         visitCount: 0,
@@ -68,47 +68,40 @@ export async function GET() {
     }
     const acc = accountMap[accountName];
     if (city && !acc.city) acc.city = city;
+    if (v.is_new_account) acc.isNew = true;
     acc.totalCases += totalQty;
     acc.totalRevenue += totalRevenue;
     acc.visitCount += 1;
-    if (r.visit_date > acc.lastVisit) acc.lastVisit = r.visit_date;
+    if (v.visit_date > acc.lastVisit) acc.lastVisit = v.visit_date;
 
-    // Full recap detail for the account modal.
+    // Full visit detail for the account modal.
     acc.recaps.push({
-      visit_date: r.visit_date,
-      rep_name: r.rep_name,
-      buyer_met_with: r.buyer_met_with || r.buyer_name || '',
+      visit_date: v.visit_date,
+      rep_name: v.rep_name,
+      account_name: accountName,
       city,
-      time_in: r.time_in,
-      time_out: r.time_out,
-      outcome: r.outcome || '',
-      buyer_receptiveness: r.buyer_receptiveness || 0,
-      summary: r.summary || '',
-      sku: r.order_skus?.[0]?.sku || '',
+      sku: v.sku || '',
       qty_ordered: totalQty,
+      unit_wholesale: Number(v.unit_wholesale) || 0,
       line_total: totalRevenue,
-      po_number: r.po_number || '',
-      expected_delivery: r.expected_delivery || '',
-      objections: r.objections || r.objections_raised || '',
-      objection_handling: r.objection_handling || '',
-      next_visit_timing: r.next_visit_timing || '',
-      next_visit_notes: r.next_visit_note || r.next_visit_notes || '',
-      rep_notes: r.rep_notes || '',
+      notes: v.notes || '',
+      is_new_account: Boolean(v.is_new_account),
     });
   });
 
   const accounts = Object.values(accountMap).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
-  const casesSold = visits.reduce((s: number, v: any) => s + (Number(v.qty_ordered) || 0), 0);
-  const revenue = visits.reduce((s: number, v: any) => s + (Number(v.line_total) || 0), 0);
+  const newAccounts = accounts.filter((a: any) => a.isNew).length;
+  const casesSold = visitsArray.reduce((s: number, v: any) => s + (Number(v.qty_ordered) || 0), 0);
+  const revenue = visitsArray.reduce((s: number, v: any) => s + (Number(v.line_total) || 0), 0);
 
   return NextResponse.json({
     accountsVisited: accounts.length,
-    newAccounts: 0,
+    newAccounts,
     casesSold,
     inventory: Math.max(0, 100 - casesSold),
     revenue,
     commission: revenue * 0.1,
     accounts,
-    visits,
+    visits: visitsArray,
   });
 }
