@@ -15,6 +15,8 @@ export default function GrowDashboard() {
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>([]);
   const [upcomingView, setUpcomingView] = useState<'list'|'calendar'>('list');
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState('');
 
   const fetchStats = async () => {
     setLoading(true);
@@ -44,6 +46,26 @@ export default function GrowDashboard() {
   const markAllRead = async () => {
     await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client: CLIENT_ID, markAllRead: true }) });
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const refreshAllRecaps = async () => {
+    setRefreshing(true);
+    setRefreshMessage('');
+    try {
+      const res = await fetch('/api/grow/revalidate', { method: 'POST', headers: { 'Authorization': 'Bearer dev-secret', 'Content-Type': 'application/json' } });
+      if (res.ok) {
+        setRefreshMessage('✅ All recaps refreshed!');
+        await fetchStats();
+        setTimeout(() => setRefreshMessage(''), 3000);
+      } else {
+        setRefreshMessage('❌ Refresh failed');
+        setTimeout(() => setRefreshMessage(''), 3000);
+      }
+    } catch {
+      setRefreshMessage('❌ Network error');
+      setTimeout(() => setRefreshMessage(''), 3000);
+    }
+    setRefreshing(false);
   };
 
   const formatNotifTime = (ts: string) =>
@@ -256,7 +278,11 @@ export default function GrowDashboard() {
               <p className="db-topbar-title">{activeSection==="dashboard"&&"Sales Overview"}{activeSection==="accounts"&&"Account Directory"}{activeSection==="orders"&&"Order History"}{activeSection==="commission"&&"Commission Breakdown"}{activeSection==="upcoming"&&"Upcoming Meetings"}{activeSection==="notifications"&&"Notifications"}</p>
               <p className="db-topbar-meta">Welcome back, {user?.firstName||user?.emailAddresses?.[0]?.emailAddress?.split("@")[0]||"User"} &nbsp;·&nbsp; Grow Cannabis Group · Live Data</p>
             </div>
-            <div style={{display:'flex',alignItems:'center',gap:'16px',marginLeft:'auto'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'16px',marginLeft:'auto',flexWrap:'wrap'}}>
+              {refreshMessage&&<span style={{fontSize:'12px',fontWeight:600,color:refreshMessage.includes('✅')?'#059669':'#dc2626'}}>{refreshMessage}</span>}
+              <button onClick={refreshAllRecaps} disabled={refreshing} style={{padding:'8px 16px',fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',border:'2px solid var(--ink)',backgroundColor:'var(--gold-pale)',color:'var(--ink)',cursor:refreshing?'not-allowed':'pointer',opacity:refreshing?0.6:1,transition:'all 0.15s'}}>
+                {refreshing?'Refreshing...':'🔄 Refresh All Recaps'}
+              </button>
               <UserButton />
             </div>
           </div>
