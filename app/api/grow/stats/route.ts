@@ -17,22 +17,6 @@ const parseCity = (address: string | null): string => {
   return parts[0] || '';
 };
 
-// Parse the city out of a full address. Handles both multi-line
-// ("123 Main St\nFernandina Beach, FL 32034") and single-line
-// ("123 Main St, Fernandina Beach, FL 32034") formats. After
-// normalizing newlines to commas, the city is the segment just
-// before the "STATE ZIP" segment (i.e. second-to-last).
-const parseCity = (address: string | null): string => {
-  if (!address) return '';
-  const parts = address
-    .replace(/\n/g, ',')
-    .split(',')
-    .map(p => p.trim())
-    .filter(Boolean);
-  if (parts.length >= 2) return parts[parts.length - 2];
-  return parts[0] || '';
-};
-
 export async function GET() {
   const { data: recaps, error } = await supabase
     .from('sales_meeting_recaps')
