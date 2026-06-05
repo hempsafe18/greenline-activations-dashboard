@@ -49,7 +49,7 @@ export async function GET() {
     const accountName = r.account_visited || r.account_name || '';
     if (!accountName) return;
 
-    const totalQty = r.order_skus?.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0) || 0;
+    const totalQty = r.order_skus?.reduce((sum: number, s: any) => sum + (s.qty || 0), 0) || 0;
     const totalRevenue = Number(r.order_total) || 0;
     const hasOrder = totalQty > 0 || totalRevenue > 0;
     const city = parseCity(r.sales_meetings?.location_address || '');
