@@ -17,6 +17,9 @@ export default function GrowDashboard() {
   const [upcomingView, setUpcomingView] = useState<'list'|'calendar'>('list');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -66,6 +69,26 @@ export default function GrowDashboard() {
       setTimeout(() => setRefreshMessage(''), 3000);
     }
     setRefreshing(false);
+  };
+
+  const syncMeetingsFromHubSpot = async () => {
+    setSyncing(true);
+    setSyncMessage('');
+    try {
+      const res = await fetch('https://qqkbopkyfgiqsrrtvxzv.supabase.co/functions/v1/sync-ondeck-from-hubspot', { method: 'POST' });
+      if (res.ok) {
+        setSyncMessage('✅ Meetings synced!');
+        await fetchUpcomingMeetings();
+        setTimeout(() => setSyncMessage(''), 3000);
+      } else {
+        setSyncMessage('❌ Sync failed');
+        setTimeout(() => setSyncMessage(''), 3000);
+      }
+    } catch {
+      setSyncMessage('❌ Network error');
+      setTimeout(() => setSyncMessage(''), 3000);
+    }
+    setSyncing(false);
   };
 
   const formatNotifTime = (ts: string) =>
@@ -280,8 +303,12 @@ export default function GrowDashboard() {
             </div>
             <div style={{display:'flex',alignItems:'center',gap:'16px',marginLeft:'auto',flexWrap:'wrap'}}>
               {refreshMessage&&<span style={{fontSize:'12px',fontWeight:600,color:refreshMessage.includes('✅')?'#059669':'#dc2626'}}>{refreshMessage}</span>}
+              {syncMessage&&<span style={{fontSize:'12px',fontWeight:600,color:syncMessage.includes('✅')?'#059669':'#dc2626'}}>{syncMessage}</span>}
               <button onClick={refreshAllRecaps} disabled={refreshing} style={{padding:'8px 16px',fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',border:'2px solid var(--ink)',backgroundColor:'var(--gold-pale)',color:'var(--ink)',cursor:refreshing?'not-allowed':'pointer',opacity:refreshing?0.6:1,transition:'all 0.15s'}}>
                 {refreshing?'Refreshing...':'🔄 Refresh All Recaps'}
+              </button>
+              <button onClick={syncMeetingsFromHubSpot} disabled={syncing} style={{padding:'8px 16px',fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',border:'2px solid var(--ink)',backgroundColor:'#c7d7fe',color:'var(--ink)',cursor:syncing?'not-allowed':'pointer',opacity:syncing?0.6:1,transition:'all 0.15s'}}>
+                {syncing?'Syncing...':'🔄 Sync Meetings'}
               </button>
               <UserButton />
             </div>
@@ -323,12 +350,19 @@ export default function GrowDashboard() {
                   ):(
                     <div>
                       <div className="db-card" style={{marginBottom:'20px',padding:'14px 16px'}}>
-                        <p style={{fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',marginBottom:'12px'}}>Week View</p>
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                          <p style={{fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted)',margin:0}}>Week View</p>
+                          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+                            <button onClick={()=>setWeekOffset(Math.max(0,weekOffset-1))} disabled={weekOffset===0} style={{padding:'4px 10px',fontSize:'10px',fontWeight:700,border:'1px solid var(--ink)',backgroundColor:'transparent',color:'var(--ink)',cursor:weekOffset===0?'not-allowed':'pointer',opacity:weekOffset===0?0.5:1}}>← Prev</button>
+                            <span style={{fontSize:'10px',fontWeight:600,minWidth:'60px',textAlign:'center'}}>{weekOffset===0?'This Week':'Next Week'}</span>
+                            <button onClick={()=>setWeekOffset(weekOffset+1)} style={{padding:'4px 10px',fontSize:'10px',fontWeight:700,border:'1px solid var(--ink)',backgroundColor:'transparent',color:'var(--ink)',cursor:'pointer'}}>Next →</button>
+                          </div>
+                        </div>
                         <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'8px'}}>
                           {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day,i)=>{
                             const today=new Date();
                             const dayDate=new Date(today);
-                            dayDate.setDate(today.getDate()-today.getDay()+i);
+                            dayDate.setDate(today.getDate()-today.getDay()+i+weekOffset*7);
                             const dateStr=dayDate.toISOString().split('T')[0];
                             const dayMeetings=upcomingMeetings.filter(m=>m.meeting_date===dateStr);
                             return(<div key={i} style={{padding:'10px',border:'1px solid rgba(10,10,10,0.08)',textAlign:'center',backgroundColor:dayMeetings.length>0?'var(--gold-pale)':'var(--white)'}}>
