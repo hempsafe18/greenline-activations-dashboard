@@ -17,8 +17,6 @@ export default function GrowDashboard() {
   const [upcomingView, setUpcomingView] = useState<'list'|'calendar'>('list');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState('');
   const [weekOffset, setWeekOffset] = useState(0);
 
   const fetchStats = async () => {
@@ -69,28 +67,6 @@ export default function GrowDashboard() {
       setTimeout(() => setRefreshMessage(''), 3000);
     }
     setRefreshing(false);
-  };
-
-  const syncMeetingsFromHubSpot = async () => {
-    setSyncing(true);
-    setSyncMessage('');
-    try {
-      const res = await fetch('/api/grow/sync-meetings', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        setSyncMessage('✅ Meetings synced!');
-        await fetchUpcomingMeetings();
-        setTimeout(() => setSyncMessage(''), 4000);
-      } else {
-        const detail = data?.detail?.raw || data?.detail?.message || data?.error || 'Unknown error';
-        setSyncMessage(`❌ ${detail}`);
-        setTimeout(() => setSyncMessage(''), 6000);
-      }
-    } catch (err: any) {
-      setSyncMessage(`❌ ${err.message || 'Network error'}`);
-      setTimeout(() => setSyncMessage(''), 6000);
-    }
-    setSyncing(false);
   };
 
   const formatNotifTime = (ts: string) =>
@@ -305,12 +281,8 @@ export default function GrowDashboard() {
             </div>
             <div style={{display:'flex',alignItems:'center',gap:'16px',marginLeft:'auto',flexWrap:'wrap'}}>
               {refreshMessage&&<span style={{fontSize:'12px',fontWeight:600,color:refreshMessage.includes('✅')?'#059669':'#dc2626'}}>{refreshMessage}</span>}
-              {syncMessage&&<span style={{fontSize:'12px',fontWeight:600,color:syncMessage.includes('✅')?'#059669':'#dc2626'}}>{syncMessage}</span>}
               <button onClick={refreshAllRecaps} disabled={refreshing} style={{padding:'8px 16px',fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',border:'2px solid var(--ink)',backgroundColor:'var(--gold-pale)',color:'var(--ink)',cursor:refreshing?'not-allowed':'pointer',opacity:refreshing?0.6:1,transition:'all 0.15s'}}>
                 {refreshing?'Refreshing...':'🔄 Refresh All Recaps'}
-              </button>
-              <button onClick={syncMeetingsFromHubSpot} disabled={syncing} style={{padding:'8px 16px',fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',border:'2px solid var(--ink)',backgroundColor:'#c7d7fe',color:'var(--ink)',cursor:syncing?'not-allowed':'pointer',opacity:syncing?0.6:1,transition:'all 0.15s'}}>
-                {syncing?'Syncing...':'🔄 Sync Meetings'}
               </button>
               <UserButton />
             </div>
