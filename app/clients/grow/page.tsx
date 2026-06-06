@@ -75,18 +75,20 @@ export default function GrowDashboard() {
     setSyncing(true);
     setSyncMessage('');
     try {
-      const res = await fetch('https://qqkbopkyfgiqsrrtvxzv.supabase.co/functions/v1/sync-ondeck-from-hubspot', { method: 'POST' });
+      const res = await fetch('/api/grow/sync-meetings', { method: 'POST' });
+      const data = await res.json();
       if (res.ok) {
         setSyncMessage('✅ Meetings synced!');
         await fetchUpcomingMeetings();
-        setTimeout(() => setSyncMessage(''), 3000);
+        setTimeout(() => setSyncMessage(''), 4000);
       } else {
-        setSyncMessage('❌ Sync failed');
-        setTimeout(() => setSyncMessage(''), 3000);
+        const detail = data?.detail?.raw || data?.detail?.message || data?.error || 'Unknown error';
+        setSyncMessage(`❌ ${detail}`);
+        setTimeout(() => setSyncMessage(''), 6000);
       }
-    } catch {
-      setSyncMessage('❌ Network error');
-      setTimeout(() => setSyncMessage(''), 3000);
+    } catch (err: any) {
+      setSyncMessage(`❌ ${err.message || 'Network error'}`);
+      setTimeout(() => setSyncMessage(''), 6000);
     }
     setSyncing(false);
   };
