@@ -75,8 +75,8 @@ export async function GET(req: Request) {
     if (signErr || !signedData) continue;
 
     const signedUrls = signedData
-      .filter(r => r.signedUrl)
-      .map(r => r.signedUrl);
+      .map(r => r.signedUrl)
+      .filter((url): url is string => !!url);
 
     if (signedUrls.length === 0) continue;
 
