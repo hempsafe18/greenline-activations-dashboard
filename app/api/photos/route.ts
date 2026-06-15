@@ -19,6 +19,8 @@ const TYPE_LABELS: Record<string, string> = {
   shelf: 'Shelf Photos',
 };
 
+const SIGNED_URL_TTL = 3600; // 1 hour
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const client = searchParams.get('client');
@@ -26,7 +28,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'client param required' }, { status: 400 });
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const storageFolder = STORAGE_SLUG[client] ?? client;
 
   // List type subfolders under the client folder (engagement, setup, shelf)
@@ -45,7 +46,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ events: [] });
   }
 
-  // Folders have no id / null metadata; files have metadata
   type StorageItem = (typeof items)[number];
   const typeFolders = items.filter((item: StorageItem) => !item.id || item.metadata === null);
 
@@ -58,25 +58,33 @@ export async function GET(req: Request) {
       .from('recap-photos')
       .list(`${storageFolder}/${folder.name}`, { limit: 200 });
 
-    const photos = (files ?? [])
+    const filePaths = (files ?? [])
       .filter((f: StorageItem) => {
-        const size = (f.metadata as Record<string, unknown> | null)?.[
-          'size'
-        ] as number | undefined;
+        const size = (f.metadata as Record<string, unknown> | null)?.['size'] as number | undefined;
         return size && size > 0 && !f.name.startsWith('.');
       })
-      .map(
-        (f: StorageItem) =>
-          `${supabaseUrl}/storage/v1/object/public/recap-photos/${storageFolder}/${folder.name}/${encodeURIComponent(f.name)}`
-      );
+      .map((f: StorageItem) => `${storageFolder}/${folder.name}/${f.name}`);
 
-    if (photos.length === 0) continue;
+    if (filePaths.length === 0) continue;
+
+    // Generate signed URLs for all files in this folder in one batch call
+    const { data: signedData, error: signErr } = await supabase.storage
+      .from('recap-photos')
+      .createSignedUrls(filePaths, SIGNED_URL_TTL);
+
+    if (signErr || !signedData) continue;
+
+    const signedUrls = signedData
+      .filter(r => r.signedUrl)
+      .map(r => r.signedUrl);
+
+    if (signedUrls.length === 0) continue;
 
     groups.push({
       key: folder.name,
       title: TYPE_LABELS[folder.name] ?? folder.name.charAt(0).toUpperCase() + folder.name.slice(1),
       date: '',
-      photos,
+      photos: signedUrls,
     });
   }
 
