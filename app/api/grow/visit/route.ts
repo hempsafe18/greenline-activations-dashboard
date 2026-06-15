@@ -1,26 +1,42 @@
 import { NextResponse } from 'next/server';
+import { currentUser } from '@clerk/nextjs/server';
 import { supabase } from '../../../../lib/supabase';
 
 export async function POST(req: Request) {
   try {
+    const user = await currentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+    const email = user.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress ?? '';
+    if (!email.endsWith('@growcannabis.group') && !email.endsWith('@greenlineactivations.com')) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await req.json();
-    const { repName, accountName, city, isNewAccount, visitDate, sku, qtyOrdered, unitWholesale, notes } = body;
+    const { accountName, city, isNewAccount, visitDate, sku, qtyOrdered, unitWholesale, notes } = body;
+
+    // Use the verified name from Clerk instead of trusting the request body
+    const repName = user.fullName || email;
     const lineTotal = Number(qtyOrdered || 0) * Number(unitWholesale || 0);
+
+    if (!accountName || !visitDate) {
+      return NextResponse.json({ success: false, error: 'accountName and visitDate are required' }, { status: 400 });
+    }
 
     const { data: visit, error } = await supabase
       .from('sales_visits')
       .insert({
         client_id: 'GROW',
         rep_name: repName,
-        account_name: accountName,
-        city: city || null,
+        account_name: String(accountName).slice(0, 255),
+        city: city ? String(city).slice(0, 100) : null,
         is_new_account: Boolean(isNewAccount),
         visit_date: visitDate,
-        sku: sku || null,
+        sku: sku ? String(sku).slice(0, 100) : null,
         qty_ordered: Number(qtyOrdered) || 0,
         unit_wholesale: Number(unitWholesale) || 0,
         line_total: lineTotal,
-        notes: notes || null,
+        notes: notes ? String(notes).slice(0, 1000) : null,
       })
       .select()
       .single();
@@ -32,7 +48,7 @@ export async function POST(req: Request) {
       .select('qty_ordered')
       .eq('client_id', 'GROW');
 
-    const totalSold = (allVisits || []).reduce((s: number, v: any) => s + (Number(v.qty_ordered) || 0), 0);
+    const totalSold = (allVisits || []).reduce((s: number, v: { qty_ordered: number }) => s + (Number(v.qty_ordered) || 0), 0);
     const inventory = Math.max(0, 100 - totalSold);
 
     if (inventory <= 30) {
@@ -40,7 +56,7 @@ export async function POST(req: Request) {
         client_id: 'GROW',
         type: 'alert',
         subject: `⚠️ Low Inventory: ${inventory} cases remaining`,
-        body: `Warehouse inventory has dropped to ${inventory} cases (replenish at ≤30). Last shipment: ${qtyOrdered} cases to ${accountName} by ${repName || 'team'}.`,
+        body: `Warehouse inventory has dropped to ${inventory} cases (replenish at ≤30). Last shipment: ${qtyOrdered} cases to ${accountName} by ${repName}.`,
         read: false,
         metadata: { inventory, totalSold },
       });

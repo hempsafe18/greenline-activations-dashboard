@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // 1. Define which pages are public (just the homepage/login screen and API routes)
-const isPublicRoute = createRouteMatcher(['/', '/api/request', '/api/dropdown-data', '/api/grow/stats', '/api/grow/upcoming-meetings', '/api/grow/migrate-data', '/api/grow/seed-data', '/api/grow/revalidate', '/api/grow/sync-meetings']);
+const isPublicRoute = createRouteMatcher(['/', '/api/request', '/api/dropdown-data', '/api/grow/stats', '/api/grow/upcoming-meetings']);
 
 // 2. The Bouncer: If it's NOT a public route, protect it!
 export default clerkMiddleware(async (auth, req) => {

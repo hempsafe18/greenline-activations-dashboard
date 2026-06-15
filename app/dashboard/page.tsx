@@ -4,22 +4,13 @@ import { useUser, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 
 // ─── Client Data Sources ─────────────────────────────────────────
+// Stats are now loaded from Supabase via /api/dashboard-stats rather than
+// from hardcoded Google Sheets CSV exports, so all data stays in sync with
+// what the team portal writes.
 const CLIENTS = [
-  {
-    id: "3chi", name: "3CHI", color: "#56e39f", icon: "🌿", href: "/clients/3chi",
-    recapUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv",
-    upcomingUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=0&single=true&output=csv",
-  },
-  {
-    id: "amigos", name: "AMIGOS", color: "#ff4f33", icon: "🍹", href: "/clients/amigos",
-    recapUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=2138748497&single=true&output=csv",
-    upcomingUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=1988632059&single=true&output=csv",
-  },
-  {
-    id: "mellow-fellow", name: "MELLOW FELLOW", color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow",
-    recapUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=1499120296&single=true&output=csv",
-    upcomingUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=974321090&single=true&output=csv",
-  },
+  { id: "3chi",         name: "3CHI",         clientKey: "3CHI",         color: "#56e39f", icon: "🌿", href: "/clients/3chi" },
+  { id: "amigos",       name: "AMIGOS",       clientKey: "AMIGOS",       color: "#ff4f33", icon: "🍹", href: "/clients/amigos" },
+  { id: "mellow-fellow",name: "MELLOW FELLOW",clientKey: "MELLOW_FELLOW",color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow" },
 ];
 
 const ADMIN_EMAILS = ["asmar@greenlineactivations.com", "sedell@greenlineactivations.com", "asmar.gary@gmail.com"];
@@ -67,27 +58,6 @@ export default function AdminDashboard() {
     if (!ADMIN_EMAILS.includes(email)) { window.location.href = "/"; }
   }, [isLoaded, user]);
 
-  const parseCSV = (str: string): string[][] => {
-    const result: string[][] = [];
-    let row: string[] = [], cell = "", quote = false;
-    for (let i = 0; i < str.length; i++) {
-      const ch = str[i], nx = str[i + 1];
-      if (ch === '"' && quote && nx === '"') { cell += '"'; i++; }
-      else if (ch === '"') { quote = !quote; }
-      else if (ch === ',' && !quote) { row.push(cell); cell = ""; }
-      else if (ch === '\n' && !quote) { row.push(cell); result.push(row); row = []; cell = ""; }
-      else { cell += ch; }
-    }
-    row.push(cell); result.push(row);
-    return result;
-  };
-
-  const toObj = (headers: string[], row: string[]): Record<string, string> => {
-    const obj: Record<string, string> = {};
-    row.forEach((v, i) => { obj[headers[i]] = v; });
-    return obj;
-  };
-
   const fetchAll = async () => {
     setIsLoading(true);
 
@@ -97,58 +67,28 @@ export default function AdminDashboard() {
       .then(d => setAmbassadors(d.count ?? 0))
       .catch(() => setAmbassadors(0));
 
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-
     const results: ClientStats[] = await Promise.all(
       CLIENTS.map(async (client) => {
-        let activations = 0, sampled = 0, sold = 0, upcoming = 0;
-        const cityActivations: Record<string, number> = {};
-        const monthlyData: Record<string, number> = {};
-
         try {
-          const [recapRes, upcomingRes] = await Promise.all([
-            fetch(client.recapUrl).catch(() => null),
-            fetch(client.upcomingUrl).catch(() => null),
-          ]);
-
-          if (recapRes?.ok) {
-            const rows = parseCSV(await recapRes.text());
-            const headers = rows[0].map(h => h.trim());
-            rows.slice(1).map(r => toObj(headers, r)).forEach(row => {
-              if (!row["Store Name"]) return;
-              activations++;
-              sampled += parseInt(row["Total consumers sampled"]) || 0;
-              sold += parseInt(row["Estimated units sold"]) || 0;
-              const city = row["City"];
-              if (city) cityActivations[city] = (cityActivations[city] || 0) + 1;
-              if (row["Activation Date"]) {
-                const d = new Date(row["Activation Date"]);
-                if (!isNaN(d.getTime())) {
-                  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                  monthlyData[key] = (monthlyData[key] || 0) + 1;
-                }
-              }
-            });
-          }
-
-          if (upcomingRes?.ok) {
-            const rows = parseCSV(await upcomingRes.text());
-            const headers = rows[0].map(h => h.trim());
-            rows.slice(1).map(r => toObj(headers, r)).forEach(row => {
-              if (!row["Store Name"] || !row["Date"]) return;
-              const d = new Date(row["Date"]);
-              if (!isNaN(d.getTime()) && d >= today) upcoming++;
-            });
-          }
-        } catch (e) { console.error(`Error fetching ${client.name}:`, e); }
-
-        return {
-          name: client.name, color: client.color, icon: client.icon, href: client.href,
-          activations, sampled, sold,
-          conversion: sampled > 0 ? Math.round((sold / sampled) * 100) : 0,
-          uniqueCities: Object.keys(cityActivations),
-          cityActivations, upcoming, monthlyData,
-        };
+          const res = await fetch(`/api/dashboard-stats?client=${client.clientKey}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const { activations = 0, sampled = 0, sold = 0, upcoming = 0, cityActivations = {}, monthlyData = {} } = data;
+          return {
+            name: client.name, color: client.color, icon: client.icon, href: client.href,
+            activations, sampled, sold,
+            conversion: sampled > 0 ? Math.round((sold / sampled) * 100) : 0,
+            uniqueCities: Object.keys(cityActivations),
+            cityActivations, upcoming, monthlyData,
+          };
+        } catch (e) {
+          console.error(`Error fetching stats for ${client.name}:`, e);
+          return {
+            name: client.name, color: client.color, icon: client.icon, href: client.href,
+            activations: 0, sampled: 0, sold: 0, conversion: 0,
+            uniqueCities: [], cityActivations: {}, upcoming: 0, monthlyData: {},
+          };
+        }
       })
     );
 
