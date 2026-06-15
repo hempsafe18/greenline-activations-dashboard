@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "migrate:storage": "node scripts/migrate-storage.mjs",
-    "migrate:storage:execute": "node scripts/migrate-storage.mjs --execute"
+    "migrate:storage:execute": "node scripts/migrate-storage.mjs --execute",
+    "backfill:photos": "node scripts/backfill-photo-paths.mjs",
+    "backfill:photos:execute": "node scripts/backfill-photo-paths.mjs --execute"
   },
   "dependencies": {
     "@clerk/nextjs": "latest",
