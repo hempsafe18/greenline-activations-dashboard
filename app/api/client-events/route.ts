@@ -3,23 +3,23 @@ import { currentUser } from '@clerk/nextjs/server';
 import { supabase } from '../../../lib/supabase';
 
 const CLIENT_COMPANY: Record<string, string> = {
-  AMIGOS:        'Amigos',
-  '3CHI':        '3CHI',
-  MELLOW_FELLOW: 'Mellow Fellow',
-  GROW:          'Grow',
+  AMIGOS:          'Amigos',
+  '3CHI':          '3CHI',
+  'MELLOW FELLOW': 'Mellow Fellow',
+  GROW:            'Grow',
 };
 
 const RECAP_BRAND_NAMES: Record<string, string[]> = {
-  AMIGOS:        ['AMIGOS', 'Amigos', 'drinkamigos'],
-  '3CHI':        ['3CHI', '3chi'],
-  MELLOW_FELLOW: ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
-  GROW:          ['GROW', 'Grow', 'Grow Cannabis'],
+  AMIGOS:          ['AMIGOS', 'Amigos', 'drinkamigos'],
+  '3CHI':          ['3CHI', '3chi'],
+  'MELLOW FELLOW': ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
+  GROW:            ['GROW', 'Grow', 'Grow Cannabis'],
 };
 
 function clientIdFromEmail(email: string): string | null {
   if (email.endsWith('@3chi.com')) return '3CHI';
   if (email.endsWith('@drinkamigos.com')) return 'AMIGOS';
-  if (email.endsWith('@mellowfellowcannabis.com') || email.endsWith('@mfdrinks.com')) return 'MELLOW_FELLOW';
+  if (email.endsWith('@mellowfellowcannabis.com') || email.endsWith('@mfdrinks.com')) return 'MELLOW FELLOW';
   if (email.endsWith('@growcannabis.group')) return 'GROW';
   if (email.endsWith('@plift.com')) return 'PLIFT';
   if (email.endsWith('@greenlineactivations.com')) return null;
