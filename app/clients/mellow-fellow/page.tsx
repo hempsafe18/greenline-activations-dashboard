@@ -5,9 +5,42 @@ import Link from "next/link";
 
 const TARGET_BRAND = "MELLOW FELLOW";
 
-// 1. PASTE YOUR GOOGLE SHEET LINKS HERE
-const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=1499120296&single=true&output=csv";
-const UPCOMING_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=974321090&single=true&output=csv";
+const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
+  { key: 'sampling_type', label: 'Sampling Type' },
+  { key: 'products_featured', label: 'Products Featured', long: true },
+  { key: 'consumers_approached', label: 'Consumers Approached' },
+  { key: 'consumers_sampled', label: 'Consumers Sampled' },
+  { key: 'estimated_units_sold', label: 'Estimated Units Sold' },
+  { key: 'top_performing_flavor', label: 'Top Performing SKU' },
+  { key: 'consumer_objections', label: 'Consumer Objections', long: true },
+  { key: 'product_in_stock', label: 'Product In Stock' },
+  { key: 'shelf_placement', label: 'Shelf Placement' },
+  { key: 'units_start', label: 'Units at Start' },
+  { key: 'units_end', label: 'Units at End' },
+  { key: 'price_displayed', label: 'Price Displayed' },
+  { key: 'promo_signage_present', label: 'Promo Signage' },
+  { key: 'reorder_needed', label: 'Reorder Needed' },
+  { key: 'competitor_sampling', label: 'Competitor Sampling' },
+  { key: 'competitor_details', label: 'Competitor Details', long: true },
+  { key: 'spoke_with_manager', label: 'Spoke with Manager' },
+  { key: 'manager_sentiment', label: 'Manager Sentiment' },
+  { key: 'educated_staff', label: 'Educated Staff' },
+  { key: 'manager_notes', label: 'Manager Notes', long: true },
+  { key: 'issues_occurred', label: 'Issues Occurred' },
+  { key: 'issue_description', label: 'Issue Details', long: true },
+  { key: 'recommend_account_again', label: 'Recommend Account' },
+  { key: 'followup_required', label: 'Follow-up Required' },
+  { key: 'followup_description', label: 'Follow-up Notes', long: true },
+  { key: 'performance_rating', label: 'Performance Rating' },
+  { key: 'product_knowledge_rating', label: 'Product Knowledge Rating' },
+  { key: 'arrival_status', label: 'Arrival Status' },
+  { key: 'late_minutes', label: 'Minutes Late' },
+  { key: 'primary_age_group', label: 'Primary Age Group' },
+  { key: 'primary_gender', label: 'Primary Gender' },
+  { key: 'engagement_photos', label: 'Engagement Photos', long: true },
+  { key: 'setup_photo', label: 'Setup Photo' },
+  { key: 'shelf_photo', label: 'Shelf Photo' },
+];
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -45,112 +78,25 @@ export default function UnifiedDashboard() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
 
-  const parseCSV = (str: string) => {
-    const result = []; let row = []; let cell = ''; let quote = false;
-    for (let i = 0; i < str.length; i++) {
-      let char = str[i], nextChar = str[i + 1];
-      if (char === '"' && quote && nextChar === '"') { cell += '"'; i++; }
-      else if (char === '"') { quote = !quote; }
-      else if (char === ',' && !quote) { row.push(cell); cell = ''; }
-      else if (char === '\n' && !quote) { row.push(cell); result.push(row); row = []; cell = ''; }
-      else { cell += char; }
-    }
-    row.push(cell); result.push(row);
-    return result;
-  };
-
-  const fetchLiveData = async () => {
+  const fetchClientData = async () => {
     setIsLoading(true);
     setVisibleUpcoming(ITEMS_PER_PAGE);
     setVisiblePrevious(ITEMS_PER_PAGE);
     try {
-      const [recapRes, upcomingRes] = await Promise.all([
-        RECAP_CSV_URL ? fetch(RECAP_CSV_URL).catch(() => null) : Promise.resolve(null),
-        UPCOMING_CSV_URL ? fetch(UPCOMING_CSV_URL).catch(() => null) : Promise.resolve(null)
-      ]);
-
-      let newCalendar: any[] = [];
-      let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
-      let cityCounts: Record<string, number> = {};
-      let flavorCounts: Record<string, number> = {};
-      let newIntel: any[] = [];
-
-      if (recapRes && recapRes.ok) {
-        const text = await recapRes.text();
-        const rows = parseCSV(text);
-        const headers = rows[0].map((h: string) => h.trim());
-        const data = rows.slice(1).map((row: string[]) => {
-          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
-        });
-        data.forEach(row => {
-          if (!row['Store Name']) return;
-          totalActivations++;
-          totalSampled += parseInt(row['Total consumers sampled']) || 0;
-          totalSold += parseInt(row['Estimated units sold']) || 0;
-          const city = row['City'] || 'Unknown';
-          cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row['Total consumers sampled']) || 0);
-          const flavor = row['Top performing flavor'];
-          if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
-          const objections = row['Consumer objections encountered'];
-          if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
-            newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row['Store Name'] || city}: ${objections}` });
-          }
-          const photoField = row['Engagement photo submission'];
-          if (photoField) {
-            const photoUrls = photoField.split(/[\n,]+/).map((s: string) => s.trim()).filter((s: string) => s.startsWith('http'));
-            photoUrls.forEach((photoLink: string, idx: number) => {
-              newIntel.push({ type: 'photo', icon: '📸', text: `Engagement photo${photoUrls.length > 1 ? ` ${idx + 1}` : ''} from ${row['Store Name'] || city}.`, link: photoLink });
-            });
-          }
-          if (row['Activation Date']) {
-            newCalendar.push({
-              date: row['Activation Date'], store: row['Store Name'], market: city,
-              time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
-              status: "Complete", sortDate: new Date(row['Activation Date']),
-              fullData: row
-            });
-          }
-        });
-      }
-
-      if (upcomingRes && upcomingRes.ok) {
-        const text = await upcomingRes.text();
-        const rows = parseCSV(text);
-        const headers = rows[0].map((h: string) => h.trim());
-        const data = rows.slice(1).map((row: string[]) => {
-          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
-        });
-        data.forEach(row => {
-          if (!row['Store Name'] || !row['Date']) return;
-          const startTime = row['Start Time'] || ''; const endTime = row['End Time'] || '';
-          newCalendar.push({
-            date: row['Date'], store: row['Store Name'], market: row['Market'] || 'TBD',
-            address: row['Address'] || '', time: startTime && endTime ? `${startTime} - ${endTime}` : '',
-            products: row['Products'] || '', samplingType: row['Sampling Type'] || '',
-            purchaseReq: row['Product Purchase'] || '', status: "Upcoming", sortDate: new Date(row['Date'])
-          });
-        });
-      }
-
-      let bestFlavor = "No data"; let maxFlavorCount = 0;
-      for (const [flavor, count] of Object.entries(flavorCounts)) {
-        if (count > maxFlavorCount) { bestFlavor = flavor; maxFlavorCount = count; }
-      }
-      if (bestFlavor !== "No data") {
-        newIntel.unshift({ type: 'flavor', icon: '🏆', text: `Top performing SKU across recent activations is ${bestFlavor}.` });
-      }
-
-      const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const upcomingEvents = newCalendar.filter(e => e.status === 'Upcoming' && e.sortDate >= today).sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
-      const previousEvents = newCalendar.filter(e => e.status === 'Complete').sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
-
-      if (totalActivations > 0 || newCalendar.length > 0) {
-        setMetrics({ sampled: totalSampled, sold: totalSold, activations: totalActivations,
-          conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
-          markets, upcoming: upcomingEvents, previous: previousEvents, intel: newIntel.slice(0, 5) });
-      }
-    } catch (error) { console.error("Failed to fetch data", error); }
+      const res = await fetch(`/api/client-events?client=${encodeURIComponent(TARGET_BRAND)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setMetrics({
+        sampled: data.sampled ?? 0,
+        sold: data.sold ?? 0,
+        activations: data.activations ?? 0,
+        conversion: data.conversion ?? 0,
+        markets: data.markets ?? [],
+        upcoming: data.upcoming ?? [],
+        previous: data.previous ?? [],
+        intel: data.intel ?? [],
+      });
+    } catch (error) { console.error("Failed to fetch client data", error); }
     setIsLoading(false);
   };
 
@@ -182,7 +128,7 @@ export default function UnifiedDashboard() {
   const notifTypeDark: Record<string, boolean> = { alert: true };
   const emailStatusColor: Record<string, string> = { delivered: 'var(--canopy-pale)', sent: '#c7d7fe', failed: 'var(--street-pale)', pending: '#fde68a' };
 
-  useEffect(() => { fetchLiveData(); fetchNotifications(); }, []);
+  useEffect(() => { fetchClientData(); fetchNotifications(); }, []);
 
   useEffect(() => {
     const fetchDropdownData = async () => {
@@ -540,10 +486,16 @@ export default function UnifiedDashboard() {
               </div>
             </div>
             <div className="recap-grid">
-              {Object.entries(selectedRecap.fullData).map(([key,val])=>{
-                if(!val||String(val).trim()===''||['Store Name','Brand Name','Activation Date','Timestamp','City'].includes(key)||key.toLowerCase().includes('email'))return null;
-                const isLong=String(val).length>60||key.includes('Notes')||key.includes('objections');
-                return(<div className={`recap-item ${isLong?'full-width':''}`} key={key}><span className="recap-key">{key}</span><span className="recap-val">{renderRecapValue(String(val))}</span></div>);
+              {RECAP_DISPLAY_FIELDS.map(({ key, label, long }) => {
+                const val = selectedRecap.recap?.[key];
+                if (!val || String(val).trim() === '') return null;
+                const isLongText = long || String(val).length > 60;
+                return (
+                  <div className={`recap-item ${isLongText ? 'full-width' : ''}`} key={key}>
+                    <span className="recap-key">{label}</span>
+                    <span className="recap-val">{renderRecapValue(String(val))}</span>
+                  </div>
+                );
               })}
             </div>
           </div>
@@ -574,7 +526,7 @@ export default function UnifiedDashboard() {
           </div>
           <div className="topbar-right">
             <UserButton />
-            <button className="btn-action-primary" onClick={fetchLiveData}>↻ Sync</button>
+            <button className="btn-action-primary" onClick={fetchClientData}>↻ Sync</button>
             <button className="btn-action-primary" onClick={downloadDashboardReport}>{isExportingDashboard?"Generating...":"⬇ Export"}</button>
           </div>
         </div>

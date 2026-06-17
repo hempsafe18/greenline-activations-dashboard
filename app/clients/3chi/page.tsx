@@ -2,11 +2,44 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 
-const TARGET_BRAND = "3CHI"; 
+const TARGET_BRAND = "3CHI";
 
-// 1. PASTE YOUR GOOGLE SHEET LINKS HERE
-const RECAP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5yMhDDOY4o5F6MeFQ9G7zW9NwBstUZdILzlXDW-ZsPkY-ZVMouJA_XruNLEx9ogoNYfVR8-Uwr84B/pub?gid=91040411&single=true&output=csv";
-const UPCOMING_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRN0A0puaplJ3l1dkLEjBZyWZOquIUaMof32WQlUB8H3aJAKYJQ1ypp4hNvt67YApZV8lhnTamzhenw/pub?gid=0&single=true&output=csv";
+const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
+  { key: 'sampling_type', label: 'Sampling Type' },
+  { key: 'products_featured', label: 'Products Featured', long: true },
+  { key: 'consumers_approached', label: 'Consumers Approached' },
+  { key: 'consumers_sampled', label: 'Consumers Sampled' },
+  { key: 'estimated_units_sold', label: 'Estimated Units Sold' },
+  { key: 'top_performing_flavor', label: 'Top Performing SKU' },
+  { key: 'consumer_objections', label: 'Consumer Objections', long: true },
+  { key: 'product_in_stock', label: 'Product In Stock' },
+  { key: 'shelf_placement', label: 'Shelf Placement' },
+  { key: 'units_start', label: 'Units at Start' },
+  { key: 'units_end', label: 'Units at End' },
+  { key: 'price_displayed', label: 'Price Displayed' },
+  { key: 'promo_signage_present', label: 'Promo Signage' },
+  { key: 'reorder_needed', label: 'Reorder Needed' },
+  { key: 'competitor_sampling', label: 'Competitor Sampling' },
+  { key: 'competitor_details', label: 'Competitor Details', long: true },
+  { key: 'spoke_with_manager', label: 'Spoke with Manager' },
+  { key: 'manager_sentiment', label: 'Manager Sentiment' },
+  { key: 'educated_staff', label: 'Educated Staff' },
+  { key: 'manager_notes', label: 'Manager Notes', long: true },
+  { key: 'issues_occurred', label: 'Issues Occurred' },
+  { key: 'issue_description', label: 'Issue Details', long: true },
+  { key: 'recommend_account_again', label: 'Recommend Account' },
+  { key: 'followup_required', label: 'Follow-up Required' },
+  { key: 'followup_description', label: 'Follow-up Notes', long: true },
+  { key: 'performance_rating', label: 'Performance Rating' },
+  { key: 'product_knowledge_rating', label: 'Product Knowledge Rating' },
+  { key: 'arrival_status', label: 'Arrival Status' },
+  { key: 'late_minutes', label: 'Minutes Late' },
+  { key: 'primary_age_group', label: 'Primary Age Group' },
+  { key: 'primary_gender', label: 'Primary Gender' },
+  { key: 'engagement_photos', label: 'Engagement Photos', long: true },
+  { key: 'setup_photo', label: 'Setup Photo' },
+  { key: 'shelf_photo', label: 'Shelf Photo' },
+];
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -48,133 +81,29 @@ export default function UnifiedDashboard() {
   const [visibleUpcoming, setVisibleUpcoming] = useState(ITEMS_PER_PAGE);
   const [visiblePrevious, setVisiblePrevious] = useState(ITEMS_PER_PAGE);
 
-  const parseCSV = (str: string) => {
-    const result = []; let row = []; let cell = ''; let quote = false;
-    for (let i = 0; i < str.length; i++) {
-      let char = str[i], nextChar = str[i + 1];
-      if (char === '"' && quote && nextChar === '"') { cell += '"'; i++; }
-      else if (char === '"') { quote = !quote; }
-      else if (char === ',' && !quote) { row.push(cell); cell = ''; }
-      else if (char === '\n' && !quote) { row.push(cell); result.push(row); row = []; cell = ''; }
-      else { cell += char; }
-    }
-    row.push(cell); result.push(row);
-    return result;
-  };
-
-  const fetchLiveData = async () => {
+  const fetchClientData = async () => {
     setIsLoading(true);
     setVisibleUpcoming(ITEMS_PER_PAGE);
     setVisiblePrevious(ITEMS_PER_PAGE);
     try {
-      const [recapRes, upcomingRes] = await Promise.all([
-        fetch(RECAP_CSV_URL).catch(() => null),
-        fetch(UPCOMING_CSV_URL).catch(() => null)
-      ]);
-
-      let newCalendar: any[] = [];
-      let totalSampled = 0; let totalSold = 0; let totalActivations = 0;
-      let cityCounts: Record<string, number> = {}; 
-      let flavorCounts: Record<string, number> = {};
-      let newIntel: any[] = [];
-
-      if (recapRes && recapRes.ok) {
-        const text = await recapRes.text();
-        const rows = parseCSV(text);
-        const headers = rows[0].map((h: string) => h.trim());
-        const data = rows.slice(1).map((row: string[]) => {
-          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
-        });
-
-        data.forEach(row => {
-          if (!row['Store Name']) return; 
-          
-          totalActivations++;
-          totalSampled += parseInt(row['Total consumers sampled']) || 0;
-          totalSold += parseInt(row['Estimated units sold']) || 0;
-          
-          const city = row['City'] || 'Unknown';
-          cityCounts[city] = (cityCounts[city] || 0) + (parseInt(row['Total consumers sampled']) || 0);
-          
-          const flavor = row['Top performing flavor'];
-          if (flavor) flavorCounts[flavor] = (flavorCounts[flavor] || 0) + 1;
-
-          const objections = row['Consumer objections encountered'];
-          if (objections && objections.trim() !== "" && objections.toLowerCase() !== "none") {
-              newIntel.push({ type: 'objection', icon: '💬', text: `Objection at ${row['Store Name'] || city}: ${objections}` });
-          }
-
-          const photoLink = row['Engagement photo submission'];
-          if (photoLink && photoLink.includes('http')) {
-               newIntel.push({ type: 'photo', icon: '📸', text: `New engagement photo from ${row['Store Name'] || city}.`, link: photoLink });
-          }
-
-          if (row['Activation Date']) {
-            newCalendar.push({
-              date: row['Activation Date'], store: row['Store Name'], market: city,
-              time: `${row['Shift Start Time '] || ''}-${row['Shift End Time'] || ''}`,
-              status: "Complete", sortDate: new Date(row['Activation Date']),
-              fullData: row 
-            });
-          }
-        });
-      }
-
-      if (upcomingRes && upcomingRes.ok) {
-        const text = await upcomingRes.text();
-        const rows = parseCSV(text);
-        const headers = rows[0].map((h: string) => h.trim());
-        const data = rows.slice(1).map((row: string[]) => {
-          let obj: any = {}; row.forEach((val, i) => obj[headers[i]] = val); return obj;
-        });
-
-        data.forEach(row => {
-          if (!row['Store Name'] || !row['Date']) return; 
-          const startTime = row['Start Time'] || ''; const endTime = row['End Time'] || '';
-          
-          newCalendar.push({
-            date: row['Date'], store: row['Store Name'], market: row['Market'] || 'TBD',
-            address: row['Address'] || '', time: startTime && endTime ? `${startTime} - ${endTime}` : '',
-            products: row['Products'] || '', samplingType: row['Sampling Type'] || '',
-            purchaseReq: row['Product Purchase'] || '', status: "Upcoming", sortDate: new Date(row['Date'])
-          });
-        });
-      }
-
-      let bestFlavor = "No data"; let maxFlavorCount = 0;
-      for (const [flavor, count] of Object.entries(flavorCounts)) {
-        if (count > maxFlavorCount) { bestFlavor = flavor; maxFlavorCount = count; }
-      }
-
-      if (bestFlavor !== "No data") {
-        newIntel.unshift({ type: 'flavor', icon: '🏆', text: `Top performing SKU across recent activations is ${bestFlavor}.` });
-      }
-
-      const markets = Object.entries(cityCounts).map(([city, value]) => ({ city, value })).sort((a, b) => b.value - a.value).slice(0, 3);
-
-      const upcomingEvents = newCalendar
-        .filter(e => e.status === 'Upcoming')
-        .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime()); // soonest first
-
-      const previousEvents = newCalendar
-        .filter(e => e.status === 'Complete')
-        .sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime()); // most recent first
-
-      if (totalActivations > 0 || newCalendar.length > 0) {
-        setMetrics({
-          sampled: totalSampled, sold: totalSold, activations: totalActivations,
-          conversion: totalSampled > 0 ? Math.round((totalSold / totalSampled) * 100) : 0,
-          markets: markets,
-          upcoming: upcomingEvents,
-          previous: previousEvents,
-          intel: newIntel.slice(0, 5)
-        });
-      }
-    } catch (error) { console.error("Failed to fetch data", error); }
+      const res = await fetch(`/api/client-events?client=${encodeURIComponent(TARGET_BRAND)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setMetrics({
+        sampled: data.sampled ?? 0,
+        sold: data.sold ?? 0,
+        activations: data.activations ?? 0,
+        conversion: data.conversion ?? 0,
+        markets: data.markets ?? [],
+        upcoming: data.upcoming ?? [],
+        previous: data.previous ?? [],
+        intel: data.intel ?? [],
+      });
+    } catch (error) { console.error("Failed to fetch client data", error); }
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchLiveData(); }, []);
+  useEffect(() => { fetchClientData(); }, []);
 
   useEffect(() => {
     const fetchDropdownData = async () => {
@@ -639,13 +568,13 @@ const downloadRecapReport = async () => {
             </div>
             
             <div className="recap-grid">
-              {Object.entries(selectedRecap.fullData).map(([key, val]) => {
-                if (!val || String(val).trim() === '' || key === 'Store Name' || key === 'Brand Name' || key === 'Activation Date' || key === 'Timestamp' || key === 'City'|| key.toLowerCase().includes('email')) return null;
-                const isLongText = String(val).length > 60 || key.includes("Notes") || key.includes("objections") || key.includes("describe");
-
+              {RECAP_DISPLAY_FIELDS.map(({ key, label, long }) => {
+                const val = selectedRecap.recap?.[key];
+                if (!val || String(val).trim() === '') return null;
+                const isLongText = long || String(val).length > 60;
                 return (
                   <div className={`recap-item ${isLongText ? 'full-width' : ''}`} key={key}>
-                    <span className="recap-key">{key}</span>
+                    <span className="recap-key">{label}</span>
                     <span className="recap-val">{renderRecapValue(String(val))}</span>
                   </div>
                 );
@@ -673,14 +602,14 @@ const downloadRecapReport = async () => {
             <h1>
               Activation Dashboard 
               <div style={{display: 'flex', gap: '8px', marginTop: '10px'}} data-html2canvas-ignore="true">
-                <button className="btn-action-primary" onClick={fetchLiveData}>↻ Sync Data</button>
+                <button className="btn-action-primary" onClick={fetchClientData}>↻ Sync Data</button>
                 <button className="btn-action-primary" onClick={downloadDashboardReport} disabled={isExportingDashboard}>
                   {isExportingDashboard ? "Generating PDF..." : "⬇ Export Dashboard"}
                 </button>
               </div>
             </h1>
             <p style={{marginTop: '4px', marginBottom: '2px'}}>Welcome back, Peter</p>
-            <p style={{marginTop: '2px'}}>Live connected to Google Sheets</p>
+            <p style={{marginTop: '2px'}}>Live data from Supabase</p>
           </div>
           <div className="topbar-right" data-html2canvas-ignore="true">
             <UserButton />
