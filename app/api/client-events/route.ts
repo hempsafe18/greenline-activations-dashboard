@@ -7,6 +7,7 @@ const CLIENT_COMPANY: Record<string, string> = {
   '3CHI':          '3CHI',
   'MELLOW FELLOW': 'Mellow Fellow',
   GROW:            'Grow',
+  GROOVEWAGON:     'Groovewagon',
 };
 
 const RECAP_BRAND_NAMES: Record<string, string[]> = {
@@ -14,6 +15,7 @@ const RECAP_BRAND_NAMES: Record<string, string[]> = {
   '3CHI':          ['3CHI', '3chi'],
   'MELLOW FELLOW': ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
   GROW:            ['GROW', 'Grow', 'Grow Cannabis'],
+  GROOVEWAGON:     ['Groovewagon', 'GROOVEWAGON', 'groovewagon'],
 };
 
 function clientIdFromEmail(email: string): string | null {
@@ -21,6 +23,7 @@ function clientIdFromEmail(email: string): string | null {
   if (email.endsWith('@drinkamigos.com')) return 'AMIGOS';
   if (email.endsWith('@mellowfellowcannabis.com') || email.endsWith('@mfdrinks.com')) return 'MELLOW FELLOW';
   if (email.endsWith('@growcannabis.group')) return 'GROW';
+  if (email.endsWith('@workingrelief.com')) return 'GROOVEWAGON';
   if (email.endsWith('@plift.com')) return 'PLIFT';
   if (email.endsWith('@greenlineactivations.com')) return null;
   return null;

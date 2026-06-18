@@ -23,7 +23,9 @@ export default async function HomePage() {
       } else if (email.endsWith("@growcannabis.group")) {
         redirect("/clients/grow");
       } else if (email.endsWith("@mellowfellowcannabis.com") || email.endsWith("@mfdrinks.com")) {
-        redirect("/clients/mellow-fellow");  
+        redirect("/clients/mellow-fellow");
+      } else if (email.endsWith("@workingrelief.com")) {
+        redirect("/clients/groovewagon");
       } else if (email.endsWith("@greenlineactivations.com")) {
         // Admin Routing - Change this if you have a specific master dashboard!
         redirect("/dashboard"); 
