@@ -11,7 +11,8 @@ const CLIENTS = [
   { id: "3chi",         name: "3CHI",         clientKey: "3CHI",         color: "#56e39f", icon: "🌿", href: "/clients/3chi" },
   { id: "amigos",       name: "AMIGOS",       clientKey: "AMIGOS",       color: "#ff4f33", icon: "🍹", href: "/clients/amigos" },
   { id: "mellow-fellow",name: "MELLOW FELLOW",clientKey: "MELLOW FELLOW",color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow" },
-  { id: "groovewagon",  name: "GROOVEWAGON",  clientKey: "GROOVEWAGON",  color: "#0d9488", icon: "🎵", href: "/clients/groovewagon" },
+  { id: "groovewagon",    name: "GROOVEWAGON",    clientKey: "GROOVEWAGON",    color: "#0d9488", icon: "🎵", href: "/clients/groovewagon" },
+  { id: "willies-remedy", name: "WILLIE'S REMEDY", clientKey: "WILLIES_REMEDY", color: "#0284c7", icon: "🍃", href: "/clients/willies-remedy" },
 ];
 
 const ADMIN_EMAILS = ["asmar@greenlineactivations.com", "sedell@greenlineactivations.com", "asmar.gary@gmail.com"];
@@ -23,7 +24,7 @@ interface ClientStats {
   upcoming: number; monthlyData: Record<string, number>;
 }
 
-const CLIENT_IDS = ["3CHI", "AMIGOS", "MELLOW FELLOW", "GROW", "GROOVEWAGON"];
+const CLIENT_IDS = ["3CHI", "AMIGOS", "MELLOW FELLOW", "GROW", "GROOVEWAGON", "WILLIES_REMEDY"];
 
 interface NotifyForm {
   type: "event" | "staff" | "recap";
