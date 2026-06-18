@@ -2,17 +2,21 @@ import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
 
 const CLIENT_COMPANY: Record<string, string> = {
-  AMIGOS:        'Amigos',
-  '3CHI':        '3CHI',
-  MELLOW_FELLOW: 'Mellow Fellow',
-  GROW:          'Grow',
+  AMIGOS:          'Amigos',
+  '3CHI':          '3CHI',
+  'MELLOW FELLOW': 'Mellow Fellow',
+  MELLOW_FELLOW:   'Mellow Fellow',
+  GROW:            'Grow',
+  GROOVEWAGON:     'Groovewagon',
 };
 
 const RECAP_BRAND_NAMES: Record<string, string[]> = {
-  AMIGOS:        ['AMIGOS', 'Amigos', 'drinkamigos'],
-  '3CHI':        ['3CHI', '3chi'],
-  MELLOW_FELLOW: ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
-  GROW:          ['GROW', 'Grow', 'Grow Cannabis'],
+  AMIGOS:          ['AMIGOS', 'Amigos', 'drinkamigos'],
+  '3CHI':          ['3CHI', '3chi'],
+  'MELLOW FELLOW': ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
+  MELLOW_FELLOW:   ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
+  GROW:            ['GROW', 'Grow', 'Grow Cannabis'],
+  GROOVEWAGON:     ['Groovewagon', 'GROOVEWAGON', 'groovewagon'],
 };
 
 export async function GET(req: Request) {
