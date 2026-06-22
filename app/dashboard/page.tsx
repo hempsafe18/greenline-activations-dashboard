@@ -24,7 +24,7 @@ interface ClientStats {
   upcoming: number; monthlyData: Record<string, number>;
 }
 
-const CLIENT_IDS = ["3CHI", "AMIGOS", "MELLOW FELLOW", "GROW", "GROOVEWAGON", "WILLIES_REMEDY"];
+const CLIENT_IDS = ["3CHI", "AMIGOS", "MELLOW FELLOW", "GROW", "GROOVEWAGON", "WILLIES_REMEDY", "FOREST_GOLD_WATER"];
 
 interface NotifyForm {
   type: "event" | "staff" | "recap";
@@ -398,6 +398,10 @@ export default function AdminDashboard() {
           <span className="adm-nav-dot" style={{ background: "#d97706" }} />
           GROW
         </Link>
+        <Link className="adm-nav-item" href="/clients/forest-gold-water">
+          <span className="adm-nav-dot" style={{ background: "#ca8a04" }} />
+          FOREST GOLD WATER
+        </Link>
         <hr className="adm-divider" />
         <p className="adm-nav-label">Account</p>
         <div style={{ padding: "8px 12px" }}><UserButton /></div>
@@ -686,6 +690,10 @@ export default function AdminDashboard() {
               ))}
               <Link href="/clients/grow" className="adm-quick-card">
                 <span>🌱 GROW Dashboard</span>
+                <span style={{ fontSize: 20 }}>→</span>
+              </Link>
+              <Link href="/clients/forest-gold-water" className="adm-quick-card">
+                <span>💧 FOREST GOLD WATER Dashboard</span>
                 <span style={{ fontSize: 20 }}>→</span>
               </Link>
             </div>

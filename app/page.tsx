@@ -22,6 +22,8 @@ export default async function HomePage() {
         redirect("/clients/amigos");
       } else if (email.endsWith("@growcannabis.group")) {
         redirect("/clients/grow");
+      } else if (email.endsWith("@forestgoldwater.com")) {
+        redirect("/clients/forest-gold-water");
       } else if (email.endsWith("@mellowfellowcannabis.com") || email.endsWith("@mfdrinks.com")) {
         redirect("/clients/mellow-fellow");
       } else if (email.endsWith("@workingrelief.com")) {
