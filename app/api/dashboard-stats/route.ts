@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 
 // Brand names as stored in recaps.brand_name (set by RecapForm CLIENT_BRAND_MAP)
 const RECAP_BRAND_NAMES: Record<string, string[]> = {
-  '3CHI':          ['3CHI', '3chi'],
+  '3CHI':          ['3CHI', '3chi', '3 CHI'],
   'AMIGOS':        ['AMIGOS', 'Amigos', 'drinkamigos'],
   'MELLOW_FELLOW': ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
   'GROW':          ['GROW', 'Grow Cannabis', 'growcannabis'],
