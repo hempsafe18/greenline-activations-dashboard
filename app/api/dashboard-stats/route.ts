@@ -5,16 +5,20 @@ import { supabase } from '../../../lib/supabase';
 const RECAP_BRAND_NAMES: Record<string, string[]> = {
   '3CHI':          ['3CHI', '3chi', '3 CHI'],
   'AMIGOS':        ['AMIGOS', 'Amigos', 'drinkamigos'],
-  'MELLOW_FELLOW': ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
+  'MELLOW FELLOW': ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
   'GROW':          ['GROW', 'Grow Cannabis', 'growcannabis'],
+  'GROOVEWAGON':   ['Groovewagon', 'GROOVEWAGON', 'groovewagon'],
+  'WILLIES_REMEDY':["Willie's Remedy", 'Willies Remedy', 'WILLIES REMEDY'],
 };
 
 // Keywords used to match clients.company_name for the events table join
 const CLIENT_KEYWORDS: Record<string, string[]> = {
   '3CHI':          ['3chi', '3CHI'],
   'AMIGOS':        ['amigos', 'AMIGOS'],
-  'MELLOW_FELLOW': ['mellow', 'fellow'],
+  'MELLOW FELLOW': ['mellow', 'fellow'],
   'GROW':          ['grow'],
+  'GROOVEWAGON':   ['groovewagon', 'Groovewagon'],
+  'WILLIES_REMEDY':["willie", 'willies'],
 };
 
 export async function GET(req: Request) {
