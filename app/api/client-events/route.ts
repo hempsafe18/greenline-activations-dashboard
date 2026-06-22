@@ -13,7 +13,7 @@ const CLIENT_COMPANY: Record<string, string> = {
 
 const RECAP_BRAND_NAMES: Record<string, string[]> = {
   AMIGOS:           ['AMIGOS', 'Amigos', 'drinkamigos'],
-  '3CHI':           ['3CHI', '3chi'],
+  '3CHI':           ['3CHI', '3chi', '3 CHI'],
   'MELLOW FELLOW':  ['MELLOW FELLOW', 'Mellow Fellow', 'mellow fellow'],
   GROW:             ['GROW', 'Grow', 'Grow Cannabis'],
   GROOVEWAGON:      ['Groovewagon', 'GROOVEWAGON', 'groovewagon'],
