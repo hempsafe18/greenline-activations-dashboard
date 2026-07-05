@@ -30,44 +30,50 @@ export async function GET(req: Request) {
 
   const storageFolder = STORAGE_SLUG[client] ?? client;
 
-  // List type subfolders under the client folder (engagement, setup, shelf)
-  const { data: items, error } = await supabase.storage
-    .from('recap-photos')
-    .list(storageFolder, { limit: 100, sortBy: { column: 'name', order: 'asc' } });
+  // Photos live under two conventions in the recap-photos bucket:
+  //   1. legacy:  {client}/{category}/file          (e.g. 3chi, mellow_fellow, older amigos)
+  //   2. current: brand-images/{client}/{category}/file  (what the app writes today)
+  // Read both bases and merge so every client shows all of its photos.
+  const baseFolders = [storageFolder, `brand-images/${storageFolder}`];
 
-  if (error) {
-    if (error.message.includes('not found') || error.message.includes('does not exist')) {
-      return NextResponse.json({ events: [] });
+  // Accumulate storage paths per category (engagement/setup/shelf) across both bases.
+  const categoryPaths: Record<string, string[]> = {};
+
+  for (const base of baseFolders) {
+    const { data: items, error } = await supabase.storage
+      .from('recap-photos')
+      .list(base, { limit: 100, sortBy: { column: 'name', order: 'asc' } });
+
+    // A missing base folder just means no photos under that convention — skip it.
+    if (error || !items || items.length === 0) continue;
+
+    type StorageItem = (typeof items)[number];
+    const typeFolders = items.filter((item: StorageItem) => !item.id || item.metadata === null);
+
+    for (const folder of typeFolders) {
+      if (folder.name.startsWith('.')) continue;
+
+      const { data: files } = await supabase.storage
+        .from('recap-photos')
+        .list(`${base}/${folder.name}`, { limit: 200 });
+
+      const filePaths = (files ?? [])
+        .filter((f: StorageItem) => {
+          const size = (f.metadata as Record<string, unknown> | null)?.['size'] as number | undefined;
+          return size && size > 0 && !f.name.startsWith('.');
+        })
+        .map((f: StorageItem) => `${base}/${folder.name}/${f.name}`);
+
+      if (filePaths.length === 0) continue;
+
+      (categoryPaths[folder.name] ??= []).push(...filePaths);
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  if (!items || items.length === 0) {
-    return NextResponse.json({ events: [] });
-  }
-
-  type StorageItem = (typeof items)[number];
-  const typeFolders = items.filter((item: StorageItem) => !item.id || item.metadata === null);
 
   const groups: PhotoGroup[] = [];
 
-  for (const folder of typeFolders) {
-    if (folder.name.startsWith('.')) continue;
-
-    const { data: files } = await supabase.storage
-      .from('recap-photos')
-      .list(`${storageFolder}/${folder.name}`, { limit: 200 });
-
-    const filePaths = (files ?? [])
-      .filter((f: StorageItem) => {
-        const size = (f.metadata as Record<string, unknown> | null)?.['size'] as number | undefined;
-        return size && size > 0 && !f.name.startsWith('.');
-      })
-      .map((f: StorageItem) => `${storageFolder}/${folder.name}/${f.name}`);
-
-    if (filePaths.length === 0) continue;
-
-    // Generate signed URLs for all files in this folder in one batch call
+  for (const [category, filePaths] of Object.entries(categoryPaths)) {
+    // Generate signed URLs for all files in this category in one batch call
     const { data: signedData, error: signErr } = await supabase.storage
       .from('recap-photos')
       .createSignedUrls(filePaths, SIGNED_URL_TTL);
@@ -81,11 +87,15 @@ export async function GET(req: Request) {
     if (signedUrls.length === 0) continue;
 
     groups.push({
-      key: folder.name,
-      title: TYPE_LABELS[folder.name] ?? folder.name.charAt(0).toUpperCase() + folder.name.slice(1),
+      key: category,
+      title: TYPE_LABELS[category] ?? category.charAt(0).toUpperCase() + category.slice(1),
       date: '',
       photos: signedUrls,
     });
+  }
+
+  if (groups.length === 0) {
+    return NextResponse.json({ events: [] });
   }
 
   // Order: engagement → shelf → setup
