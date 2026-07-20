@@ -1,7 +1,10 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // 1. Define which pages are public (just the homepage/login screen and API routes)
-const isPublicRoute = createRouteMatcher(['/', '/api/request', '/api/dropdown-data', '/api/grow/stats', '/api/grow/upcoming-meetings']);
+// '/profiles/:id' (the shareable client-facing ambassador link) is public.
+// '/profiles' itself (the admin directory) is intentionally NOT listed here,
+// so it stays behind the Clerk bouncer below.
+const isPublicRoute = createRouteMatcher(['/', '/api/request', '/api/dropdown-data', '/api/grow/stats', '/api/grow/upcoming-meetings', '/profiles/:id']);
 
 // 2. The Bouncer: If it's NOT a public route, protect it!
 export default clerkMiddleware(async (auth, req) => {
