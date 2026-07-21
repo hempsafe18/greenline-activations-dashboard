@@ -4,40 +4,37 @@ Next.js (App Router) dashboard for Greenline Activations — client brand dashbo
 
 ## Ambassador Profiles (`/profiles`)
 
-A client-facing directory of brand ambassadors, backed by Supabase and Cloudinary.
+A client-facing directory of brand ambassadors, backed by Supabase.
 
 - `/profiles` — directory grid of active ambassadors (search, market filter, HempSafe-certified toggle). Requires Greenline admin login (Clerk), gated to the emails in `ADMIN_EMAILS` in `app/profiles/page.tsx`.
 - `/profiles/[id]` — a single ambassador's profile. Publicly accessible with no login — this is the link you share with a client ahead of an event. It never shows phone, email, or any other contact info.
 
+Ambassador data is **not** a separate table — it's read directly from the existing `profiles` table (the same one the ambassador portal itself uses), filtered to `role = 'staff'`. That means every ambassador who signs up through the portal automatically shows up here; there's no separate roster to keep in sync. A migration (`supabase/migrations/20260721_add_ambassador_directory_columns.sql`) adds four columns this directory needs that the portal didn't already have: `markets`, `strengths`, `hempsafe_cert_date`, and `status` — it's purely additive and doesn't touch any existing column, data, or RLS policy on `profiles`.
+
 ### Adding / Updating Ambassadors
 
-Ambassador records live in the `ambassadors` table in Supabase (project `qqkbopkyfgiqsrrtvxzv`). To add or edit one:
+To edit what a client sees for a given ambassador:
 
-1. Open the [Supabase dashboard](https://supabase.com/dashboard/project/qqkbopkyfgiqsrrtvxzv) → **Table Editor** → `ambassadors`.
-2. Insert a new row (or edit an existing one) with:
-   - `name` — full name as it should appear to clients.
-   - `headshot_url` — a Cloudinary delivery URL (see below). Leave blank to show an initials avatar instead.
-   - `strengths` — a text array of 2–3 short bullet lines pulled from their application (e.g. `{"5+ years event sampling experience","Bilingual EN/ES","Retail merchandising background"}`).
-   - `markets` — a text array of markets they work, formatted `"City, ST"` (e.g. `{"Jacksonville, FL","Miami, FL"}`).
-   - `hempsafe_certified` — `true`/`false`.
-   - `hempsafe_cert_date` — the date they were certified (only shown if `hempsafe_certified` is `true`).
-   - `status` — `active` to show them in the directory, `inactive` to hide them (their old profile link will 404).
-3. Changes appear immediately — there's no rebuild or redeploy needed.
+1. Open the [Supabase dashboard](https://supabase.com/dashboard/project/qqkbopkyfgiqsrrtvxzv) → **Table Editor** → `profiles`.
+2. Find the ambassador by `full_name` and edit:
+   - `markets` — a text array of markets they work, formatted `"City, ST"` (e.g. `{"Jacksonville, FL","Miami, FL"}`). Backfilled once from their existing `city` field; edit for anyone who works multiple markets.
+   - `strengths` — a text array of 2–3 short bullet lines pulled from their actual application (e.g. `{"5+ years event sampling experience","Bilingual EN/ES","Retail merchandising background"}`). Not populated automatically — there's no structured field for this in the portal today, so it has to be read off each ambassador's application/resume.
+   - `hempsafe_cert_date` — the date they were certified (only shown if `hempsafe_certified` is `true`). Not backfilled; add it when known.
+   - `status` — `active` to show them in the directory, `inactive` to hide them (their profile link will 404). Defaults to `active` for everyone.
+3. `full_name`, `avatar_url`, and `hempsafe_certified` already come from the ambassador portal itself — don't duplicate them here, edit them at the source if they're wrong.
+4. Changes appear immediately — there's no rebuild or redeploy needed.
 
-The initial seed (`supabase/migrations/20260720_seed_ambassadors.sql`) was pulled from the HubSpot ambassador pipeline (contacts with `category = Ambassador` and `hempsafe_certified = true`). Names, markets, and cert dates came from HubSpot; `strengths` and `headshot_url` were left blank because HubSpot has no bio/photo data for these contacts — those need to be filled in per ambassador from their actual application/resume.
+### Headshots
 
-### Headshots via Cloudinary
+Headshots render straight from each ambassador's existing `avatar_url` (uploaded through the portal, hosted on Supabase Storage) — no extra step needed for most ambassadors. If `avatar_url` is missing or fails to load, the profile falls back to a rounded initials avatar automatically.
 
-Headshots are served from Cloudinary (cloud name `activation`):
+If you'd rather host a specific photo on Cloudinary instead (cloud name `activation`), `lib/cloudinary.ts` has a helper to build a face-cropped delivery URL:
 
-1. Upload the photo to the `activation` Cloudinary account.
-2. Build a face-cropped delivery URL — either paste one directly, or use the helper in `lib/cloudinary.ts`:
-   ```ts
-   cloudinaryHeadshotUrl("folder/public_id") // → https://res.cloudinary.com/activation/image/upload/c_fill,g_face,w_400,h_400,q_auto,f_auto/folder/public_id
-   ```
-3. Paste the resulting URL into `headshot_url` for that ambassador.
+```ts
+cloudinaryHeadshotUrl("folder/public_id") // → https://res.cloudinary.com/activation/image/upload/c_fill,g_face,w_400,h_400,q_auto,f_auto/folder/public_id
+```
 
-If `headshot_url` is missing or fails to load, the profile falls back to a rounded initials avatar automatically — no broken images.
+Paste the resulting URL into that ambassador's `avatar_url` — the directory doesn't care which host it came from.
 
 ### Environment Variables
 
@@ -49,4 +46,4 @@ See `.env.example`. The profiles feature needs:
 
 ### Migrations
 
-Apply `supabase/migrations/20260720_create_ambassadors_table.sql` then `supabase/migrations/20260720_seed_ambassadors.sql` to the Supabase project (via the SQL editor, the Supabase CLI, or MCP `apply_migration`).
+Apply `supabase/migrations/20260721_add_ambassador_directory_columns.sql` to the Supabase project (via the SQL editor, the Supabase CLI, or MCP `apply_migration`).
