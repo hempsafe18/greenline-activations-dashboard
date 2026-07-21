@@ -56,7 +56,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!user) { window.location.href = "/"; return; }
-    const email = user.emailAddresses[0]?.emailAddress ?? "";
+    // Use the primary email, matching app/page.tsx's routing check — using
+    // emailAddresses[0] here instead caused a redirect loop for any account
+    // where the first-added email isn't the primary one.
+    const email = user.primaryEmailAddress?.emailAddress ?? "";
     if (!ADMIN_EMAILS.includes(email)) { window.location.href = "/"; }
   }, [isLoaded, user]);
 

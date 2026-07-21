@@ -2,6 +2,11 @@ import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
+// Keep in sync with ADMIN_EMAILS in app/dashboard/page.tsx — admins who don't
+// use a @greenlineactivations.com address (e.g. personal email) still need
+// to land on /dashboard instead of falling through to Access Denied.
+const ADMIN_EMAILS = ["asmar@greenlineactivations.com", "sedell@greenlineactivations.com", "asmar.gary@gmail.com"];
+
 export default async function HomePage() {
   // 1. Use currentUser() instead of auth() so we can read their email address
   const user = await currentUser();
@@ -28,9 +33,9 @@ export default async function HomePage() {
         redirect("/clients/groovewagon");
       } else if (email.endsWith("@drinkwillies.com")) {
         redirect("/clients/willies-remedy");
-      } else if (email.endsWith("@greenlineactivations.com")) {
+      } else if (email.endsWith("@greenlineactivations.com") || ADMIN_EMAILS.includes(email)) {
         // Admin Routing - Change this if you have a specific master dashboard!
-        redirect("/dashboard"); 
+        redirect("/dashboard");
       } else {
         // FALLBACK: If their email doesn't match any client, show Access Denied
         return (
