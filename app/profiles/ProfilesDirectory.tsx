@@ -7,18 +7,28 @@ import GreenlineWordmark from "./components/GreenlineWordmark";
 
 export default function ProfilesDirectory({ ambassadors }: { ambassadors: Ambassador[] }) {
   const [search, setSearch] = useState("");
-  const [market, setMarket] = useState("");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
   const [certifiedOnly, setCertifiedOnly] = useState(false);
 
-  const markets = useMemo(() => {
+  const states = useMemo(() => {
     const set = new Set<string>();
-    ambassadors.forEach((a) => a.markets.forEach((m) => set.add(m)));
+    ambassadors.forEach((a) => a.state && set.add(a.state));
     return Array.from(set).sort();
   }, [ambassadors]);
 
+  const cities = useMemo(() => {
+    const set = new Set<string>();
+    ambassadors.forEach((a) => {
+      if (a.city && (!state || a.state === state)) set.add(a.city);
+    });
+    return Array.from(set).sort();
+  }, [ambassadors, state]);
+
   const filtered = ambassadors.filter((a) => {
     if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (market && !a.markets.includes(market)) return false;
+    if (state && a.state !== state) return false;
+    if (city && a.city !== city) return false;
     if (certifiedOnly && !a.hempsafe_certified) return false;
     return true;
   });
@@ -42,14 +52,29 @@ export default function ProfilesDirectory({ ambassadors }: { ambassadors: Ambass
           className="rounded-lg bg-mist px-4 py-2 text-sm text-ink outline-none placeholder:text-ink/40 focus:ring-2 focus:ring-canopy"
         />
         <select
-          value={market}
-          onChange={(e) => setMarket(e.target.value)}
+          value={state}
+          onChange={(e) => {
+            setState(e.target.value);
+            setCity("");
+          }}
           className="rounded-lg bg-mist px-4 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-canopy"
         >
-          <option value="">All markets</option>
-          {markets.map((m) => (
-            <option key={m} value={m}>
-              {m}
+          <option value="">All states</option>
+          {states.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          className="rounded-lg bg-mist px-4 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-canopy"
+        >
+          <option value="">All cities</option>
+          {cities.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>

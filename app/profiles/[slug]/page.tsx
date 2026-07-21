@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
-import { getAmbassadorById } from "@/lib/ambassadors";
+import { getAmbassadorBySlug } from "@/lib/ambassadors";
 import AmbassadorAvatar from "../components/AmbassadorAvatar";
 import MarketPill from "../components/MarketPill";
 import CertBadge from "../components/CertBadge";
@@ -11,25 +12,31 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const ambassador = await getAmbassadorById(id);
+  const { slug } = await params;
+  const ambassador = await getAmbassadorBySlug(slug);
   return { title: ambassador ? `${ambassador.name} | Greenline Activations` : "Ambassador Profile" };
 }
 
 export default async function AmbassadorProfilePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = await params;
-  const ambassador = await getAmbassadorById(id);
+  const { slug } = await params;
+  const ambassador = await getAmbassadorBySlug(slug);
 
   if (!ambassador) notFound();
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center px-6 py-12">
+    <div className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-6 py-12">
+      <div className="mb-4 w-full">
+        <Link href="/profiles" className="text-xs font-bold text-ink/40 no-underline hover:text-ink/60">
+          ← Back to Profiles
+        </Link>
+      </div>
+
       <div className="w-full rounded-lg border border-ink/5 bg-white p-8 shadow-card">
         <p className="text-[10px] uppercase tracking-widest text-ink/40">Brand Ambassador</p>
 

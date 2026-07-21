@@ -7,7 +7,7 @@ import CertBadge from "./CertBadge";
 export default function AmbassadorCard({ ambassador }: { ambassador: Ambassador }) {
   return (
     <Link
-      href={`/profiles/${ambassador.id}`}
+      href={`/profiles/${ambassador.slug}`}
       className="block rounded-lg border border-ink/5 bg-white p-5 shadow-card no-underline transition-transform hover:-translate-y-0.5"
     >
       <div className="flex items-start gap-4">

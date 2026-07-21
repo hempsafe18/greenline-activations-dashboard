@@ -2,10 +2,13 @@ import { supabase } from "./supabase";
 
 export interface Ambassador {
   id: string;
+  slug: string;
   name: string;
   headshot_url: string | null;
   strengths: string[];
   markets: string[];
+  state: string | null;
+  city: string | null;
   hempsafe_certified: boolean;
   hempsafe_cert_date: string | null;
   status: "active" | "inactive";
@@ -17,7 +20,7 @@ export interface Ambassador {
 // columns the directory actually renders are selected — never phone, email,
 // street_address, zip_code, or tracking_number.
 const AMBASSADOR_COLUMNS =
-  "id, name:full_name, headshot_url:avatar_url, strengths, markets, hempsafe_certified, hempsafe_cert_date, status, created_at";
+  "id, slug, name:full_name, headshot_url:avatar_url, strengths, markets, state, city, hempsafe_certified, hempsafe_cert_date, status, created_at";
 
 export async function getActiveAmbassadors(): Promise<Ambassador[]> {
   const { data, error } = await supabase
@@ -34,11 +37,11 @@ export async function getActiveAmbassadors(): Promise<Ambassador[]> {
   return data as unknown as Ambassador[];
 }
 
-export async function getAmbassadorById(id: string): Promise<Ambassador | null> {
+export async function getAmbassadorBySlug(slug: string): Promise<Ambassador | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select(AMBASSADOR_COLUMNS)
-    .eq("id", id)
+    .eq("slug", slug)
     .eq("role", "staff")
     .eq("status", "active")
     .maybeSingle();
