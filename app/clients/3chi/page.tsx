@@ -47,7 +47,7 @@ export default function UnifiedDashboard() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [eventPhotos, setEventPhotos] = useState<{key:string; title:string; date:string; photos:string[]}[]>([]);
+  const [eventPhotos, setEventPhotos] = useState<{key:string; title:string; date:string; photos:{thumb:string;full:string}[]}[]>([]);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<string|null>(null);
   const [openEvents, setOpenEvents] = useState<Set<string>>(new Set());
@@ -751,8 +751,8 @@ const downloadRecapReport = async () => {
                   </div>
                   {openEvents.has(ev.key) && (
                     <div className="photo-grid">
-                      {ev.photos.map((url, i) => (
-                        <img key={i} src={url} alt={`${ev.title} photo ${i + 1}`} className="photo-thumb" onClick={() => setLightboxPhoto(url)} />
+                      {ev.photos.map((p, i) => (
+                        <img key={i} src={p.thumb} alt={`${ev.title} photo ${i + 1}`} className="photo-thumb" loading="lazy" decoding="async" onClick={() => setLightboxPhoto(p.full)} />
                       ))}
                     </div>
                   )}
