@@ -54,17 +54,25 @@ function cloudinaryFetch(publicUrl: string, transform: string): string {
   return `https://res.cloudinary.com/${CLOUD_NAME}/image/fetch/${transform}/${encodeURIComponent(publicUrl)}`;
 }
 
+// Cloudinary's free plan rejects source images larger than 10 MB (both fetch
+// and upload delivery return 400). Serve those straight from Supabase so they
+// still render — unoptimized, but not broken.
+const CLOUDINARY_MAX_BYTES = 10 * 1024 * 1024;
+
 // Build the delivery URL for a storage path. Images under brand-images/ are
 // delivered via the brand-foldered auto-upload mapping; anything else falls
-// back to fetch so it still renders.
-function deliver(storagePath: string, transform: string): string {
+// back to fetch so it still renders. Files over Cloudinary's size limit are
+// served directly from Supabase.
+function deliver(storagePath: string, transform: string, size: number): string {
+  const publicUrl = supabase.storage.from('recap-photos').getPublicUrl(storagePath).data.publicUrl;
+  if (size > CLOUDINARY_MAX_BYTES) return publicUrl;
+
   const BRAND_PREFIX = 'brand-images/';
   if (storagePath.startsWith(BRAND_PREFIX)) {
     // brand-images/{brand}/{category}/{file}  ->  greenline/{brand}/{category}/{file}
     const publicId = `${MAPPING_FOLDER}/${storagePath.slice(BRAND_PREFIX.length)}`;
     return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${transform}/${encodePath(publicId)}`;
   }
-  const publicUrl = supabase.storage.from('recap-photos').getPublicUrl(storagePath).data.publicUrl;
   return cloudinaryFetch(publicUrl, transform);
 }
 
@@ -83,8 +91,8 @@ export async function GET(req: Request) {
   // Read both bases and merge so every client shows all of its photos.
   const baseFolders = [storageFolder, `brand-images/${storageFolder}`];
 
-  // Accumulate storage paths per category (engagement/setup/shelf) across both bases.
-  const categoryPaths: Record<string, string[]> = {};
+  // Accumulate storage paths (with byte size) per category across both bases.
+  const categoryPaths: Record<string, { path: string; size: number }[]> = {};
 
   for (const base of baseFolders) {
     const { data: items, error } = await supabase.storage
@@ -109,7 +117,10 @@ export async function GET(req: Request) {
           const size = (f.metadata as Record<string, unknown> | null)?.['size'] as number | undefined;
           return size && size > 0 && !f.name.startsWith('.');
         })
-        .map((f: StorageItem) => `${base}/${folder.name}/${f.name}`);
+        .map((f: StorageItem) => ({
+          path: `${base}/${folder.name}/${f.name}`,
+          size: ((f.metadata as Record<string, unknown> | null)?.['size'] as number) ?? 0,
+        }));
 
       if (filePaths.length === 0) continue;
 
@@ -120,9 +131,9 @@ export async function GET(req: Request) {
   const groups: PhotoGroup[] = [];
 
   for (const [category, filePaths] of Object.entries(categoryPaths)) {
-    const photos: Photo[] = filePaths.map(path => ({
-      thumb: deliver(path, THUMB_TX),
-      full: deliver(path, FULL_TX),
+    const photos: Photo[] = filePaths.map(({ path, size }) => ({
+      thumb: deliver(path, THUMB_TX, size),
+      full: deliver(path, FULL_TX, size),
     }));
 
     if (photos.length === 0) continue;
