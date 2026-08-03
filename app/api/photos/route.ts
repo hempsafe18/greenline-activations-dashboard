@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
 
+type Photo = { thumb: string; full: string };
+
 type PhotoGroup = {
   key: string;
   title: string;
   date: string;
-  photos: string[];
+  photos: Photo[];
 };
 
 // Storage folder names differ from URL-friendly client slugs in some cases
@@ -19,7 +21,21 @@ const TYPE_LABELS: Record<string, string> = {
   shelf: 'Shelf Photos',
 };
 
-const SIGNED_URL_TTL = 3600; // 1 hour
+// ── Cloudinary fetch-based delivery ──────────────────────────────────────
+// The recap-photos bucket is public, so we hand Cloudinary the stable public
+// URL of each original and let it fetch, resize, re-encode (WebP/AVIF via
+// f_auto) and CDN-cache the result. Originals stay in Supabase — nothing is
+// migrated, and the capture form (a separate repo) keeps writing there.
+//
+// Grid thumbnails are ~20-40 KB vs the ~3 MB originals; the lightbox gets a
+// still-optimized 1600px version instead of the raw multi-MB file.
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'activation';
+const THUMB_TX = 'f_auto,q_auto,w_400,c_limit';
+const FULL_TX = 'f_auto,q_auto,w_1600,c_limit';
+
+function cloudinaryFetch(publicUrl: string, transform: string): string {
+  return `https://res.cloudinary.com/${CLOUD_NAME}/image/fetch/${transform}/${encodeURIComponent(publicUrl)}`;
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -73,24 +89,21 @@ export async function GET(req: Request) {
   const groups: PhotoGroup[] = [];
 
   for (const [category, filePaths] of Object.entries(categoryPaths)) {
-    // Generate signed URLs for all files in this category in one batch call
-    const { data: signedData, error: signErr } = await supabase.storage
-      .from('recap-photos')
-      .createSignedUrls(filePaths, SIGNED_URL_TTL);
+    const photos: Photo[] = filePaths.map(path => {
+      const publicUrl = supabase.storage.from('recap-photos').getPublicUrl(path).data.publicUrl;
+      return {
+        thumb: cloudinaryFetch(publicUrl, THUMB_TX),
+        full: cloudinaryFetch(publicUrl, FULL_TX),
+      };
+    });
 
-    if (signErr || !signedData) continue;
-
-    const signedUrls = signedData
-      .map(r => r.signedUrl)
-      .filter((url): url is string => !!url);
-
-    if (signedUrls.length === 0) continue;
+    if (photos.length === 0) continue;
 
     groups.push({
       key: category,
       title: TYPE_LABELS[category] ?? category.charAt(0).toUpperCase() + category.slice(1),
       date: '',
-      photos: signedUrls,
+      photos,
     });
   }
 
