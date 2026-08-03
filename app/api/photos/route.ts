@@ -33,8 +33,39 @@ const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'activation';
 const THUMB_TX = 'f_auto,q_auto,w_400,c_limit';
 const FULL_TX = 'f_auto,q_auto,w_1600,c_limit';
 
+// Auto-upload mapping: a Cloudinary console setting maps the folder prefix below
+// to the Supabase brand-images base URL. Delivering an upload-type URL whose
+// public_id is `${MAPPING_FOLDER}/{brand}/{category}/{file}` makes Cloudinary
+// lazily fetch the original from Supabase AND store it in that brand folder,
+// so the media library is organized by brand and stays in sync as the capture
+// form (separate repo) adds new photos. Configure in Cloudinary:
+//   Settings > Upload > Auto upload mapping
+//     Folder:     greenline
+//     URL prefix: https://<project>.supabase.co/storage/v1/object/public/recap-photos/brand-images/
+const MAPPING_FOLDER = process.env.CLOUDINARY_MAPPING_FOLDER || 'greenline';
+
+// Encode each path segment (handles spaces etc.) while preserving the slashes.
+function encodePath(p: string): string {
+  return p.split('/').map(encodeURIComponent).join('/');
+}
+
+// Fetch delivery — Cloudinary pulls the remote URL on demand (no folder).
 function cloudinaryFetch(publicUrl: string, transform: string): string {
   return `https://res.cloudinary.com/${CLOUD_NAME}/image/fetch/${transform}/${encodeURIComponent(publicUrl)}`;
+}
+
+// Build the delivery URL for a storage path. Images under brand-images/ are
+// delivered via the brand-foldered auto-upload mapping; anything else falls
+// back to fetch so it still renders.
+function deliver(storagePath: string, transform: string): string {
+  const BRAND_PREFIX = 'brand-images/';
+  if (storagePath.startsWith(BRAND_PREFIX)) {
+    // brand-images/{brand}/{category}/{file}  ->  greenline/{brand}/{category}/{file}
+    const publicId = `${MAPPING_FOLDER}/${storagePath.slice(BRAND_PREFIX.length)}`;
+    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${transform}/${encodePath(publicId)}`;
+  }
+  const publicUrl = supabase.storage.from('recap-photos').getPublicUrl(storagePath).data.publicUrl;
+  return cloudinaryFetch(publicUrl, transform);
 }
 
 export async function GET(req: Request) {
@@ -89,13 +120,10 @@ export async function GET(req: Request) {
   const groups: PhotoGroup[] = [];
 
   for (const [category, filePaths] of Object.entries(categoryPaths)) {
-    const photos: Photo[] = filePaths.map(path => {
-      const publicUrl = supabase.storage.from('recap-photos').getPublicUrl(path).data.publicUrl;
-      return {
-        thumb: cloudinaryFetch(publicUrl, THUMB_TX),
-        full: cloudinaryFetch(publicUrl, FULL_TX),
-      };
-    });
+    const photos: Photo[] = filePaths.map(path => ({
+      thumb: deliver(path, THUMB_TX),
+      full: deliver(path, FULL_TX),
+    }));
 
     if (photos.length === 0) continue;
 
