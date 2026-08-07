@@ -87,6 +87,87 @@ export default function UnifiedDashboard() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
 
+  // --- SHIPMENT ENTRY (log sample cases sent directly to an ambassador) ---
+  const [shipmentData, setShipmentData] = useState<{
+    ambassadors: { id: string; full_name: string; city: string | null; state: string | null }[];
+    skus: { sku: string; flavor_name: string; cans_per_case: number }[];
+    events: { id: string; title: string; event_date: string; city: string | null }[];
+    recentShipments: any[];
+  }>({ ambassadors: [], skus: [], events: [], recentShipments: [] });
+  const [shipmentLoading, setShipmentLoading] = useState(false);
+  const [shipmentForm, setShipmentForm] = useState({
+    user_id: "", sku: "", event_id: "", cases_sent: "", tracking_number: "",
+    shipped_at: new Date().toISOString().split("T")[0], notes: "",
+  });
+  const [ambassadorQuery, setAmbassadorQuery] = useState("");
+  const [showAmbassadorList, setShowAmbassadorList] = useState(false);
+  const [shipmentSubmitting, setShipmentSubmitting] = useState(false);
+  const [shipmentError, setShipmentError] = useState("");
+  const [shipmentResult, setShipmentResult] = useState<{ ambassadorName: string; flavorName: string; balance: any } | null>(null);
+
+  const fetchShipmentData = async () => {
+    setShipmentLoading(true);
+    try {
+      const res = await fetch(`/api/shipments?client=${encodeURIComponent(TARGET_BRAND)}`);
+      if (res.ok) setShipmentData(await res.json());
+    } catch (e) { console.error('Failed to fetch shipment data', e); }
+    setShipmentLoading(false);
+  };
+
+  useEffect(() => { if (activeSection === 'shipment') fetchShipmentData(); }, [activeSection]);
+
+  // Deep link support so a "Log a Shipment" email can jump straight to this tab, e.g.
+  // /clients/amigos?section=shipment
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section) setActiveSection(section);
+  }, []);
+
+  const selectedSku = shipmentData.skus.find(s => s.sku === shipmentForm.sku);
+  const canHint = selectedSku && Number(shipmentForm.cases_sent) > 0
+    ? Number(shipmentForm.cases_sent) * selectedSku.cans_per_case
+    : null;
+
+  const filteredAmbassadors = ambassadorQuery.trim()
+    ? shipmentData.ambassadors.filter(a => a.full_name.toLowerCase().includes(ambassadorQuery.trim().toLowerCase()))
+    : shipmentData.ambassadors;
+
+  const selectAmbassador = (a: { id: string; full_name: string }) => {
+    setShipmentForm(prev => ({ ...prev, user_id: a.id }));
+    setAmbassadorQuery(a.full_name);
+    setShowAmbassadorList(false);
+  };
+
+  const submitShipment = async () => {
+    setShipmentError("");
+    if (!shipmentForm.user_id || !shipmentForm.sku || !shipmentForm.cases_sent || !shipmentForm.tracking_number || !shipmentForm.shipped_at) {
+      setShipmentError("Please fill out recipient, flavor, cases sent, tracking number, and ship date.");
+      return;
+    }
+    setShipmentSubmitting(true);
+    try {
+      const res = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...shipmentForm, event_id: shipmentForm.event_id || null, client: TARGET_BRAND }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const ambassadorName = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id)?.full_name || 'Ambassador';
+        const flavorName = shipmentData.skus.find(s => s.sku === shipmentForm.sku)?.flavor_name || shipmentForm.sku;
+        setShipmentResult({ ambassadorName, flavorName, balance: data.balance });
+        setShipmentForm({ user_id: "", sku: "", event_id: "", cases_sent: "", tracking_number: "", shipped_at: new Date().toISOString().split("T")[0], notes: "" });
+        setAmbassadorQuery("");
+        fetchShipmentData();
+      } else {
+        setShipmentError(data.error || "Failed to log shipment. Please try again.");
+      }
+    } catch (e) {
+      setShipmentError("Network error. Please try again.");
+    }
+    setShipmentSubmitting(false);
+  };
+
   const fetchClientData = async () => {
     setIsLoading(true);
     setVisibleUpcoming(ITEMS_PER_PAGE);
@@ -453,6 +534,25 @@ const downloadRecapReport = async () => {
         .btn-submit:active { transform: none; box-shadow: none; }
         .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
         .success-msg { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; box-shadow: 3px 3px 0 0 var(--ink); }
+        .error-msg { background: var(--street-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; box-shadow: 3px 3px 0 0 var(--ink); }
+
+        .combobox { position: relative; }
+        .combobox-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50; background: var(--white); border: 2px solid var(--ink); box-shadow: var(--shadow); max-height: 220px; overflow-y: auto; }
+        .combobox-option { padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 1px solid rgba(10,10,10,0.1); }
+        .combobox-option:last-child { border-bottom: none; }
+        .combobox-option:hover, .combobox-option.active { background: var(--canopy-pale); }
+        .combobox-option-sub { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+        .combobox-empty { padding: 10px 14px; font-size: 12px; color: var(--muted); }
+        .can-hint { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+        .can-hint strong { color: var(--ink); }
+        .balance-card { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 18px 20px; margin-top: 16px; box-shadow: var(--shadow); }
+        .balance-card-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0 0 10px 0; }
+        .balance-stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid rgba(10,10,10,0.15); font-size: 12px; font-weight: 600; }
+        .balance-stat-row:last-child { border-bottom: none; }
+        .balance-stat-value { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; font-weight: 800; }
+        .shipment-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        .shipment-table th { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--ink); }
+        .shipment-table td { font-size: 12px; font-weight: 500; padding: 8px 10px; border-bottom: 1px solid rgba(10,10,10,0.12); }
 
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(250,240,234,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
         .spinner { border: 4px solid rgba(10,10,10,0.1); width: 40px; height: 40px; border-radius: 0; border-left-color: var(--ink); animation: spin 1s linear infinite; margin-bottom: 16px; }
@@ -675,6 +775,7 @@ const downloadRecapReport = async () => {
         <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
         <a className={`nav-item ${activeSection === 'intel' ? 'active' : ''}`} onClick={() => setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
         <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
+        <a className={`nav-item ${activeSection === 'shipment' ? 'active' : ''}`} onClick={() => setActiveSection('shipment')}><span className="icon">📦</span> Log Shipment</a>
         <a className={`nav-item ${activeSection === 'notifications' ? 'active' : ''}`} onClick={() => setActiveSection('notifications')}>
           <span className="icon">🔔</span> Notifications
           {notifications.filter(n => !n.read).length > 0 && (
@@ -945,6 +1046,164 @@ const downloadRecapReport = async () => {
               {isSubmitting ? "Sending..." : "Submit Request"}
             </button>
             {showSuccess && <div className="success-msg">{uploadMessage}</div>}
+          </div>
+        </div>
+
+        {/* SHIPMENT TAB */}
+        <div className={`section ${activeSection === 'shipment' ? 'active' : ''}`} data-html2canvas-ignore="true">
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Log a Sample Shipment</p>
+                <p className="card-sub">Record cases you've shipped directly to an ambassador so their sample balance stays accurate.</p>
+              </div>
+            </div>
+
+            {shipmentLoading && <p style={{fontSize: '12px', color: 'var(--muted)'}}>Loading ambassadors and flavors…</p>}
+
+            <div className="form-grid">
+              <div className="form-group combobox">
+                <label className="form-label">Recipient (Ambassador)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search by name…"
+                  value={ambassadorQuery}
+                  onFocus={() => setShowAmbassadorList(true)}
+                  onChange={(e) => { setAmbassadorQuery(e.target.value); setShipmentForm(prev => ({ ...prev, user_id: "" })); setShowAmbassadorList(true); }}
+                  onBlur={() => setTimeout(() => setShowAmbassadorList(false), 150)}
+                />
+                {showAmbassadorList && (
+                  <div className="combobox-list">
+                    {filteredAmbassadors.length === 0 && <div className="combobox-empty">No ambassadors confirmed on your events yet.</div>}
+                    {filteredAmbassadors.map(a => (
+                      <div key={a.id} className="combobox-option" onMouseDown={() => selectAmbassador(a)}>
+                        {a.full_name}
+                        {(a.city || a.state) && <div className="combobox-option-sub">{[a.city, a.state].filter(Boolean).join(', ')}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Flavor (SKU)</label>
+                <select
+                  className="form-input"
+                  value={shipmentForm.sku}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, sku: e.target.value }))}
+                >
+                  <option value="">Select Flavor</option>
+                  {shipmentData.skus.map(s => <option key={s.sku} value={s.sku}>{s.flavor_name}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Cases Sent</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  className="form-input"
+                  placeholder="e.g. 2"
+                  value={shipmentForm.cases_sent}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, cases_sent: e.target.value }))}
+                />
+                {canHint !== null && <p className="can-hint">= <strong>{canHint}</strong> cans ({selectedSku?.cans_per_case} cans/case)</p>}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Tracking Number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 1Z999AA10123456784"
+                  value={shipmentForm.tracking_number}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, tracking_number: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Date Shipped</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={shipmentForm.shipped_at}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, shipped_at: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Tour Date (Optional)</label>
+                <select
+                  className="form-input"
+                  value={shipmentForm.event_id}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, event_id: e.target.value }))}
+                >
+                  <option value="">Not tied to a specific date</option>
+                  {shipmentData.events.map(ev => (
+                    <option key={ev.id} value={ev.id}>{ev.title} — {ev.event_date}{ev.city ? ` (${ev.city})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Notes (Optional)</label>
+                <textarea
+                  className="form-input form-textarea"
+                  placeholder="Anything the team should know about this shipment…"
+                  value={shipmentForm.notes}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <button className="btn-submit" onClick={submitShipment} disabled={shipmentSubmitting}>
+              {shipmentSubmitting ? "Logging Shipment..." : "Log Shipment"}
+            </button>
+            {shipmentError && <div className="error-msg">{shipmentError}</div>}
+
+            {shipmentResult && (
+              <div className="balance-card">
+                <p className="balance-card-title">✅ Shipment logged for {shipmentResult.ambassadorName}</p>
+                {shipmentResult.balance ? (
+                  <>
+                    <div className="balance-stat-row"><span>Flavor</span><span>{shipmentResult.balance.flavor_name || shipmentResult.flavorName}</span></div>
+                    <div className="balance-stat-row"><span>Total Cans Sent</span><span>{shipmentResult.balance.total_cans_sent}</span></div>
+                    <div className="balance-stat-row"><span>Total Cans Used</span><span>{shipmentResult.balance.total_cans_used}</span></div>
+                    <div className="balance-stat-row"><span>Updated Cans Remaining</span><span className="balance-stat-value">{shipmentResult.balance.calculated_cans_remaining}</span></div>
+                  </>
+                ) : (
+                  <p style={{fontSize: '12px', margin: 0}}>Shipment saved. Balance will appear once the ambassador reports usage.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{marginTop: '14px'}}>
+            <div className="card-header"><div><p className="card-title">Recent Shipments</p><p className="card-sub">Last 25 shipments logged to your ambassadors</p></div></div>
+            {shipmentData.recentShipments.length === 0 ? (
+              <p style={{fontSize: '12px', color: 'var(--muted)'}}>No shipments logged yet.</p>
+            ) : (
+              <div style={{overflowX: 'auto'}}>
+                <table className="shipment-table">
+                  <thead>
+                    <tr><th>Date</th><th>Ambassador</th><th>Flavor</th><th>Cases</th><th>Tracking #</th></tr>
+                  </thead>
+                  <tbody>
+                    {shipmentData.recentShipments.map((s: any) => (
+                      <tr key={s.id}>
+                        <td>{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td>{s.profile?.full_name || '—'}</td>
+                        <td>{s.sku_info?.flavor_name || s.sku}</td>
+                        <td>{s.cases_sent}</td>
+                        <td>{s.tracking_number}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>
