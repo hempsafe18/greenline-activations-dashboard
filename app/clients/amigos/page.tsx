@@ -665,7 +665,7 @@ const downloadRecapReport = async () => {
         @media (max-width: 900px) {
           .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 2px solid rgba(250,240,234,0.2); border-right: none; }
           .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
-          .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; width: 25%; margin-bottom: 0; border: none; }
+          .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; flex: 1 1 0; min-width: 0; margin-bottom: 0; border: none; }
           .nav-item .icon { font-size: 18px; width: auto; text-align: center; margin: 0 auto; }
           .main { margin-left: 0; padding: 18px; padding-bottom: 90px; padding-top: 20px; }
           .topbar { flex-direction: column; align-items: flex-start; gap: 14px; }
