@@ -471,7 +471,7 @@ const downloadRecapReport = async () => {
         .nav-item:hover, .nav-item.active { background: var(--canopy); color: var(--ink); border-color: var(--canopy); }
         .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
 
-        .main { margin-left: 220px; padding: 32px; min-height: 100vh; padding-top: 80px; }
+        .main { margin-left: 220px; padding: 32px; min-height: 100vh; padding-top: 80px; overflow-x: hidden; }
         .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
         .topbar-left h1 { font-family: 'Cabinet Grotesk', sans-serif; font-size: 26px; font-weight: 800; color: var(--ink); margin: 0; display: flex; align-items: center; gap: 12px; letter-spacing: -0.02em; }
         .topbar-left p { font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 2px; margin-bottom: 0; }
@@ -589,9 +589,16 @@ const downloadRecapReport = async () => {
         .shipment-card-tracking { font-size: 10px; font-weight: 500; color: var(--muted); }
 
         .flavor-lines { display: flex; flex-direction: column; gap: 10px; }
-        .flavor-line { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 10px; align-items: start; }
+        .flavor-line { border: 2px solid var(--ink); background: var(--white); padding: 10px; box-shadow: 3px 3px 0 0 var(--ink); }
+        .flavor-line-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .flavor-line-top select { flex: 1; min-width: 0; }
         .flavor-line-cases { display: flex; flex-direction: column; }
-        .flavor-line-remove { padding: 10px 14px; height: fit-content; box-shadow: none; }
+        .flavor-line-remove {
+          flex-shrink: 0; width: 38px; height: 38px; padding: 0;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 14px; font-weight: 700; color: var(--ink);
+          background: var(--bone); border: 2px solid var(--ink); cursor: pointer;
+        }
         .flavor-line-remove:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .materials-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -676,8 +683,6 @@ const downloadRecapReport = async () => {
           .photo-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 5px; }
           .modal-content { max-width: 90vw; }
           .recap-grid { grid-template-columns: 1fr; }
-          .flavor-line { grid-template-columns: 1fr; }
-          .flavor-line-remove { justify-self: flex-end; }
         }
 
         /* ── Mobile (600px and below) ── */
@@ -1146,16 +1151,25 @@ const downloadRecapReport = async () => {
                     const taken = skusAlreadyPicked(i);
                     return (
                       <div className="flavor-line" key={i}>
-                        <select
-                          className="form-input"
-                          value={line.sku}
-                          onChange={(e) => updateFlavorLine(i, { sku: e.target.value })}
-                        >
-                          <option value="">Select Flavor</option>
-                          {shipmentData.skus.filter(s => !taken.has(s.sku) || s.sku === line.sku).map(s => (
-                            <option key={s.sku} value={s.sku}>{s.flavor_name}</option>
-                          ))}
-                        </select>
+                        <div className="flavor-line-top">
+                          <select
+                            className="form-input"
+                            value={line.sku}
+                            onChange={(e) => updateFlavorLine(i, { sku: e.target.value })}
+                          >
+                            <option value="">Select Flavor</option>
+                            {shipmentData.skus.filter(s => !taken.has(s.sku) || s.sku === line.sku).map(s => (
+                              <option key={s.sku} value={s.sku}>{s.flavor_name}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="flavor-line-remove"
+                            onClick={() => removeFlavorLine(i)}
+                            disabled={flavorLines.length === 1}
+                            aria-label="Remove flavor"
+                          >✕</button>
+                        </div>
                         <div className="flavor-line-cases">
                           <input
                             type="number"
@@ -1168,13 +1182,6 @@ const downloadRecapReport = async () => {
                           />
                           {hint && <p className="can-hint">= <strong>{hint.cans}</strong> cans ({hint.perCase}/case)</p>}
                         </div>
-                        <button
-                          type="button"
-                          className="btn-cancel flavor-line-remove"
-                          onClick={() => removeFlavorLine(i)}
-                          disabled={flavorLines.length === 1}
-                          aria-label="Remove flavor"
-                        >✕</button>
                       </div>
                     );
                   })}
