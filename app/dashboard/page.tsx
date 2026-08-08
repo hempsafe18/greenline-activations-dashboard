@@ -167,7 +167,7 @@ export default function AdminDashboard() {
 
         .admin-wrap {
           --bone:#faf0ea; --ink:#0a0a0a; --white:#ffffff;
-          --canopy:#56e39f; --canopy-pale:#d6f8ea;
+          --canopy:#00c853; --canopy-pale:#d3f5df;
           --street:#ff4f33; --street-pale:#ffe3de;
           --muted:#767672; --card:#ffffff;
           --shadow:4px 4px 0 0 #0a0a0a; --shadow-lg:6px 6px 0 0 #0a0a0a;
@@ -180,6 +180,7 @@ export default function AdminDashboard() {
 
         /* ── Sidebar ── */
         .adm-sidebar { position:fixed; top:0; left:0; width:220px; height:100vh; background:var(--ink); padding:28px 20px; display:flex; flex-direction:column; z-index:100; overflow-y:auto; }
+        .adm-icon { width:26px; height:26px; border-radius:6px; display:block; margin:0 0 12px; }
         .adm-logo { font-family:'Cabinet Grotesk',sans-serif; font-size:10px; font-weight:700; color:rgba(250,240,234,.45); letter-spacing:.14em; text-transform:uppercase; margin:0 0 4px; }
         .adm-brand { font-family:'Cabinet Grotesk',sans-serif; font-size:19px; font-weight:800; color:var(--bone); margin:0 0 32px; letter-spacing:-.02em; line-height:1.2; }
         .adm-nav-label { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(250,240,234,.3); margin:20px 0 8px; }
@@ -380,6 +381,7 @@ export default function AdminDashboard() {
 
       {/* ── Sidebar ── */}
       <div className="adm-sidebar">
+        <img src="/brand/greenline-icon-canopy.svg" alt="" className="adm-icon" />
         <p className="adm-logo">Greenline Activations</p>
         <p className="adm-brand">Admin Hub</p>
         <p className="adm-nav-label">Overview</p>

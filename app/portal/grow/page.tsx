@@ -35,6 +35,8 @@ export default function GrowPortal() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         .pw { --ink: #0a0a0a; --bone: #faf0ea; --gold: #d97706; --gold-pale: #fef3c7; --white: #fff; --muted: #767672; --shadow: 4px 4px 0 0 #0a0a0a; font-family: 'Manrope', sans-serif; min-height: 100vh; background: var(--bone); color: var(--ink); }
         .pw-header { background: var(--ink); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+        .pw-header-left { display: flex; align-items: center; gap: 14px; }
+        .pw-icon { width: 30px; height: 30px; border-radius: 6px; display: block; flex-shrink: 0; }
         .pw-logo { font-size: 10px; font-weight: 700; color: rgba(250,240,234,0.45); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 3px; }
         .pw-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 20px; font-weight: 800; color: var(--bone); letter-spacing: -0.02em; }
         .pw-body { max-width: 760px; margin: 40px auto; padding: 0 24px; }
@@ -62,7 +64,10 @@ export default function GrowPortal() {
         @media (max-width: 600px) { .pw-grid { grid-template-columns: 1fr; } .pw-body { padding: 0 16px; margin: 20px auto; } }
       `}} />
       <div className="pw-header">
-        <div><p className="pw-logo">Greenline Activations — Team Portal</p><p className="pw-title">GROW · Post-Visit Sales Recap</p></div>
+        <div className="pw-header-left">
+          <img src="/brand/greenline-icon-canopy.svg" alt="" className="pw-icon" />
+          <div><p className="pw-logo">Greenline Activations — Team Portal</p><p className="pw-title">GROW · Post-Visit Sales Recap</p></div>
+        </div>
         <UserButton />
       </div>
       <div className="pw-body">
