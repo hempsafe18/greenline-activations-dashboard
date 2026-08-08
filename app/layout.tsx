@@ -6,7 +6,6 @@ export const metadata: Metadata = {
     default: "Greenline Activations",
     template: "%s",
   },
-  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
