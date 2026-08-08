@@ -547,10 +547,10 @@ const downloadRecapReport = async () => {
         .lightbox-close { position: absolute; top: 20px; right: 24px; color: #fff; font-size: 28px; cursor: pointer; font-weight: 700; background: none; border: none; line-height: 1; }
 
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
         .form-group.full { grid-column: 1 / -1; }
         .form-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink); }
-        .form-input { font-family: 'Manrope', sans-serif; font-size: 13px; font-weight: 500; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 0; background: var(--white); color: var(--ink); outline: none; transition: all 0.15s; }
+        .form-input { font-family: 'Manrope', sans-serif; font-size: 13px; font-weight: 500; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 0; background: var(--white); color: var(--ink); outline: none; transition: all 0.15s; width: 100%; min-width: 0; box-sizing: border-box; }
         .form-input:focus { box-shadow: 3px 3px 0 0 var(--ink); transform: translate(-2px, -2px); }
         .form-input::placeholder { color: rgba(10,10,10,0.35); }
         .form-textarea { resize: vertical; min-height: 80px; }
@@ -562,7 +562,7 @@ const downloadRecapReport = async () => {
         .success-msg { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; box-shadow: 3px 3px 0 0 var(--ink); }
         .error-msg { background: var(--street-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; box-shadow: 3px 3px 0 0 var(--ink); }
 
-        .combobox { position: relative; }
+        .combobox { position: relative; min-width: 0; }
         .combobox-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50; background: var(--white); border: 2px solid var(--ink); box-shadow: var(--shadow); max-height: 220px; overflow-y: auto; }
         .combobox-option { padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 1px solid rgba(10,10,10,0.1); }
         .combobox-option:last-child { border-bottom: none; }
@@ -602,12 +602,12 @@ const downloadRecapReport = async () => {
         }
         .flavor-line-remove:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        .materials-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .material-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 2px solid var(--ink); padding: 10px 12px; background: var(--white); }
+        .materials-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; min-width: 0; }
+        .material-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 2px solid var(--ink); padding: 10px 12px; background: var(--white); min-width: 0; }
         .material-item.checked { background: var(--canopy-pale); }
-        .material-item-check { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .material-item-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--ink); cursor: pointer; }
-        .material-item-qty { width: 64px; padding: 6px 8px !important; text-align: center; }
+        .material-item-check { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .material-item-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
+        .material-item-qty { width: 64px; flex-shrink: 0; padding: 6px 8px !important; text-align: center; }
 
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(250,240,234,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
         .spinner { border: 4px solid rgba(10,10,10,0.1); width: 40px; height: 40px; border-radius: 0; border-left-color: var(--ink); animation: spin 1s linear infinite; margin-bottom: 16px; }
