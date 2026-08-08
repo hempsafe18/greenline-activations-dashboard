@@ -464,6 +464,7 @@ const downloadRecapReport = async () => {
         .dashboard-wrapper * { box-sizing: border-box; }
 
         .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: var(--ink); border-right: 2px solid var(--ink); padding: 28px 20px; display: flex; flex-direction: column; z-index: 100; }
+        .sidebar-icon { width: 24px; height: 24px; border-radius: 5px; display: block; margin-bottom: 10px; }
         .sidebar-logo { font-family: 'Cabinet Grotesk', sans-serif; font-size: 10px; font-weight: 700; color: rgba(250,240,234,0.45); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 4px; }
         .sidebar-brand { font-family: 'Cabinet Grotesk', sans-serif; font-size: 22px; font-weight: 800; color: var(--bone); margin-bottom: 36px; letter-spacing: -0.02em; }
         .nav-label { font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(250,240,234,0.3); margin-bottom: 8px; margin-top: 20px; }
@@ -664,7 +665,7 @@ const downloadRecapReport = async () => {
         /* ── Tablet (900px and below) ── */
         @media (max-width: 900px) {
           .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 2px solid rgba(250,240,234,0.2); border-right: none; }
-          .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
+          .sidebar-icon, .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
           .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; flex: 1 1 0; min-width: 0; margin-bottom: 0; border: none; }
           .nav-item .icon { font-size: 18px; width: auto; text-align: center; margin: 0 auto; }
           .main { margin-left: 0; padding: 18px; padding-bottom: 90px; padding-top: 20px; }
@@ -824,6 +825,7 @@ const downloadRecapReport = async () => {
       )}
 
       <div className="sidebar" data-html2canvas-ignore="true">
+        <img src="/brand/greenline-icon-canopy.svg" alt="" className="sidebar-icon" />
         <p className="sidebar-logo">Greenline Activations</p>
         <p className="sidebar-brand">{TARGET_BRAND}</p>
         <Link href="/dashboard" className="nav-item" style={{ marginBottom: 12, opacity: 0.7 }}><span className="icon">←</span> Main Dashboard</Link>

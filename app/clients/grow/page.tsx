@@ -88,6 +88,7 @@ export default function GrowDashboard() {
         .db-layout { display: flex; min-height: 100vh; }
         .db-sidebar { width: 240px; background: var(--ink); display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
         .db-sidebar-header { padding: 24px 20px 20px; border-bottom: 2px solid rgba(255,255,255,0.1); }
+        .db-sidebar-icon { width: 24px; height: 24px; border-radius: 5px; display: block; margin-bottom: 10px; }
         .db-sidebar-brand { font-size: 9px; font-weight: 700; color: rgba(250,240,234,0.4); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 4px; }
         .db-sidebar-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; font-weight: 800; color: var(--bone); letter-spacing: -0.02em; }
         .db-sidebar-sub { font-size: 10px; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 3px; }
@@ -252,6 +253,7 @@ export default function GrowDashboard() {
       <div className="db-layout">
         <aside className="db-sidebar">
           <div className="db-sidebar-header">
+            <img src="/brand/greenline-icon-canopy.svg" alt="" className="db-sidebar-icon" />
             <p className="db-sidebar-brand">Greenline Activations</p>
             <p className="db-sidebar-title">GROW</p>
             <p className="db-sidebar-sub">Sales Dashboard</p>
