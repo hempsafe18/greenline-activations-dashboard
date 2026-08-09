@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/cloudinary-sync",
-      "schedule": "*/15 * * * *"
+      "schedule": "59 4 * * 1"
     }
   ]
 }
