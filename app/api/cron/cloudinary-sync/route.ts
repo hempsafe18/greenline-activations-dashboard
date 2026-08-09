@@ -21,7 +21,10 @@ const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
 // those files are served straight from Supabase and never organized in Cloudinary.
 const CLOUDINARY_MAX_BYTES = 10 * 1024 * 1024;
 
-const BATCH_SIZE = 100;
+// Kept small enough that a sequential batch finishes within Vercel's default
+// function time limit even on the Hobby plan; the 15-min cron cadence makes
+// up the throughput (backlog clears over a few runs, not all in one).
+const BATCH_SIZE = 30;
 
 type StorageObject = { name: string; updated_at: string; metadata: { size?: number } | null };
 
