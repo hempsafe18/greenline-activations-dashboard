@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/cloudinary-sync",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
