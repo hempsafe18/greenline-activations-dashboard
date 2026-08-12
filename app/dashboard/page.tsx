@@ -395,12 +395,6 @@ export default function AdminDashboard() {
           </Link>
         ))}
         <hr className="adm-divider" />
-        <p className="adm-nav-label">Sales Dashboards</p>
-        <Link className="adm-nav-item" href="/clients/grow">
-          <span className="adm-nav-dot" style={{ background: "#d97706" }} />
-          GROW
-        </Link>
-        <hr className="adm-divider" />
         <p className="adm-nav-label">Account</p>
         <div style={{ padding: "8px 12px" }}><UserButton /></div>
       </div>
@@ -686,10 +680,6 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: 20 }}>→</span>
                 </Link>
               ))}
-              <Link href="/clients/grow" className="adm-quick-card">
-                <span>🌱 GROW Dashboard</span>
-                <span style={{ fontSize: 20 }}>→</span>
-              </Link>
             </div>
 
             {/* ── Notify Client Panel ── */}
