@@ -1,6 +1,6 @@
 # Greenline Activations Dashboard
 
-Next.js (App Router) dashboard for Greenline Activations — client brand dashboards, the GROW sales portal, and the ambassador profile directory.
+Next.js (App Router) dashboard for Greenline Activations — client brand dashboards and the ambassador profile directory.
 
 ## Ambassador Profiles (`/profiles`)
 

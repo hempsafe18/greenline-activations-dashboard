@@ -35,8 +35,6 @@ export default async function HomePage() {
         redirect("/clients/3chi");
       } else if (email.endsWith("@drinkamigos.com")) {
         redirect("/clients/amigos");
-      } else if (email.endsWith("@growcannabis.group")) {
-        redirect("/clients/grow");
       } else if (email.endsWith("@mellowfellowcannabis.com") || email.endsWith("@mfdrinks.com")) {
         redirect("/clients/mellow-fellow");
       } else if (email.endsWith("@workingrelief.com")) {
