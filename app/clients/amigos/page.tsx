@@ -96,7 +96,7 @@ export default function UnifiedDashboard() {
   ];
 
   const [shipmentData, setShipmentData] = useState<{
-    ambassadors: { id: string; full_name: string; city: string | null; state: string | null }[];
+    ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
     skus: { sku: string; flavor_name: string; cans_per_case: number }[];
     events: { id: string; title: string; event_date: string; city: string | null }[];
     recentShipments: any[];
@@ -141,6 +141,15 @@ export default function UnifiedDashboard() {
     setAmbassadorQuery(a.full_name);
     setShowAmbassadorList(false);
   };
+
+  const selectedAmbassador = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id) || null;
+  const selectedAmbassadorAddressLines = selectedAmbassador
+    ? [
+        selectedAmbassador.street_address,
+        selectedAmbassador.address_line_2,
+        [selectedAmbassador.city, selectedAmbassador.state, selectedAmbassador.zip_code].filter(Boolean).join(', '),
+      ].filter(Boolean) as string[]
+    : [];
 
   const updateFlavorLine = (index: number, patch: Partial<{ sku: string; cases_sent: string }>) => {
     setFlavorLines(prev => prev.map((line, i) => i === index ? { ...line, ...patch } : line));
@@ -569,6 +578,10 @@ const downloadRecapReport = async () => {
         .combobox-option:hover, .combobox-option.active { background: var(--canopy-pale); }
         .combobox-option-sub { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
         .combobox-empty { padding: 10px 14px; font-size: 12px; color: var(--muted); }
+        .address-preview { margin-top: 8px; padding: 10px 14px; background: var(--canopy-pale); border: 2px solid var(--ink); }
+        .address-preview-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px 0; }
+        .address-preview-line { font-size: 13px; font-weight: 600; color: var(--ink); margin: 0; line-height: 1.4; }
+        .address-preview-missing { font-size: 12px; font-weight: 600; color: var(--ink); }
         .can-hint { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; }
         .can-hint strong { color: var(--ink); }
         .balance-card { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 18px 20px; margin-top: 16px; box-shadow: var(--shadow); }
@@ -1142,6 +1155,18 @@ const downloadRecapReport = async () => {
                       </div>
                     ))}
                   </div>
+                )}
+                {selectedAmbassador && (
+                  selectedAmbassadorAddressLines.length > 0 ? (
+                    <div className="address-preview">
+                      <p className="address-preview-label">Shipping Address on File</p>
+                      {selectedAmbassadorAddressLines.map((line, i) => <p key={i} className="address-preview-line">{line}</p>)}
+                    </div>
+                  ) : (
+                    <div className="address-preview address-preview-missing">
+                      No shipping address on file for {selectedAmbassador.full_name} — confirm with them before shipping.
+                    </div>
+                  )
                 )}
               </div>
 
