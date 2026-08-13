@@ -87,7 +87,10 @@ export async function GET(req: Request) {
   const [ambassadorsResult, skusResult, eventsResult, shipmentsResult] = await Promise.all([
     supabase
       .from('applications')
-      .select('user_id, status, event:events!inner(client_id), profile:profiles(id, full_name, city, state)')
+      // Address fields are included here (unlike the public ambassador directory in
+      // lib/ambassadors.ts, which deliberately excludes them) because this endpoint is
+      // authenticated and exists specifically so clients can address a physical shipment.
+      .select('user_id, status, event:events!inner(client_id), profile:profiles(id, full_name, city, state, street_address, address_line_2, zip_code)')
       .eq('status', 'confirmed')
       .eq('event.client_id', clientUuid),
     supabase
@@ -108,9 +111,13 @@ export async function GET(req: Request) {
   ]);
 
   // De-dupe ambassadors confirmed on more than one of this client's events.
-  const ambassadorMap = new Map<string, { id: string; full_name: string; city: string | null; state: string | null }>();
+  type AmbassadorRow = {
+    id: string; full_name: string; city: string | null; state: string | null;
+    street_address: string | null; address_line_2: string | null; zip_code: string | null;
+  };
+  const ambassadorMap = new Map<string, AmbassadorRow>();
   for (const row of ambassadorsResult.data ?? []) {
-    const p = row.profile as unknown as { id: string; full_name: string; city: string | null; state: string | null } | null;
+    const p = row.profile as unknown as AmbassadorRow | null;
     if (p && !ambassadorMap.has(p.id)) ambassadorMap.set(p.id, p);
   }
   const ambassadors = Array.from(ambassadorMap.values()).sort((a, b) => a.full_name.localeCompare(b.full_name));
