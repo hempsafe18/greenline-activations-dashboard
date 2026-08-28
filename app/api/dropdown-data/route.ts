@@ -23,6 +23,12 @@ const RECAP_BRAND_NAMES: Record<string, string[]> = {
   CLAYBOURNE_CO:   ['Claybourne Co.', 'Claybourne', 'CLAYBOURNE'],
 };
 
+// Claybourne Co. tracks product-line categories, not individual strains/SKUs like the
+// beverage clients' flavors — this seeds the Products dropdown before any recap exists.
+const DEFAULT_PRODUCTS: Record<string, string[]> = {
+  CLAYBOURNE_CO: ['Gold Cuts', 'Classic Cuts', 'Premium Small Buds', 'Flyers', 'Gassers'],
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const client = searchParams.get('client');
@@ -58,7 +64,7 @@ export async function GET(req: Request) {
   }
 
   const samplingTypes = new Set<string>();
-  const products = new Set<string>();
+  const products = new Set<string>(DEFAULT_PRODUCTS[client] ?? []);
   for (const r of recapsResult.data ?? []) {
     if (r.sampling_type?.trim()) samplingTypes.add(r.sampling_type.trim());
     if (r.products_featured?.trim()) {

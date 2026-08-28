@@ -13,9 +13,11 @@ const CLIENT_COMPANY: Record<string, string> = {
   GROW:            'Grow',
   GROOVEWAGON:     'Groovewagon',
   WILLIES_REMEDY:  "Willie's Remedy",
-  CLAYBOURNE_CO:   'Claybourne Co.',
 };
 
+// Claybourne Co. deliberately has no entry above or in clientIdFromEmail below — it's an
+// educational/promo activation client with no physical sample inventory to ship or track,
+// so this endpoint (and the low-inventory-alert Edge Function) never applies to it.
 function clientIdFromEmail(email: string): string | null {
   if (email.endsWith('@3chi.com')) return '3CHI';
   if (email.endsWith('@drinkamigos.com')) return 'AMIGOS';
@@ -23,7 +25,6 @@ function clientIdFromEmail(email: string): string | null {
   if (email.endsWith('@growcannabis.group')) return 'GROW';
   if (email.endsWith('@workingrelief.com')) return 'GROOVEWAGON';
   if (email.endsWith('@drinkwillies.com')) return 'WILLIES_REMEDY';
-  if (email.endsWith('@claybourneco.com')) return 'CLAYBOURNE_CO';
   if (email.endsWith('@plift.com')) return 'PLIFT';
   if (email.endsWith('@greenlineactivations.com')) return null; // admin: allow any client
   return null;

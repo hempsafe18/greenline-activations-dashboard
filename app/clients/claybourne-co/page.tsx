@@ -13,7 +13,7 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
   { key: 'qr_code_destination', label: 'QR Code Destination' },
   { key: 'loyalty_signups', label: 'Loyalty Signups' },
   { key: 'estimated_units_sold', label: 'Estimated Units Sold' },
-  { key: 'top_performing_flavor', label: 'Top Performing SKU' },
+  { key: 'top_performing_flavor', label: 'Top Performing Category' },
   { key: 'education_topics_covered', label: 'Education Topics Covered', long: true },
   { key: 'top_patient_concerns', label: 'Top Patient/Customer Concerns', long: true },
   { key: 'consumer_objections', label: 'Questions & Concerns Raised', long: true },
