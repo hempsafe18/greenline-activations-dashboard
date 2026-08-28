@@ -9,6 +9,7 @@ const CLIENT_COMPANY: Record<string, string> = {
   GROW:            'Grow',
   GROOVEWAGON:     'Groovewagon',
   WILLIES_REMEDY:  "Willie's Remedy",
+  CLAYBOURNE_CO:   'Claybourne Co.',
 };
 
 const RECAP_BRAND_NAMES: Record<string, string[]> = {
@@ -19,6 +20,7 @@ const RECAP_BRAND_NAMES: Record<string, string[]> = {
   GROW:            ['GROW', 'Grow', 'Grow Cannabis'],
   GROOVEWAGON:     ['Groovewagon', 'GROOVEWAGON', 'groovewagon'],
   WILLIES_REMEDY:  ["Willie's Remedy", 'Willies Remedy', 'WILLIES REMEDY'],
+  CLAYBOURNE_CO:   ['Claybourne Co.', 'Claybourne', 'CLAYBOURNE'],
 };
 
 export async function GET(req: Request) {

@@ -9,6 +9,7 @@ const RECAP_BRAND_NAMES: Record<string, string[]> = {
   'GROW':          ['GROW', 'Grow Cannabis', 'growcannabis'],
   'GROOVEWAGON':   ['Groovewagon', 'GROOVEWAGON', 'groovewagon'],
   'WILLIES_REMEDY':["Willie's Remedy", 'Willies Remedy', 'WILLIES REMEDY'],
+  'CLAYBOURNE_CO': ['Claybourne Co.', 'Claybourne', 'CLAYBOURNE'],
 };
 
 // Keywords used to match clients.company_name for the events table join
@@ -19,6 +20,7 @@ const CLIENT_KEYWORDS: Record<string, string[]> = {
   'GROW':          ['grow'],
   'GROOVEWAGON':   ['groovewagon', 'Groovewagon'],
   'WILLIES_REMEDY':["willie", 'willies'],
+  'CLAYBOURNE_CO': ['claybourne'],
 };
 
 export async function GET(req: Request) {

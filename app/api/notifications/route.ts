@@ -11,6 +11,7 @@ function clientIdFromEmail(email: string): string | null {
   if (email.endsWith('@growcannabis.group')) return 'GROW';
   if (email.endsWith('@workingrelief.com')) return 'GROOVEWAGON';
   if (email.endsWith('@drinkwillies.com')) return 'WILLIES_REMEDY';
+  if (email.endsWith('@claybourneco.com')) return 'CLAYBOURNE_CO';
   if (email.endsWith('@plift.com')) return 'PLIFT';
   if (email.endsWith('@greenlineactivations.com')) return null; // admin: allow any client
   return null;

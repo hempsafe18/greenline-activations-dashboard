@@ -21,6 +21,7 @@ const CLIENT_BRAND_CODE: Record<string, string> = {
   "Grow": "GROW",
   "Groovewagon": "GROOVEWAGON",
   "Willie's Remedy": "WILLIES_REMEDY",
+  "Claybourne Co.": "CLAYBOURNE_CO",
 };
 
 // Matches the app/clients/<slug> routing in greenline-activations-dashboard, and the
@@ -32,6 +33,7 @@ const CLIENT_ROUTE_SLUG: Record<string, string> = {
   "Grow": "grow",
   "Groovewagon": "groovewagon",
   "Willie's Remedy": "willies-remedy",
+  "Claybourne Co.": "claybourne-co",
 };
 
 const DASHBOARD_ORIGIN = "https://dashboard.greenlineactivations.com";
