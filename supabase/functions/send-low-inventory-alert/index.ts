@@ -32,6 +32,8 @@ const CLIENT_ROUTE_SLUG: Record<string, string> = {
   "Grow": "grow",
   "Groovewagon": "groovewagon",
   "Willie's Remedy": "willies-remedy",
+  // Claybourne Co. has no shipment/inventory concept (educational activation client,
+  // no physical sample stock to alert on), so it's intentionally absent from both maps above.
 };
 
 const DASHBOARD_ORIGIN = "https://dashboard.greenlineactivations.com";

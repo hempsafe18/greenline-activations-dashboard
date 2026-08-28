@@ -15,6 +15,9 @@ const CLIENT_COMPANY: Record<string, string> = {
   WILLIES_REMEDY:  "Willie's Remedy",
 };
 
+// Claybourne Co. deliberately has no entry above or in clientIdFromEmail below — it's an
+// educational/promo activation client with no physical sample inventory to ship or track,
+// so this endpoint (and the low-inventory-alert Edge Function) never applies to it.
 function clientIdFromEmail(email: string): string | null {
   if (email.endsWith('@3chi.com')) return '3CHI';
   if (email.endsWith('@drinkamigos.com')) return 'AMIGOS';

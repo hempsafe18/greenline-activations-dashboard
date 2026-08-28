@@ -41,6 +41,8 @@ export default async function HomePage() {
         redirect("/clients/groovewagon");
       } else if (email.endsWith("@drinkwillies.com")) {
         redirect("/clients/willies-remedy");
+      } else if (email.endsWith("@claybourneco.com")) {
+        redirect("/clients/claybourne-co");
       } else if (email.endsWith("@greenlineactivations.com")) {
         // Admin Routing - Change this if you have a specific master dashboard!
         redirect("/dashboard");
