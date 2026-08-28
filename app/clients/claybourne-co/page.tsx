@@ -6,34 +6,26 @@ import Link from "next/link";
 const TARGET_BRAND = "CLAYBOURNE_CO";
 
 const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
-  { key: 'sampling_type', label: 'Sampling Type' },
+  { key: 'sampling_type', label: 'Activation Type' },
   { key: 'products_featured', label: 'Products Featured', long: true },
   { key: 'consumers_approached', label: 'Consumers Approached' },
-  { key: 'consumers_sampled', label: 'Consumers Sampled' },
+  { key: 'consumers_sampled', label: 'QR Code Scans' },
   { key: 'estimated_units_sold', label: 'Estimated Units Sold' },
   { key: 'top_performing_flavor', label: 'Top Performing SKU' },
-  { key: 'consumer_objections', label: 'Consumer Objections', long: true },
+  { key: 'consumer_objections', label: 'Questions & Concerns Raised', long: true },
   { key: 'product_in_stock', label: 'Product In Stock' },
   { key: 'shelf_placement', label: 'Shelf Placement' },
   { key: 'units_start', label: 'Units at Start' },
   { key: 'units_end', label: 'Units at End' },
-  { key: 'units_start_key_lime', label: 'Key Lime - Units Start' },
-  { key: 'units_end_key_lime', label: 'Key Lime - Units End' },
-  { key: 'units_start_cherry_limeade', label: 'Cherry Limeade - Units Start' },
-  { key: 'units_end_cherry_limeade', label: 'Cherry Limeade - Units End' },
-  { key: 'units_start_watermelon_mojito', label: 'Watermelon Mojito - Units Start' },
-  { key: 'units_end_watermelon_mojito', label: 'Watermelon Mojito - Units End' },
   { key: 'price_displayed', label: 'Price Displayed' },
-  { key: 'price_10mg_4pk', label: 'Price (10mg 4pk)' },
-  { key: 'single_cans_offered', label: 'Single Cans Offered' },
   { key: 'promo_signage_present', label: 'Promo Signage' },
   { key: 'reorder_needed', label: 'Reorder Needed' },
   { key: 'reorder_flagged', label: 'Reorder Flagged' },
-  { key: 'competitor_sampling', label: 'Competitor Sampling' },
+  { key: 'competitor_sampling', label: 'Competitor Brand Activity' },
   { key: 'competitor_details', label: 'Competitor Details', long: true },
   { key: 'spoke_with_manager', label: 'Spoke with Manager' },
   { key: 'manager_sentiment', label: 'Manager Sentiment' },
-  { key: 'educated_staff', label: 'Educated Staff' },
+  { key: 'educated_staff', label: 'Educated Budtenders' },
   { key: 'future_activations_interest', label: 'Future Activations Interest' },
   { key: 'manager_notes', label: 'Manager Notes', long: true },
   { key: 'issues_occurred', label: 'Issues Occurred' },
@@ -70,10 +62,10 @@ export default function UnifiedDashboard() {
   const [selectedRecap, setSelectedRecap] = useState<any>(null);
 
   const [formData, setFormData] = useState({
-    storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "", market: "", brand: "", samplingType: "", productPurchase: "", products: ""
+    storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "", market: "", brand: "", samplingType: "", products: ""
   });
 
-  const [dropdownOptions, setDropdownOptions] = useState({ market: [], brand: [], samplingType: [], productPurchase: [], products: [] });
+  const [dropdownOptions, setDropdownOptions] = useState({ market: [], brand: [], samplingType: [], products: [] });
 
   const [metrics, setMetrics] = useState({
     sampled: 0, sold: 0, activations: 0, conversion: 0,
@@ -216,7 +208,7 @@ export default function UnifiedDashboard() {
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, client: TARGET_BRAND, requestType: "New Activation Request" }) });
-      if (response.ok) { setUploadMessage("✅ Request submitted successfully. The team has been notified."); setShowSuccess(true); setFormData({ storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "", market: "", brand: "", samplingType: "", productPurchase: "", products: "" }); }
+      if (response.ok) { setUploadMessage("✅ Request submitted successfully. The team has been notified."); setShowSuccess(true); setFormData({ storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "", market: "", brand: "", samplingType: "", products: "" }); }
       else { setUploadMessage("❌ Failed to send request. Please try again."); setShowSuccess(true); }
     } catch (error) { setUploadMessage("❌ Network error."); setShowSuccess(true); }
     setIsSubmitting(false); setTimeout(() => setShowSuccess(false), 5000);
@@ -545,7 +537,7 @@ export default function UnifiedDashboard() {
 
         <div className={`section ${activeSection==='dashboard'?'active':''}`}>
           <div className="stat-grid">
-            <div className="stat-card"><p className="stat-label">Consumers Sampled</p><p className="stat-value">{metrics.sampled}</p></div>
+            <div className="stat-card"><p className="stat-label">QR Code Scans</p><p className="stat-value">{metrics.sampled}</p></div>
             <div className="stat-card"><p className="stat-label">Total Purchases</p><p className="stat-value green">{metrics.sold}</p></div>
             <div className="stat-card"><p className="stat-label">Conversion Rate</p><p className="stat-value">{metrics.conversion}%</p></div>
             <div className="stat-card"><p className="stat-label">Total Activations</p><p className="stat-value">{metrics.activations}</p></div>
@@ -684,8 +676,7 @@ export default function UnifiedDashboard() {
               <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="123 Main St" /></div>
               <div className="form-group"><label className="form-label">Preferred Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" /></div>
               <div className="form-group"><label className="form-label">Time (From - To)</label><div style={{display:'flex',gap:'8px',alignItems:'center'}}><input type="time" name="startTime" value={formData.startTime} onChange={handleInputChange} className="form-input" style={{flex:1}} /><span>-</span><input type="time" name="endTime" value={formData.endTime} onChange={handleInputChange} className="form-input" style={{flex:1}} /></div></div>
-              <div className="form-group"><label className="form-label">Sampling Type</label><select name="samplingType" value={formData.samplingType} onChange={handleInputChange} className="form-input"><option value="">Select Sampling Type</option>{dropdownOptions.samplingType.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-              <div className="form-group"><label className="form-label">Product Purchase Required</label><select name="productPurchase" value={formData.productPurchase} onChange={handleInputChange} className="form-input"><option value="">Select Option</option>{dropdownOptions.productPurchase.length > 0 ? dropdownOptions.productPurchase.map(p => <option key={p} value={p}>{p}</option>) : (<><option value="Yes">Yes</option><option value="No">No</option></>)}</select></div>
+              <div className="form-group"><label className="form-label">Activation Type</label><select name="samplingType" value={formData.samplingType} onChange={handleInputChange} className="form-input"><option value="">Select Activation Type</option>{dropdownOptions.samplingType.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
               <div className="form-group full"><label className="form-label">Products</label><select name="products" value={formData.products} onChange={handleInputChange} className="form-input"><option value="">Select Products</option>{dropdownOptions.products.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
               <div className="form-group full"><label className="form-label">Notes</label><textarea name="notes" value={formData.notes} onChange={handleInputChange} className="form-input form-textarea" /></div>
             </div>
