@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
 
-type Photo = { thumb: string; full: string };
+type Photo = { thumb: string; full: string; uploadedAt: string };
 
 type PhotoGroup = {
   key: string;
@@ -91,8 +91,9 @@ export async function GET(req: Request) {
   // Read both bases and merge so every client shows all of its photos.
   const baseFolders = [storageFolder, `brand-images/${storageFolder}`];
 
-  // Accumulate storage paths (with byte size) per category across both bases.
-  const categoryPaths: Record<string, { path: string; size: number }[]> = {};
+  // Accumulate storage paths (with byte size, content etag, and upload time) per
+  // category across both bases.
+  const categoryPaths: Record<string, { path: string; size: number; etag: string; createdAt: string }[]> = {};
 
   for (const base of baseFolders) {
     const { data: items, error } = await supabase.storage
@@ -117,10 +118,15 @@ export async function GET(req: Request) {
           const size = (f.metadata as Record<string, unknown> | null)?.['size'] as number | undefined;
           return size && size > 0 && !f.name.startsWith('.');
         })
-        .map((f: StorageItem) => ({
-          path: `${base}/${folder.name}/${f.name}`,
-          size: ((f.metadata as Record<string, unknown> | null)?.['size'] as number) ?? 0,
-        }));
+        .map((f: StorageItem) => {
+          const metadata = f.metadata as Record<string, unknown> | null;
+          return {
+            path: `${base}/${folder.name}/${f.name}`,
+            size: (metadata?.['size'] as number) ?? 0,
+            etag: (metadata?.['eTag'] as string) ?? '',
+            createdAt: (f as unknown as { created_at?: string }).created_at ?? '',
+          };
+        });
 
       if (filePaths.length === 0) continue;
 
@@ -131,9 +137,26 @@ export async function GET(req: Request) {
   const groups: PhotoGroup[] = [];
 
   for (const [category, filePaths] of Object.entries(categoryPaths)) {
-    const photos: Photo[] = filePaths.map(({ path, size }) => ({
+    // De-dupe exact-duplicate uploads (e.g. the same photo present under both the
+    // legacy and brand-images storage conventions) by content identity — an
+    // object's etag is a hash of its bytes, so two entries sharing one mean the
+    // same image regardless of filename/path. Fall back to the path itself for
+    // the rare file with no etag.
+    const seen = new Set<string>();
+    const deduped = filePaths.filter(({ path, size, etag }) => {
+      const key = etag ? `${etag}:${size}` : path;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Newest upload first by default; the client can flip this to ascending.
+    deduped.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+    const photos: Photo[] = deduped.map(({ path, size, createdAt }) => ({
       thumb: deliver(path, THUMB_TX, size),
       full: deliver(path, FULL_TX, size),
+      uploadedAt: createdAt,
     }));
 
     if (photos.length === 0) continue;
