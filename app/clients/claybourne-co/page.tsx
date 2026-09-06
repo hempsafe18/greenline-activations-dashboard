@@ -69,6 +69,109 @@ export default function UnifiedDashboard() {
   const [changeModal, setChangeModal] = useState({ isOpen: false, type: "", event: null as any, notes: "" });
   const [selectedRecap, setSelectedRecap] = useState<any>(null);
 
+  // --- SHIPMENT ENTRY (log table/booth materials sent directly to an ambassador) ---
+  // Claybourne Co. has no product-SKU inventory to ship or track (see /api/materials-shipments),
+  // so unlike Amigos' shipment tab this only ever logs materials, never flavors/cases.
+  const MATERIAL_OPTIONS = [
+    { key: 'tablecloth', label: 'Table Cloth' },
+    { key: 'standee', label: 'Standee / Banner' },
+    { key: 'qr_signage', label: 'QR Code Signage' },
+    { key: 'literature', label: 'Educational Literature' },
+    { key: 'merch', label: 'Merch' },
+  ];
+
+  const [shipmentData, setShipmentData] = useState<{
+    ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
+    events: { id: string; title: string; event_date: string; city: string | null }[];
+    recentShipments: any[];
+  }>({ ambassadors: [], events: [], recentShipments: [] });
+  const [shipmentLoading, setShipmentLoading] = useState(false);
+  const [shipmentForm, setShipmentForm] = useState({
+    user_id: "", event_id: "", tracking_number: "",
+    shipped_at: new Date().toISOString().split("T")[0], notes: "",
+  });
+  const [materialQty, setMaterialQty] = useState<Record<string, string>>({});
+  const [ambassadorQuery, setAmbassadorQuery] = useState("");
+  const [showAmbassadorList, setShowAmbassadorList] = useState(false);
+  const [shipmentSubmitting, setShipmentSubmitting] = useState(false);
+  const [shipmentError, setShipmentError] = useState("");
+  const [shipmentResult, setShipmentResult] = useState<{ ambassadorName: string; materials: { item: string; quantity: number }[] } | null>(null);
+
+  const fetchShipmentData = async () => {
+    setShipmentLoading(true);
+    try {
+      const res = await fetch(`/api/materials-shipments?client=${encodeURIComponent(TARGET_BRAND)}`);
+      if (res.ok) setShipmentData(await res.json());
+    } catch (e) { console.error('Failed to fetch shipment data', e); }
+    setShipmentLoading(false);
+  };
+
+  useEffect(() => { if (activeSection === 'shipment') fetchShipmentData(); }, [activeSection]);
+
+  // Deep link support so a "Log a Shipment" email can jump straight to this tab, e.g.
+  // /clients/claybourne-co?section=shipment
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section) setActiveSection(section);
+  }, []);
+
+  const filteredAmbassadors = ambassadorQuery.trim()
+    ? shipmentData.ambassadors.filter(a => a.full_name.toLowerCase().includes(ambassadorQuery.trim().toLowerCase()))
+    : shipmentData.ambassadors;
+
+  const selectAmbassador = (a: { id: string; full_name: string }) => {
+    setShipmentForm(prev => ({ ...prev, user_id: a.id }));
+    setAmbassadorQuery(a.full_name);
+    setShowAmbassadorList(false);
+  };
+
+  const selectedAmbassador = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id) || null;
+  const selectedAmbassadorAddressLines = selectedAmbassador
+    ? [
+        selectedAmbassador.street_address,
+        selectedAmbassador.address_line_2,
+        [selectedAmbassador.city, selectedAmbassador.state, selectedAmbassador.zip_code].filter(Boolean).join(', '),
+      ].filter(Boolean) as string[]
+    : [];
+
+  const submitShipment = async () => {
+    setShipmentError("");
+    const materials = MATERIAL_OPTIONS
+      .filter(m => Number(materialQty[m.key]) > 0)
+      .map(m => ({ item: m.key, quantity: Number(materialQty[m.key]) }));
+
+    if (!shipmentForm.user_id || !shipmentForm.tracking_number || !shipmentForm.shipped_at) {
+      setShipmentError("Please fill out recipient, tracking number, and ship date.");
+      return;
+    }
+    if (materials.length === 0) {
+      setShipmentError("Add at least one material with a quantity.");
+      return;
+    }
+    setShipmentSubmitting(true);
+    try {
+      const res = await fetch('/api/materials-shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...shipmentForm, event_id: shipmentForm.event_id || null, materials, client: TARGET_BRAND }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const ambassadorName = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id)?.full_name || 'Ambassador';
+        setShipmentResult({ ambassadorName, materials });
+        setShipmentForm({ user_id: "", event_id: "", tracking_number: "", shipped_at: new Date().toISOString().split("T")[0], notes: "" });
+        setMaterialQty({});
+        setAmbassadorQuery("");
+        fetchShipmentData();
+      } else {
+        setShipmentError(data.error || "Failed to log shipment. Please try again.");
+      }
+    } catch (e) {
+      setShipmentError("Network error. Please try again.");
+    }
+    setShipmentSubmitting(false);
+  };
+
   const [formData, setFormData] = useState({
     storeName: "", address: "", date: "", startTime: "", endTime: "", notes: "", market: "", brand: "", samplingType: "", products: ""
   });
@@ -349,6 +452,38 @@ export default function UnifiedDashboard() {
         .form-textarea { resize: vertical; min-height: 80px; }
         .btn-submit { font-family: 'Cabinet Grotesk', sans-serif; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--bone); border: 2px solid var(--ink); padding: 12px 28px; cursor: pointer; box-shadow: var(--shadow); text-transform: uppercase; }
         .success-msg { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; }
+        .error-msg { background: var(--street-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; }
+
+        .combobox { position: relative; min-width: 0; }
+        .combobox-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50; background: var(--white); border: 2px solid var(--ink); box-shadow: var(--shadow); max-height: 220px; overflow-y: auto; }
+        .combobox-option { padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 1px solid rgba(10,10,10,0.1); }
+        .combobox-option:last-child { border-bottom: none; }
+        .combobox-option:hover, .combobox-option.active { background: var(--canopy-pale); }
+        .combobox-option-sub { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+        .combobox-empty { padding: 10px 14px; font-size: 12px; color: var(--muted); }
+        .address-preview { margin-top: 8px; padding: 10px 14px; background: var(--canopy-pale); border: 2px solid var(--ink); }
+        .address-preview-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px 0; }
+        .address-preview-line { font-size: 13px; font-weight: 600; color: var(--ink); margin: 0; line-height: 1.4; }
+        .address-preview-missing { font-size: 12px; font-weight: 600; color: var(--ink); }
+        .materials-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; min-width: 0; }
+        .material-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 2px solid var(--ink); padding: 10px 12px; background: var(--white); min-width: 0; }
+        .material-item.checked { background: var(--canopy-pale); }
+        .material-item-check { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .material-item-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
+        .material-item-qty { width: 64px; flex-shrink: 0; padding: 6px 8px !important; text-align: center; }
+        .shipment-confirm-card { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 18px 20px; margin-top: 16px; box-shadow: var(--shadow); }
+        .shipment-confirm-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0 0 6px 0; }
+        .shipment-table-wrap { overflow-x: auto; }
+        .shipment-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        .shipment-table th { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--ink); }
+        .shipment-table td { font-size: 12px; font-weight: 500; padding: 8px 10px; border-bottom: 1px solid rgba(10,10,10,0.12); }
+        .shipment-cards { display: none; }
+        .shipment-card { background: var(--white); border: 2px solid var(--ink); padding: 12px 14px; margin-bottom: 10px; box-shadow: 3px 3px 0 0 var(--ink); }
+        .shipment-card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+        .shipment-card-ambassador { font-family: 'Cabinet Grotesk', sans-serif; font-size: 13px; font-weight: 800; color: var(--ink); }
+        .shipment-card-date { font-size: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+        .shipment-card-materials { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+        .shipment-card-tracking { font-size: 10px; font-weight: 500; color: var(--muted); }
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(10,10,10,0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
         .modal-content { background: var(--bone); padding: 24px; border: 2px solid var(--ink); box-shadow: var(--shadow); width: 100%; max-width: 400px; }
         .modal-content.large { max-width: 700px; max-height: 85vh; overflow-y: auto; }
@@ -391,7 +526,7 @@ export default function UnifiedDashboard() {
         @media (max-width: 900px) {
           .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; border-top: 2px solid rgba(250,240,234,0.2); border-right: none; }
           .sidebar-icon, .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
-          .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; width: 25%; margin-bottom: 0; border: none; }
+          .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; flex: 1 1 0; min-width: 0; margin-bottom: 0; border: none; }
           .nav-item .icon { font-size: 18px; width: auto; text-align: center; margin: 0 auto; }
           .main { margin-left: 0; padding: 18px; padding-bottom: 90px; padding-top: 20px; }
           .topbar { flex-direction: column; align-items: flex-start; gap: 14px; }
@@ -409,6 +544,9 @@ export default function UnifiedDashboard() {
           .photo-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 5px; }
           .modal-content { max-width: 90vw; }
           .recap-grid { grid-template-columns: 1fr; }
+          .materials-grid { grid-template-columns: 1fr; }
+          .shipment-table-wrap { display: none; }
+          .shipment-cards { display: block; }
         }
 
         /* ── Mobile (600px and below) ── */
@@ -532,6 +670,7 @@ export default function UnifiedDashboard() {
         <a className={`nav-item ${activeSection==='dashboard'?'active':''}`} onClick={()=>setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
         <a className={`nav-item ${activeSection==='calendar'?'active':''}`} onClick={()=>setActiveSection('calendar')}><span className="icon">📅</span> Calendar</a>
         <a className={`nav-item ${activeSection==='intel'?'active':''}`} onClick={()=>setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
+        <a className={`nav-item ${activeSection==='shipment'?'active':''}`} onClick={()=>setActiveSection('shipment')}><span className="icon">📦</span> Log Shipment</a>
         <a className={`nav-item ${activeSection==='request'?'active':''}`} onClick={()=>setActiveSection('request')}><span className="icon">➕</span> Request</a>
         <a className={`nav-item ${activeSection==='notifications'?'active':''}`} onClick={()=>setActiveSection('notifications')}>
           <span className="icon">🔔</span> Notifications
@@ -665,6 +804,185 @@ export default function UnifiedDashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className={`section ${activeSection==='shipment'?'active':''}`} data-html2canvas-ignore="true">
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Log a Materials Shipment</p>
+                <p className="card-sub">Record table/booth setup materials shipped directly to an ambassador ahead of an activation.</p>
+              </div>
+            </div>
+
+            {shipmentLoading && <p style={{fontSize: '12px', color: 'var(--muted)'}}>Loading ambassadors…</p>}
+
+            <div className="form-grid">
+              <div className="form-group combobox full">
+                <label className="form-label">Recipient (Ambassador)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search by name…"
+                  value={ambassadorQuery}
+                  onFocus={() => setShowAmbassadorList(true)}
+                  onChange={(e) => { setAmbassadorQuery(e.target.value); setShipmentForm(prev => ({ ...prev, user_id: "" })); setShowAmbassadorList(true); }}
+                  onBlur={() => setTimeout(() => setShowAmbassadorList(false), 150)}
+                />
+                {showAmbassadorList && (
+                  <div className="combobox-list">
+                    {filteredAmbassadors.length === 0 && <div className="combobox-empty">No ambassadors confirmed on your events yet.</div>}
+                    {filteredAmbassadors.map(a => (
+                      <div key={a.id} className="combobox-option" onMouseDown={() => selectAmbassador(a)}>
+                        {a.full_name}
+                        {(a.city || a.state) && <div className="combobox-option-sub">{[a.city, a.state].filter(Boolean).join(', ')}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedAmbassador && (
+                  selectedAmbassadorAddressLines.length > 0 ? (
+                    <div className="address-preview">
+                      <p className="address-preview-label">Shipping Address on File</p>
+                      {selectedAmbassadorAddressLines.map((line, i) => <p key={i} className="address-preview-line">{line}</p>)}
+                    </div>
+                  ) : (
+                    <div className="address-preview address-preview-missing">
+                      No shipping address on file for {selectedAmbassador.full_name} — confirm with them before shipping.
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Materials Included</label>
+                <div className="materials-grid">
+                  {MATERIAL_OPTIONS.map(m => {
+                    const checked = Number(materialQty[m.key]) > 0;
+                    return (
+                      <div className={`material-item ${checked ? 'checked' : ''}`} key={m.key}>
+                        <label className="material-item-check">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => setMaterialQty(prev => ({ ...prev, [m.key]: e.target.checked ? (prev[m.key] || '1') : '' }))}
+                          />
+                          {m.label}
+                        </label>
+                        {checked && (
+                          <input
+                            type="number"
+                            min="1"
+                            className="form-input material-item-qty"
+                            value={materialQty[m.key] ?? '1'}
+                            onChange={(e) => setMaterialQty(prev => ({ ...prev, [m.key]: e.target.value }))}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Tracking Number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 1Z999AA10123456784"
+                  value={shipmentForm.tracking_number}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, tracking_number: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Date Shipped</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={shipmentForm.shipped_at}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, shipped_at: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Activation Date (Optional)</label>
+                <select
+                  className="form-input"
+                  value={shipmentForm.event_id}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, event_id: e.target.value }))}
+                >
+                  <option value="">Not tied to a specific date</option>
+                  {shipmentData.events.map(ev => (
+                    <option key={ev.id} value={ev.id}>{ev.title} — {ev.event_date}{ev.city ? ` (${ev.city})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Notes (Optional)</label>
+                <textarea
+                  className="form-input form-textarea"
+                  placeholder="Anything the team should know about this shipment…"
+                  value={shipmentForm.notes}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <button className="btn-submit" onClick={submitShipment} disabled={shipmentSubmitting}>
+              {shipmentSubmitting ? "Logging Shipment..." : "Log Shipment"}
+            </button>
+            {shipmentError && <div className="error-msg">{shipmentError}</div>}
+
+            {shipmentResult && (
+              <div className="shipment-confirm-card">
+                <p className="shipment-confirm-title">✅ Shipment logged for {shipmentResult.ambassadorName}</p>
+                <p style={{fontSize: '12px', margin: 0}}>
+                  Included: {shipmentResult.materials.map(m => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{marginTop: '14px'}}>
+            <div className="card-header"><div><p className="card-title">Recent Shipments</p><p className="card-sub">Last 50 shipments logged to your ambassadors</p></div></div>
+            {shipmentData.recentShipments.length === 0 ? (
+              <p style={{fontSize: '12px', color: 'var(--muted)'}}>No shipments logged yet.</p>
+            ) : (
+              <>
+                <div className="shipment-table-wrap">
+                  <table className="shipment-table">
+                    <thead>
+                      <tr><th>Date</th><th>Ambassador</th><th>Materials</th><th>Tracking #</th></tr>
+                    </thead>
+                    <tbody>
+                      {shipmentData.recentShipments.map((s: any) => (
+                        <tr key={s.id}>
+                          <td>{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                          <td>{s.ambassador_name}</td>
+                          <td>{s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</td>
+                          <td>{s.tracking_number}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="shipment-cards">
+                  {shipmentData.recentShipments.map((s: any) => (
+                    <div className="shipment-card" key={s.id}>
+                      <div className="shipment-card-top">
+                        <span className="shipment-card-ambassador">{s.ambassador_name}</span>
+                        <span className="shipment-card-date">{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div className="shipment-card-materials">{s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</div>
+                      <div className="shipment-card-tracking">Tracking: {s.tracking_number}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
