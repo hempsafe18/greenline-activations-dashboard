@@ -56,10 +56,12 @@ export default function UnifiedDashboard() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [eventPhotos, setEventPhotos] = useState<{key:string; title:string; date:string; photos:{thumb:string;full:string}[]}[]>([]);
+  const [eventPhotos, setEventPhotos] = useState<{key:string; title:string; date:string; photos:{thumb:string;full:string;uploadedAt:string}[]}[]>([]);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<string|null>(null);
   const [openEvents, setOpenEvents] = useState<Set<string>>(new Set());
+  const [photoSort, setPhotoSort] = useState<'newest'|'oldest'>('newest');
+  const [photoFilter, setPhotoFilter] = useState<string>('all');
 
   const [isExportingDashboard, setIsExportingDashboard] = useState(false);
   const [isExportingRecap, setIsExportingRecap] = useState(false);
@@ -236,6 +238,16 @@ export default function UnifiedDashboard() {
   };
 
   const maxMarketValue = Math.max(...metrics.markets.map(m => m.value), 1);
+
+  const sortedEventPhotos = eventPhotos
+    .filter(ev => photoFilter === 'all' || ev.key === photoFilter)
+    .map(ev => ({
+      ...ev,
+      photos: [...ev.photos].sort((a, b) => {
+        const cmp = (a.uploadedAt || '').localeCompare(b.uploadedAt || '');
+        return photoSort === 'newest' ? -cmp : cmp;
+      }),
+    }));
 
   const renderRecapValue = (val: string) => {
     const urls = val.split(/[\n,]+/).map(s => s.trim()).filter(s => s.startsWith('http'));
@@ -610,11 +622,27 @@ export default function UnifiedDashboard() {
           </div>
 
           <div className="card" style={{marginTop: '14px'}}>
-            <div className="card-header"><div><p className="card-title">Event Photos</p><p className="card-sub">Recap photos organized by activation</p></div><button className="btn-action-primary" onClick={() => fetchPhotos(true)} disabled={photoLoading}>↻ Sync Photos</button></div>
+            <div className="card-header">
+              <div><p className="card-title">Event Photos</p><p className="card-sub">Recap photos organized by activation</p></div>
+              <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>
+                {eventPhotos.length > 1 && (
+                  <select className="form-input" style={{width: 'auto', padding: '6px 10px', fontSize: '11px'}} value={photoFilter} onChange={e => setPhotoFilter(e.target.value)}>
+                    <option value="all">All Events</option>
+                    {eventPhotos.map(ev => <option key={ev.key} value={ev.key}>{ev.title}</option>)}
+                  </select>
+                )}
+                {eventPhotos.length > 0 && (
+                  <button className="btn-action-primary" onClick={() => setPhotoSort(s => s === 'newest' ? 'oldest' : 'newest')}>
+                    {photoSort === 'newest' ? '↓ Newest First' : '↑ Oldest First'}
+                  </button>
+                )}
+                <button className="btn-action-primary" onClick={() => fetchPhotos(true)} disabled={photoLoading}>↻ Sync Photos</button>
+              </div>
+            </div>
             {photoLoading && <p className="photo-empty">Loading photos…</p>}
             {!photoLoading && eventPhotos.length === 0 && <p className="photo-empty">No event photos uploaded yet.</p>}
             <div className="photo-section">
-              {eventPhotos.map(ev => (
+              {sortedEventPhotos.map(ev => (
                 <div className="photo-event" key={ev.key}>
                   <div className="photo-event-header" onClick={() => setOpenEvents(prev => {
                     const next = new Set(prev);
