@@ -4,7 +4,11 @@ import { supabase } from '../../../lib/supabase';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { storeName, address, date, startTime, endTime, client, notes, requestType = "New Activation Request" } = body;
+    const {
+      storeName, address, date, startTime, endTime, client, notes,
+      requestType = "New Activation Request",
+      market, brand, samplingType, productPurchase, products,
+    } = body;
 
     const notifSubjectMap: Record<string, string> = {
       "New Activation Request": `New Event Request: ${storeName}`,
@@ -24,7 +28,8 @@ export async function POST(req: Request) {
         subject: notifSubjectMap[requestType] ?? `${requestType}: ${storeName}`,
         body: notifBodyMap[requestType] ?? `Type: ${requestType}\nClient: ${client}\nStore: ${storeName}\nDate: ${date}`,
         read: false,
-        metadata: { storeName, address, date, startTime, endTime, requestType },
+        status: 'pending',
+        metadata: { storeName, address, date, startTime, endTime, requestType, market, brand, samplingType, productPurchase, products, notes },
       });
     }
 

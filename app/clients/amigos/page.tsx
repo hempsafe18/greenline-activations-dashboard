@@ -86,6 +86,10 @@ export default function UnifiedDashboard() {
     products: [] as string[]
   });
 
+  const [recentLocations, setRecentLocations] = useState<{storeName:string; address:string; city:string; startTime:string; endTime:string; lastDate:string}[]>([]);
+  const [quickAdd, setQuickAdd] = useState<Record<string, {date:string; startTime:string; endTime:string}>>({});
+  const [quickAddSubmitting, setQuickAddSubmitting] = useState<string | null>(null);
+
   const [metrics, setMetrics] = useState({
     sampled: 0, sold: 0, activations: 0, conversion: 0,
     markets: [] as any[], upcoming: [] as any[], previous: [] as any[], intel: [] as any[]
@@ -297,6 +301,16 @@ export default function UnifiedDashboard() {
     fetchDropdownData();
   }, []);
 
+  useEffect(() => {
+    const fetchRecentLocations = async () => {
+      try {
+        const res = await fetch(`/api/event-templates?client=${encodeURIComponent(TARGET_BRAND)}`);
+        if (res.ok) { const data = await res.json(); setRecentLocations(data.locations || []); }
+      } catch (error) { console.error('Failed to fetch recent locations', error); }
+    };
+    fetchRecentLocations();
+  }, []);
+
   const fetchPhotos = async (force = false) => {
     if (photoLoading || (!force && eventPhotos.length > 0)) return;
     if (force) setEventPhotos([]);
@@ -407,6 +421,32 @@ const downloadRecapReport = async () => {
       }
     } catch (error) { setUploadMessage("❌ Network error."); setShowSuccess(true); }
     setIsSubmitting(false); setTimeout(() => setShowSuccess(false), 5000);
+  };
+
+  const submitQuickRequest = async (loc: {storeName:string; address:string; city:string; startTime:string; endTime:string}) => {
+    const q = quickAdd[loc.storeName] ?? { date: '', startTime: loc.startTime, endTime: loc.endTime };
+    if (!q.date) { alert("Pick a date for this location first."); return; }
+    setQuickAddSubmitting(loc.storeName);
+    try {
+      const response = await fetch('/api/request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client: TARGET_BRAND, requestType: "New Activation Request",
+          storeName: loc.storeName, address: loc.address, market: loc.city,
+          date: q.date, startTime: q.startTime || loc.startTime, endTime: q.endTime || loc.endTime,
+          notes: "Requested via Quick Add (repeat location).",
+        }),
+      });
+      if (response.ok) {
+        setUploadMessage(`✅ Request submitted for ${loc.storeName}. The team has been notified.`);
+        setShowSuccess(true);
+        setQuickAdd(prev => ({ ...prev, [loc.storeName]: { date: '', startTime: loc.startTime, endTime: loc.endTime } }));
+      } else {
+        setUploadMessage("❌ Failed to send request. Please try again.");
+        setShowSuccess(true);
+      }
+    } catch { setUploadMessage("❌ Network error."); setShowSuccess(true); }
+    setQuickAddSubmitting(null); setTimeout(() => setShowSuccess(false), 5000);
   };
 
   const submitChangeRequest = async () => {
@@ -585,6 +625,17 @@ const downloadRecapReport = async () => {
         .form-input:focus { box-shadow: 3px 3px 0 0 var(--ink); transform: translate(-2px, -2px); }
         .form-input::placeholder { color: rgba(10,10,10,0.35); }
         .form-textarea { resize: vertical; min-height: 80px; }
+        .quick-add-wrap { overflow-x: auto; margin-top: 12px; }
+        .quick-add-table { width: 100%; border-collapse: collapse; }
+        .quick-add-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
+        .quick-add-table td { padding: 10px; border-bottom: 1px solid rgba(10,10,10,0.08); vertical-align: middle; font-size: 12px; }
+        .quick-add-table tr:last-child td { border-bottom: none; }
+        .quick-add-store { font-weight: 700; }
+        .quick-add-address { font-size: 10px; color: var(--muted); margin-top: 2px; }
+        .quick-add-time { display: flex; align-items: center; gap: 6px; }
+        .quick-add-time .form-input { width: 92px; }
+        .quick-add-table .form-input { padding: 6px 8px; font-size: 12px; }
+        .quick-add-btn { padding: 8px 14px !important; font-size: 10px !important; white-space: nowrap; box-shadow: none !important; }
         .time-inputs { display: flex; align-items: center; gap: 10px; }
         .btn-submit { font-family: 'Cabinet Grotesk', sans-serif; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--bone); border: 2px solid var(--ink); padding: 12px 28px; cursor: pointer; box-shadow: var(--shadow); transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.08em; }
         .btn-submit:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
@@ -1131,6 +1182,44 @@ const downloadRecapReport = async () => {
 
         {/* REQUEST TAB */}
         <div className={`section ${activeSection === 'request' ? 'active' : ''}`} data-html2canvas-ignore="true">
+          {recentLocations.length > 0 && (
+            <div className="card" style={{marginBottom:'16px'}}>
+              <p className="card-title">Quick Add</p>
+              <p className="card-sub">Reuse a recent location — just pick a date instead of retyping details</p>
+              <div className="quick-add-wrap">
+                <table className="quick-add-table">
+                  <thead><tr><th>Store</th><th>City</th><th>Date</th><th>Time</th><th></th></tr></thead>
+                  <tbody>
+                    {recentLocations.map(loc => {
+                      const q = quickAdd[loc.storeName] ?? { date: '', startTime: loc.startTime, endTime: loc.endTime };
+                      return (
+                        <tr key={loc.storeName}>
+                          <td>
+                            <div className="quick-add-store">{loc.storeName}</div>
+                            {loc.address && <div className="quick-add-address">{loc.address}</div>}
+                          </td>
+                          <td>{loc.city || '—'}</td>
+                          <td><input type="date" className="form-input" value={q.date} onChange={e=>setQuickAdd(prev=>({...prev,[loc.storeName]:{...q,date:e.target.value}}))} /></td>
+                          <td>
+                            <div className="quick-add-time">
+                              <input type="time" className="form-input" value={q.startTime} onChange={e=>setQuickAdd(prev=>({...prev,[loc.storeName]:{...q,startTime:e.target.value}}))} />
+                              <span>-</span>
+                              <input type="time" className="form-input" value={q.endTime} onChange={e=>setQuickAdd(prev=>({...prev,[loc.storeName]:{...q,endTime:e.target.value}}))} />
+                            </div>
+                          </td>
+                          <td>
+                            <button className="btn-submit quick-add-btn" onClick={()=>submitQuickRequest(loc)} disabled={quickAddSubmitting===loc.storeName}>
+                              {quickAddSubmitting===loc.storeName?'...':'Request'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           <div className="card">
             <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
             <div className="form-grid">

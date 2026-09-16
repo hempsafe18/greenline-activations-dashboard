@@ -53,6 +53,10 @@ export default function AdminDashboard() {
   const [notifySending, setNotifySending] = useState(false);
   const [notifyMsg, setNotifyMsg] = useState("");
 
+  const [eventRequests, setEventRequests] = useState<any[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+
   // Client-side auth guard
   useEffect(() => {
     if (!isLoaded) return;
@@ -100,7 +104,33 @@ export default function AdminDashboard() {
     setIsLoading(false);
   };
 
-  useEffect(() => { if (isLoaded && user) fetchAll(); }, [isLoaded]);
+  const fetchEventRequests = async () => {
+    setRequestsLoading(true);
+    try {
+      const res = await fetch("/api/event-requests");
+      if (res.ok) { const data = await res.json(); setEventRequests(data.requests ?? []); }
+    } catch (e) { console.error("Failed to fetch event requests", e); }
+    setRequestsLoading(false);
+  };
+
+  useEffect(() => { if (isLoaded && user) { fetchAll(); fetchEventRequests(); } }, [isLoaded]);
+
+  const resolveEventRequest = async (id: string, action: "approve" | "decline") => {
+    setResolvingId(id);
+    try {
+      const res = await fetch("/api/event-requests", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEventRequests(prev => prev.filter(r => r.id !== id));
+      } else {
+        alert(`Failed to ${action} request: ${data.error || "Unknown error"}`);
+      }
+    } catch { alert("Network error."); }
+    setResolvingId(null);
+  };
 
   const sendClientNotification = async () => {
     const { type, client, storeName, eventDate, staffName, staffRole, submittedBy, sampled, sold, notes } = notifyForm;
@@ -681,6 +711,88 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: 20 }}>→</span>
                 </Link>
               ))}
+            </div>
+
+            {/* ── Event Requests Panel ── */}
+            <div className="adm-card">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <div>
+                  <p className="adm-card-title">Event Requests</p>
+                  <p className="adm-card-sub">Pending activation requests from client dashboards</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {eventRequests.length > 0 && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "2px solid var(--ink)",
+                      textTransform: "uppercase", letterSpacing: ".06em", background: "var(--street)",
+                    }}>
+                      {eventRequests.length} pending
+                    </span>
+                  )}
+                  <button className="adm-btn-sync" onClick={fetchEventRequests} disabled={requestsLoading}>
+                    {requestsLoading ? "⟳ Loading..." : "↻ Refresh"}
+                  </button>
+                </div>
+              </div>
+
+              {requestsLoading && eventRequests.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 14 }}>Loading requests...</p>
+              ) : eventRequests.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 14 }}>No pending requests. All caught up.</p>
+              ) : (
+                <table className="adm-table" style={{ marginTop: 14 }}>
+                  <thead>
+                    <tr>
+                      <th>Client</th>
+                      <th>Type</th>
+                      <th>Store</th>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Notes</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eventRequests.map(r => {
+                      const m = r.metadata ?? {};
+                      const isNewActivation = m.requestType === "New Activation Request";
+                      return (
+                        <tr key={r.id}>
+                          <td><strong>{r.client_id}</strong></td>
+                          <td>{m.requestType ?? "Request"}</td>
+                          <td>
+                            <div>{m.storeName}</div>
+                            {m.address && <div style={{ fontSize: 10, color: "var(--muted)" }}>{m.address}</div>}
+                          </td>
+                          <td>{m.date}</td>
+                          <td>{m.startTime && m.endTime ? `${m.startTime} - ${m.endTime}` : "—"}</td>
+                          <td style={{ maxWidth: 220 }}>{m.notes || "—"}</td>
+                          <td>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                className="adm-btn-sync"
+                                style={{ background: "var(--canopy)" }}
+                                disabled={resolvingId === r.id}
+                                onClick={() => resolveEventRequest(r.id, "approve")}
+                              >
+                                {resolvingId === r.id ? "..." : isNewActivation ? "Approve" : "Acknowledge"}
+                              </button>
+                              <button
+                                className="adm-btn-sync"
+                                style={{ background: "var(--street)" }}
+                                disabled={resolvingId === r.id}
+                                onClick={() => resolveEventRequest(r.id, "decline")}
+                              >
+                                {resolvingId === r.id ? "..." : "Decline"}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             {/* ── Notify Client Panel ── */}
