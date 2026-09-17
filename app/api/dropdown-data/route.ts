@@ -25,8 +25,15 @@ const RECAP_BRAND_NAMES: Record<string, string[]> = {
 
 // Claybourne Co. tracks product-line categories, not individual strains/SKUs like the
 // beverage clients' flavors — this seeds the Products dropdown before any recap exists.
+// For clients listed here, this is the FULL Products list — recap-derived free text
+// (which is messy, field-rep-entered data) is not merged in.
 const DEFAULT_PRODUCTS: Record<string, string[]> = {
   CLAYBOURNE_CO: ['Gold Cuts', 'Classic Cuts', 'Premium Small Buds', 'Flyers', 'Gassers'],
+  AMIGOS: [
+    'Cherry Limeade 10MG', 'Cherry Limeade 50MG',
+    'Key Lime Margarita 10MG', 'Key Lime Margarita 50MG',
+    'Watermelon Mojito 10MG', 'Watermelon Mojito 50MG',
+  ],
 };
 
 export async function GET(req: Request) {
@@ -63,11 +70,12 @@ export async function GET(req: Request) {
     if (e.city?.trim()) cities.add(e.city.trim());
   }
 
+  const hasFixedCatalog = client in DEFAULT_PRODUCTS;
   const samplingTypes = new Set<string>();
   const products = new Set<string>(DEFAULT_PRODUCTS[client] ?? []);
   for (const r of recapsResult.data ?? []) {
     if (r.sampling_type?.trim()) samplingTypes.add(r.sampling_type.trim());
-    if (r.products_featured?.trim()) {
+    if (!hasFixedCatalog && r.products_featured?.trim()) {
       r.products_featured.split(',').forEach((p: string) => {
         const t = p.trim();
         if (t) products.add(t);
