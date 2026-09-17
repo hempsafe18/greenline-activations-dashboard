@@ -21,6 +21,24 @@ const CLIENT_PAY_RATE: Record<string, number> = {
   CLAYBOURNE_CO: 32,
 };
 
+// Best-effort city extraction for requests submitted without a market selected —
+// the Events portal filters by city, so a null city silently hides the event.
+// Handles "<street>, <city>, ST zip" and "<street city>, ST zip" (no dedicated
+// city segment, e.g. a single-word city run together with the street).
+function parseCityFromAddress(address: string | undefined): string | null {
+  if (!address) return null;
+  const parts = address.split(',').map(s => s.trim()).filter(Boolean);
+  const stateZipIndex = parts.findIndex(p => /^[A-Z]{2}(\s+\d{5})?(\s|$)/.test(p));
+  if (stateZipIndex <= 0) return null;
+
+  const candidate = parts[stateZipIndex - 1];
+  if (!candidate) return null;
+  if (!/^\d/.test(candidate)) return candidate;
+
+  const words = candidate.split(/\s+/);
+  return words[words.length - 1] || null;
+}
+
 async function requireAdmin() {
   const user = await currentUser();
   const email = user?.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress ?? '';
@@ -109,7 +127,7 @@ export async function PATCH(req: Request) {
       start_time: startTime || null,
       end_time: endTime || null,
       status: 'open',
-      city: market || null,
+      city: market || parseCityFromAddress(address) || null,
       client_id: clientRow?.id ?? null,
       brand_name: companyName,
       pay_rate: CLIENT_PAY_RATE[notif.client_id] ?? STANDARD_PAY_RATE,
