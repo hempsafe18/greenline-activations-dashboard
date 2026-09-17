@@ -86,9 +86,7 @@ export default function UnifiedDashboard() {
     products: [] as string[]
   });
 
-  const [recentLocations, setRecentLocations] = useState<{storeName:string; address:string; city:string; startTime:string; endTime:string; lastDate:string}[]>([]);
-  const [quickAdd, setQuickAdd] = useState<Record<string, {date:string; startTime:string; endTime:string}>>({});
-  const [quickAddSubmitting, setQuickAddSubmitting] = useState<string | null>(null);
+  const [independentLocations, setIndependentLocations] = useState<{storeName:string; address:string; city:string}[]>([]);
 
   const [metrics, setMetrics] = useState({
     sampled: 0, sold: 0, activations: 0, conversion: 0,
@@ -302,13 +300,13 @@ export default function UnifiedDashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchRecentLocations = async () => {
+    const fetchIndependentLocations = async () => {
       try {
         const res = await fetch(`/api/event-templates?client=${encodeURIComponent(TARGET_BRAND)}`);
-        if (res.ok) { const data = await res.json(); setRecentLocations(data.locations || []); }
-      } catch (error) { console.error('Failed to fetch recent locations', error); }
+        if (res.ok) { const data = await res.json(); setIndependentLocations(data.locations || []); }
+      } catch (error) { console.error('Failed to fetch independent locations', error); }
     };
-    fetchRecentLocations();
+    fetchIndependentLocations();
   }, []);
 
   const fetchPhotos = async (force = false) => {
@@ -423,32 +421,6 @@ const downloadRecapReport = async () => {
     setIsSubmitting(false); setTimeout(() => setShowSuccess(false), 5000);
   };
 
-  const submitQuickRequest = async (loc: {storeName:string; address:string; city:string; startTime:string; endTime:string}) => {
-    const q = quickAdd[loc.storeName] ?? { date: '', startTime: loc.startTime, endTime: loc.endTime };
-    if (!q.date) { alert("Pick a date for this location first."); return; }
-    setQuickAddSubmitting(loc.storeName);
-    try {
-      const response = await fetch('/api/request', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client: TARGET_BRAND, requestType: "New Activation Request",
-          storeName: loc.storeName, address: loc.address, market: loc.city,
-          date: q.date, startTime: q.startTime || loc.startTime, endTime: q.endTime || loc.endTime,
-          notes: "Requested via Quick Add (repeat location).",
-        }),
-      });
-      if (response.ok) {
-        setUploadMessage(`✅ Request submitted for ${loc.storeName}. The team has been notified.`);
-        setShowSuccess(true);
-        setQuickAdd(prev => ({ ...prev, [loc.storeName]: { date: '', startTime: loc.startTime, endTime: loc.endTime } }));
-      } else {
-        setUploadMessage("❌ Failed to send request. Please try again.");
-        setShowSuccess(true);
-      }
-    } catch { setUploadMessage("❌ Network error."); setShowSuccess(true); }
-    setQuickAddSubmitting(null); setTimeout(() => setShowSuccess(false), 5000);
-  };
-
   const submitChangeRequest = async () => {
     if (!changeModal.notes) { alert("Please provide details for this change."); return; }
     setIsSubmitting(true);
@@ -479,6 +451,12 @@ const downloadRecapReport = async () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const applyIndependentLocation = (storeName: string) => {
+    const loc = independentLocations.find(l => l.storeName === storeName);
+    if (!loc) return;
+    setFormData(f => ({ ...f, storeName: loc.storeName, address: loc.address, market: loc.city || f.market }));
   };
 
   const maxMarketValue = Math.max(...metrics.markets.map(m => m.value), 1);
@@ -625,17 +603,6 @@ const downloadRecapReport = async () => {
         .form-input:focus { box-shadow: 3px 3px 0 0 var(--ink); transform: translate(-2px, -2px); }
         .form-input::placeholder { color: rgba(10,10,10,0.35); }
         .form-textarea { resize: vertical; min-height: 80px; }
-        .quick-add-wrap { overflow-x: auto; margin-top: 12px; }
-        .quick-add-table { width: 100%; border-collapse: collapse; }
-        .quick-add-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
-        .quick-add-table td { padding: 10px; border-bottom: 1px solid rgba(10,10,10,0.08); vertical-align: middle; font-size: 12px; }
-        .quick-add-table tr:last-child td { border-bottom: none; }
-        .quick-add-store { font-weight: 700; }
-        .quick-add-address { font-size: 10px; color: var(--muted); margin-top: 2px; }
-        .quick-add-time { display: flex; align-items: center; gap: 6px; }
-        .quick-add-time .form-input { width: 92px; }
-        .quick-add-table .form-input { padding: 6px 8px; font-size: 12px; }
-        .quick-add-btn { padding: 8px 14px !important; font-size: 10px !important; white-space: nowrap; box-shadow: none !important; }
         .time-inputs { display: flex; align-items: center; gap: 10px; }
         .btn-submit { font-family: 'Cabinet Grotesk', sans-serif; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--bone); border: 2px solid var(--ink); padding: 12px 28px; cursor: pointer; box-shadow: var(--shadow); transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.08em; }
         .btn-submit:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
@@ -1182,48 +1149,21 @@ const downloadRecapReport = async () => {
 
         {/* REQUEST TAB */}
         <div className={`section ${activeSection === 'request' ? 'active' : ''}`} data-html2canvas-ignore="true">
-          {recentLocations.length > 0 && (
-            <div className="card" style={{marginBottom:'16px'}}>
-              <p className="card-title">Quick Add</p>
-              <p className="card-sub">Reuse a recent location — just pick a date instead of retyping details</p>
-              <div className="quick-add-wrap">
-                <table className="quick-add-table">
-                  <thead><tr><th>Store</th><th>City</th><th>Date</th><th>Time</th><th></th></tr></thead>
-                  <tbody>
-                    {recentLocations.map(loc => {
-                      const q = quickAdd[loc.storeName] ?? { date: '', startTime: loc.startTime, endTime: loc.endTime };
-                      return (
-                        <tr key={loc.storeName}>
-                          <td>
-                            <div className="quick-add-store">{loc.storeName}</div>
-                            {loc.address && <div className="quick-add-address">{loc.address}</div>}
-                          </td>
-                          <td>{loc.city || '—'}</td>
-                          <td><input type="date" className="form-input" value={q.date} onChange={e=>setQuickAdd(prev=>({...prev,[loc.storeName]:{...q,date:e.target.value}}))} /></td>
-                          <td>
-                            <div className="quick-add-time">
-                              <input type="time" className="form-input" value={q.startTime} onChange={e=>setQuickAdd(prev=>({...prev,[loc.storeName]:{...q,startTime:e.target.value}}))} />
-                              <span>-</span>
-                              <input type="time" className="form-input" value={q.endTime} onChange={e=>setQuickAdd(prev=>({...prev,[loc.storeName]:{...q,endTime:e.target.value}}))} />
-                            </div>
-                          </td>
-                          <td>
-                            <button className="btn-submit quick-add-btn" onClick={()=>submitQuickRequest(loc)} disabled={quickAddSubmitting===loc.storeName}>
-                              {quickAddSubmitting===loc.storeName?'...':'Request'}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
           <div className="card">
             <div className="card-header"><div><p className="card-title">Request Activation</p></div></div>
             <div className="form-grid">
-              <div className="form-group"><label className="form-label">Store Name</label><input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Total Wine" /></div>
+              {independentLocations.length > 0 && (
+                <div className="form-group full">
+                  <label className="form-label">Quick Select: Independent Retail Location</label>
+                  <select className="form-input" value="" onChange={e => applyIndependentLocation(e.target.value)}>
+                    <option value="">— Choose a recent location to autofill —</option>
+                    {independentLocations.map(loc => (
+                      <option key={loc.storeName} value={loc.storeName}>{loc.storeName}{loc.city ? ` (${loc.city})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="form-group"><label className="form-label">Store Name</label><input type="text" name="storeName" value={formData.storeName} onChange={handleInputChange} className="form-input" placeholder="e.g. Big C Liquor" /></div>
               <div className="form-group"><label className="form-label">Store Address</label><input type="text" name="address" value={formData.address} onChange={handleInputChange} className="form-input" placeholder="e.g. 123 Main St, Orlando, FL" /></div>
               <div className="form-group"><label className="form-label">Market</label><select name="market" value={formData.market} onChange={handleInputChange} className="form-input"><option value="">Select Market</option>{dropdownOptions.market.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
               <div className="form-group"><label className="form-label">Brand</label><select name="brand" value={formData.brand} onChange={handleInputChange} className="form-input"><option value="">Select Brand</option>{dropdownOptions.brand.map(b => <option key={b} value={b}>{b}</option>)}</select></div>

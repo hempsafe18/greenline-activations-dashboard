@@ -14,6 +14,13 @@ const CLIENT_COMPANY: Record<string, string> = {
   CLAYBOURNE_CO:    'Claybourne Co.',
 };
 
+// Standard ambassador pay rate applied to events created from an approved request.
+const STANDARD_PAY_RATE = 30;
+const CLIENT_PAY_RATE: Record<string, number> = {
+  WILLIES_REMEDY: 32,
+  CLAYBOURNE_CO: 32,
+};
+
 async function requireAdmin() {
   const user = await currentUser();
   const email = user?.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress ?? '';
@@ -105,6 +112,7 @@ export async function PATCH(req: Request) {
       city: market || null,
       client_id: clientRow?.id ?? null,
       brand_name: companyName,
+      pay_rate: CLIENT_PAY_RATE[notif.client_id] ?? STANDARD_PAY_RATE,
     })
     .select('id')
     .single();
