@@ -25,8 +25,10 @@ function clientIdFromEmail(email: string): string | null {
   return null;
 }
 
-// Recent, distinct activation locations for a client — used to pre-fill the
-// "Quick Add" request table instead of making clients retype the same store.
+// Recent, distinct independent-retail activation locations for a client —
+// feeds the "Quick Select Location" dropdown on the Request Activation form
+// so clients can autofill a known store instead of retyping it. Chain
+// locations (e.g. Total Wine) are excluded; those aren't self-serve requests.
 export async function GET(req: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ locations: [] }, { status: 401 });
@@ -54,8 +56,9 @@ export async function GET(req: Request) {
     .from('events')
     .select('location_name, location_address, city, event_date, start_time, end_time')
     .eq('client_id', clientRow.id)
+    .not('location_name', 'ilike', '%total wine%')
     .order('event_date', { ascending: false })
-    .limit(50);
+    .limit(200);
 
   const seen = new Set<string>();
   const locations: { storeName: string; address: string; city: string; startTime: string; endTime: string; lastDate: string }[] = [];
@@ -74,8 +77,10 @@ export async function GET(req: Request) {
       endTime: e.end_time?.slice(0, 5) ?? '',
       lastDate: e.event_date,
     });
-    if (locations.length >= 8) break;
+    if (locations.length >= 30) break;
   }
+
+  locations.sort((a, b) => a.storeName.localeCompare(b.storeName));
 
   return NextResponse.json({ locations });
 }
