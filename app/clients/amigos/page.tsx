@@ -18,9 +18,14 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
   { key: 'shelf_placement', label: 'Shelf Placement' },
   { key: 'units_start', label: 'Units at Start' },
   { key: 'units_end', label: 'Units at End' },
-  // Amigos now samples 50mg cans alongside the original 10mg lineup, tracked
-  // as 6 distinct SKUs (3 flavors x 10mg/50mg) rather than 3 -- see
-  // greenline-team-portal's CHANGELOG (2026-09-17) for the schema this reads.
+  // Cocktails (Key Lime Margarita, Watermelon Mojito, Cherry Limeade) only
+  // ever come in 10mg -- the *_50mg cocktail fields below are from recaps
+  // collected 2026-09-17, before Amigos corrected that 50mg is actually a
+  // separate soda line. Left in so older recaps still display correctly;
+  // no new recap will ever populate them. Sodas (Strawberry, Pineapple,
+  // Grape, Lemon Lime) are sampled only at independent accounts (not Total
+  // Wine), each in both 10mg and 50mg. See greenline-team-portal's
+  // CHANGELOG (2026-09-17 and 2026-09-18) for the schema this reads.
   { key: 'units_start_key_lime', label: 'Key Lime (10mg) - Units Start' },
   { key: 'units_end_key_lime', label: 'Key Lime (10mg) - Units End' },
   { key: 'units_sold_key_lime_10mg', label: 'Key Lime (10mg) - Units Sold' },
@@ -39,6 +44,30 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
   { key: 'units_start_watermelon_mojito_50mg', label: 'Watermelon Mojito (50mg) - Units Start' },
   { key: 'units_end_watermelon_mojito_50mg', label: 'Watermelon Mojito (50mg) - Units End' },
   { key: 'units_sold_watermelon_mojito_50mg', label: 'Watermelon Mojito (50mg) - Units Sold' },
+  { key: 'units_start_strawberry_soda_10mg', label: 'Strawberry Soda (10mg) - Units Start' },
+  { key: 'units_end_strawberry_soda_10mg', label: 'Strawberry Soda (10mg) - Units End' },
+  { key: 'units_sold_strawberry_soda_10mg', label: 'Strawberry Soda (10mg) - Units Sold' },
+  { key: 'units_start_strawberry_soda_50mg', label: 'Strawberry Soda (50mg) - Units Start' },
+  { key: 'units_end_strawberry_soda_50mg', label: 'Strawberry Soda (50mg) - Units End' },
+  { key: 'units_sold_strawberry_soda_50mg', label: 'Strawberry Soda (50mg) - Units Sold' },
+  { key: 'units_start_pineapple_soda_10mg', label: 'Pineapple Soda (10mg) - Units Start' },
+  { key: 'units_end_pineapple_soda_10mg', label: 'Pineapple Soda (10mg) - Units End' },
+  { key: 'units_sold_pineapple_soda_10mg', label: 'Pineapple Soda (10mg) - Units Sold' },
+  { key: 'units_start_pineapple_soda_50mg', label: 'Pineapple Soda (50mg) - Units Start' },
+  { key: 'units_end_pineapple_soda_50mg', label: 'Pineapple Soda (50mg) - Units End' },
+  { key: 'units_sold_pineapple_soda_50mg', label: 'Pineapple Soda (50mg) - Units Sold' },
+  { key: 'units_start_grape_soda_10mg', label: 'Grape Soda (10mg) - Units Start' },
+  { key: 'units_end_grape_soda_10mg', label: 'Grape Soda (10mg) - Units End' },
+  { key: 'units_sold_grape_soda_10mg', label: 'Grape Soda (10mg) - Units Sold' },
+  { key: 'units_start_grape_soda_50mg', label: 'Grape Soda (50mg) - Units Start' },
+  { key: 'units_end_grape_soda_50mg', label: 'Grape Soda (50mg) - Units End' },
+  { key: 'units_sold_grape_soda_50mg', label: 'Grape Soda (50mg) - Units Sold' },
+  { key: 'units_start_lemon_lime_soda_10mg', label: 'Lemon Lime Soda (10mg) - Units Start' },
+  { key: 'units_end_lemon_lime_soda_10mg', label: 'Lemon Lime Soda (10mg) - Units End' },
+  { key: 'units_sold_lemon_lime_soda_10mg', label: 'Lemon Lime Soda (10mg) - Units Sold' },
+  { key: 'units_start_lemon_lime_soda_50mg', label: 'Lemon Lime Soda (50mg) - Units Start' },
+  { key: 'units_end_lemon_lime_soda_50mg', label: 'Lemon Lime Soda (50mg) - Units End' },
+  { key: 'units_sold_lemon_lime_soda_50mg', label: 'Lemon Lime Soda (50mg) - Units Sold' },
   { key: 'price_displayed', label: 'Price Displayed' },
   { key: 'price_10mg_4pk', label: 'Price (10mg 4pk)' },
   { key: 'price_50mg_4pk', label: 'Price (50mg 4pk)' },
