@@ -88,6 +88,18 @@ export async function GET(req: Request) {
   const upcoming = upcomingResult.data ?? [];
   const recaps = recapsResult.data ?? [];
 
+  const recapEventIds = [...new Set(recaps.map(r => r.event_id).filter(Boolean))];
+  const eventDescriptionById: Record<string, string> = {};
+  if (recapEventIds.length > 0) {
+    const { data: recapEvents } = await supabase
+      .from('events')
+      .select('id, description')
+      .in('id', recapEventIds);
+    for (const ev of recapEvents ?? []) {
+      if (ev.description) eventDescriptionById[ev.id] = ev.description;
+    }
+  }
+
   // Aggregate stats from recaps
   let sampled = 0, sold = 0;
   const cityMap: Record<string, number> = {};
@@ -154,6 +166,7 @@ export async function GET(req: Request) {
     time: r.shift_start_time && r.shift_end_time
       ? `${r.shift_start_time} - ${r.shift_end_time}`
       : r.shift_start_time || '',
+    products: r.event_id ? (eventDescriptionById[r.event_id] || '') : '',
     status: 'Complete',
     sortDate: r.activation_date || '',
     recap: r,

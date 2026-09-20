@@ -52,6 +52,27 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
   { key: 'shelf_photo', label: 'Shelf Photo' },
 ];
 
+function parseEventDetail(description?: string | null): { tag: string | null; type: 'sampling' | 'education' | null; text: string } | null {
+  if (!description || !description.trim()) return null;
+  const match = description.match(/([\u{1F300}-\u{1FAFF}☀-➿️]\s*(?:Education Only|Sampling))\s*:?\s*/u);
+  if (!match || match.index === undefined) return { tag: null, type: null, text: description.trim() };
+  const tag = match[1].trim();
+  const type: 'sampling' | 'education' = /education/i.test(tag) ? 'education' : 'sampling';
+  const text = (description.slice(0, match.index) + description.slice(match.index + match[0].length)).replace(/\s{2,}/g, ' ').trim();
+  return { tag, type, text };
+}
+
+function EventDetail({ description }: { description?: string | null }) {
+  const detail = parseEventDetail(description);
+  if (!detail || (!detail.tag && !detail.text)) return null;
+  return (
+    <div className="cal-note-row">
+      {detail.tag && <span className={`tag-detail ${detail.type === 'education' ? 'tag-detail-education' : 'tag-detail-sampling'}`}>{detail.tag}</span>}
+      {detail.text && <p className="cal-note">{detail.text}</p>}
+    </div>
+  );
+}
+
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [showSuccess, setShowSuccess] = useState(false);
@@ -317,7 +338,11 @@ export default function UnifiedDashboard() {
         .cal-date { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
         .cal-store { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 4px; margin-top: 0; }
         .cal-market { font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 8px; margin-top: 0; }
-        .cal-detail { font-size: 11px; font-weight: 500; color: var(--ink); margin-bottom: 8px; margin-top: 0; line-height: 1.4; }
+        .cal-note-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 8px; }
+        .tag-detail { display: inline-block; font-family: 'Manrope', sans-serif; font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 999px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        .tag-detail-sampling { background: rgba(0,200,83,0.14); color: #00873b; }
+        .tag-detail-education { background: #e8f5e9; color: #1b5e20; }
+        .cal-note { font-family: 'Manrope', sans-serif; font-size: 11px; font-weight: 400; color: var(--muted); margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
         .cal-footer { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: auto; }
         .cal-status { font-size: 10px; font-weight: 700; padding: 3px 9px; display: inline-block; text-transform: uppercase; border: 2px solid var(--ink); }
         .cal-status.status-Complete { background: var(--canopy); color: var(--white); }
@@ -429,7 +454,8 @@ export default function UnifiedDashboard() {
           .cal-card { padding: 12px; }
           .cal-store { font-size: 13px; }
           .cal-market { font-size: 10px; }
-          .cal-detail { font-size: 10px; }
+          .cal-note { font-size: 10px; }
+          .tag-detail { font-size: 9px; padding: 2px 8px; }
           .form-grid { grid-template-columns: 1fr; gap: 12px; }
           .form-label { font-size: 9px; }
           .form-input { padding: 8px 12px; font-size: 13px; }
@@ -581,7 +607,7 @@ export default function UnifiedDashboard() {
                   <p className="cal-date">{e.date} <span>{e.time}</span></p>
                   <p className="cal-store">{e.store}</p>
                   <p className="cal-market">{e.market}</p>
-                  {e.products && <p className="cal-detail">{e.products}</p>}
+                  <EventDetail description={e.products} />
                   <div className="cal-footer">
                     <span className="cal-status status-Upcoming">Upcoming</span>
                     <div className="cal-actions">
@@ -603,6 +629,7 @@ export default function UnifiedDashboard() {
                   <p className="cal-date">{e.date}</p>
                   <p className="cal-store">{e.store}</p>
                   <p className="cal-market">{e.market}</p>
+                  <EventDetail description={e.products} />
                   <div className="cal-footer"><span className="cal-status status-Complete">Complete</span></div>
                 </div>
               ))}
