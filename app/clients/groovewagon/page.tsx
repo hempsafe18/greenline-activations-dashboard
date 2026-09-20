@@ -52,6 +52,15 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
   { key: 'shelf_photo', label: 'Shelf Photo' },
 ];
 
+// Event descriptions often carry internal scheduling/booking context ahead of
+// the operational note. Only the marker onward is meant for
+// ambassadors/admins, so trim to that.
+function cleanEventDescription(description?: string | null): string {
+  if (!description) return '';
+  const match = description.match(/[\u{1F300}-\u{1FAFF}☀-➿️][\s\S]*$/u);
+  return (match ? match[0] : description).trim();
+}
+
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [showSuccess, setShowSuccess] = useState(false);
@@ -587,7 +596,7 @@ export default function UnifiedDashboard() {
                   <p className="cal-date">{e.date} <span>{e.time}</span></p>
                   <p className="cal-store">{e.store}</p>
                   <p className="cal-market">{e.market}</p>
-                  {e.products && <div className="cal-products">🎁 {e.products}</div>}
+                  {e.products && <div className="cal-products">{cleanEventDescription(e.products)}</div>}
                   <div className="cal-footer">
                     <span className="cal-status status-Upcoming">Upcoming</span>
                     <div className="cal-actions">
@@ -609,7 +618,7 @@ export default function UnifiedDashboard() {
                   <p className="cal-date">{e.date}</p>
                   <p className="cal-store">{e.store}</p>
                   <p className="cal-market">{e.market}</p>
-                  {e.products && <div className="cal-products">🎁 {e.products}</div>}
+                  {e.products && <div className="cal-products">{cleanEventDescription(e.products)}</div>}
                   <div className="cal-footer"><span className="cal-status status-Complete">Complete</span></div>
                 </div>
               ))}
