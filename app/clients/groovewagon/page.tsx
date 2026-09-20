@@ -317,6 +317,7 @@ export default function UnifiedDashboard() {
         .cal-date { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
         .cal-store { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 4px; margin-top: 0; }
         .cal-market { font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 8px; margin-top: 0; }
+        .cal-products { font-size: 10px; font-weight: 700; color: var(--ink); margin-top: -4px; margin-bottom: 12px; background: var(--canopy-pale); border: 1px solid var(--ink); padding: 3px 8px; display: inline-block; text-transform: uppercase; letter-spacing: 0.05em; }
         .cal-footer { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: auto; }
         .cal-status { font-size: 10px; font-weight: 700; padding: 3px 9px; display: inline-block; text-transform: uppercase; border: 2px solid var(--ink); }
         .cal-status.status-Complete { background: var(--canopy); color: var(--white); }
@@ -432,6 +433,7 @@ export default function UnifiedDashboard() {
           .cal-card { padding: 12px; }
           .cal-store { font-size: 13px; }
           .cal-market { font-size: 10px; }
+          .cal-products { font-size: 9px; }
           .form-grid { grid-template-columns: 1fr; gap: 12px; }
           .form-label { font-size: 9px; }
           .form-input { padding: 8px 12px; font-size: 13px; }
@@ -585,6 +587,7 @@ export default function UnifiedDashboard() {
                   <p className="cal-date">{e.date} <span>{e.time}</span></p>
                   <p className="cal-store">{e.store}</p>
                   <p className="cal-market">{e.market}</p>
+                  {e.products && <div className="cal-products">🎁 {e.products}</div>}
                   <div className="cal-footer">
                     <span className="cal-status status-Upcoming">Upcoming</span>
                     <div className="cal-actions">
@@ -606,6 +609,7 @@ export default function UnifiedDashboard() {
                   <p className="cal-date">{e.date}</p>
                   <p className="cal-store">{e.store}</p>
                   <p className="cal-market">{e.market}</p>
+                  {e.products && <div className="cal-products">🎁 {e.products}</div>}
                   <div className="cal-footer"><span className="cal-status status-Complete">Complete</span></div>
                 </div>
               ))}
