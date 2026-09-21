@@ -4,7 +4,9 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 // '/profiles/:slug' (the shareable client-facing ambassador link) is public.
 // '/profiles' itself (the admin directory) is intentionally NOT listed here,
 // so it stays behind the Clerk bouncer below.
-const isPublicRoute = createRouteMatcher(['/', '/api/request', '/api/dropdown-data', '/profiles/:slug']);
+// '/api/webhooks/clerk' is Clerk calling us, not a signed-in user -- it has no
+// session to protect, and verifies its own Svix signature inside the route.
+const isPublicRoute = createRouteMatcher(['/', '/api/request', '/api/dropdown-data', '/profiles/:slug', '/api/webhooks/clerk']);
 
 // 2. The Bouncer: If it's NOT a public route, protect it!
 export default clerkMiddleware(async (auth, req) => {

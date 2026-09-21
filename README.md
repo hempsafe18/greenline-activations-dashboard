@@ -47,3 +47,20 @@ See `.env.example`. The profiles feature needs:
 ### Migrations
 
 Apply `supabase/migrations/20260721_add_ambassador_directory_columns.sql` to the Supabase project (via the SQL editor, the Supabase CLI, or MCP `apply_migration`).
+
+## Client Login Activity (`/dashboard`)
+
+A "Client Login Activity" panel on the admin master dashboard shows when client contacts sign in, without needing to check Clerk's own dashboard logs.
+
+- Every Clerk `session.created` event (a real sign-in) is delivered to `app/api/webhooks/clerk`, which verifies the webhook signature and writes a row to the `client_login_events` Supabase table — email, name, which client's email domain it matched, timestamp, and (when Clerk includes it) IP/user agent.
+- `app/api/client-logins` (admin-only, same `ADMIN_EMAILS` gate as the rest of `/dashboard`) reads the most recent rows, and the dashboard panel refreshes on load and on demand.
+- Table schema: `supabase/migrations/20260921_create_client_login_events.sql` (already applied to the `Greenline Team Portal` Supabase project). Service-role only — no client-side Supabase access to this table.
+
+**One-time setup required in the Clerk dashboard** (not something this app can do on its own):
+
+1. Clerk dashboard → **Webhooks** → **Add Endpoint**.
+2. Endpoint URL: `https://<your-deployed-domain>/api/webhooks/clerk`.
+3. Subscribe to the **`session.created`** event only.
+4. Copy the endpoint's signing secret into `CLERK_WEBHOOK_SECRET` in Vercel env vars (see `.env.example`).
+
+Until that's configured, the panel just shows "No client logins recorded yet."

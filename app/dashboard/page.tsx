@@ -27,6 +27,14 @@ interface ClientStats {
 
 const CLIENT_IDS = ["3CHI", "AMIGOS", "MELLOW FELLOW", "GROW", "GROOVEWAGON", "WILLIES_REMEDY", "CLAYBOURNE_CO"];
 
+interface LoginEvent {
+  id: string;
+  email: string | null;
+  name: string | null;
+  client_id: string | null;
+  occurred_at: string;
+}
+
 interface NotifyForm {
   type: "event" | "staff" | "recap";
   client: string;
@@ -56,6 +64,10 @@ export default function AdminDashboard() {
   const [eventRequests, setEventRequests] = useState<any[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+  const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
+  const [loginsToday, setLoginsToday] = useState(0);
+  const [loginsLoading, setLoginsLoading] = useState(false);
 
   // Client-side auth guard
   useEffect(() => {
@@ -113,7 +125,31 @@ export default function AdminDashboard() {
     setRequestsLoading(false);
   };
 
-  useEffect(() => { if (isLoaded && user) { fetchAll(); fetchEventRequests(); } }, [isLoaded]);
+  const fetchLoginEvents = async () => {
+    setLoginsLoading(true);
+    try {
+      const res = await fetch("/api/client-logins");
+      if (res.ok) {
+        const data = await res.json();
+        setLoginEvents(data.logins ?? []);
+        setLoginsToday(data.todayCount ?? 0);
+      }
+    } catch (e) { console.error("Failed to fetch login events", e); }
+    setLoginsLoading(false);
+  };
+
+  useEffect(() => { if (isLoaded && user) { fetchAll(); fetchEventRequests(); fetchLoginEvents(); } }, [isLoaded]);
+
+  const timeAgo = (iso: string) => {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.round(diffMs / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.round(hours / 24);
+    return `${days}d ago`;
+  };
 
   const resolveEventRequest = async (id: string, action: "approve" | "decline") => {
     setResolvingId(id);
@@ -787,6 +823,64 @@ export default function AdminDashboard() {
                               </button>
                             </div>
                           </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* ── Client Login Activity Panel ── */}
+            <div className="adm-card">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <div>
+                  <p className="adm-card-title">Client Login Activity</p>
+                  <p className="adm-card-sub">When client contacts sign in and view their dashboard</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "2px solid var(--ink)",
+                    textTransform: "uppercase", letterSpacing: ".06em", background: "var(--canopy)",
+                  }}>
+                    {loginsToday} today
+                  </span>
+                  <button className="adm-btn-sync" onClick={fetchLoginEvents} disabled={loginsLoading}>
+                    {loginsLoading ? "⟳ Loading..." : "↻ Refresh"}
+                  </button>
+                </div>
+              </div>
+
+              {loginsLoading && loginEvents.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 14 }}>Loading login activity...</p>
+              ) : loginEvents.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 14 }}>
+                  No client logins recorded yet. Make sure the Clerk webhook is configured (see README).
+                </p>
+              ) : (
+                <table className="adm-table" style={{ marginTop: 14 }}>
+                  <thead>
+                    <tr>
+                      <th>Client</th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>When</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loginEvents.map(l => {
+                      const client = CLIENTS.find(c => c.clientKey === l.client_id);
+                      return (
+                        <tr key={l.id}>
+                          <td>
+                            <div className="adm-client-name" style={{ fontSize: 12 }}>
+                              {client && <div className="adm-client-dot" style={{ background: client.color }} />}
+                              {client?.name ?? l.client_id ?? "—"}
+                            </div>
+                          </td>
+                          <td>{l.name ?? "—"}</td>
+                          <td>{l.email ?? "—"}</td>
+                          <td title={new Date(l.occurred_at).toLocaleString()}>{timeAgo(l.occurred_at)}</td>
                         </tr>
                       );
                     })}
