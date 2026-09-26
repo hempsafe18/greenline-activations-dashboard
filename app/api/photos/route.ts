@@ -19,6 +19,7 @@ const TYPE_LABELS: Record<string, string> = {
   engagement: 'Engagement Photos',
   setup: 'Setup Photos',
   shelf: 'Shelf Photos',
+  signage: 'Signage Photos',
 };
 
 // ── Cloudinary fetch-based delivery ──────────────────────────────────────
@@ -174,7 +175,7 @@ export async function GET(req: Request) {
   }
 
   // Order: engagement → shelf → setup
-  const ORDER = ['engagement', 'shelf', 'setup'];
+  const ORDER = ['engagement', 'shelf', 'setup', 'signage'];
   groups.sort(
     (a, b) => (ORDER.indexOf(a.key) === -1 ? 99 : ORDER.indexOf(a.key)) -
                (ORDER.indexOf(b.key) === -1 ? 99 : ORDER.indexOf(b.key))
