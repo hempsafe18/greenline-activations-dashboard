@@ -9,7 +9,6 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
   { key: 'sampling_type', label: 'Activation Type' },
   { key: 'products_featured', label: 'Products Featured', long: true },
   { key: 'consumers_approached', label: 'Consumers Approached' },
-  { key: 'consumers_sampled', label: 'QR Code Scans' },
   { key: 'qr_code_destination', label: 'QR Code Destination' },
   { key: 'loyalty_signups', label: 'Loyalty Signups' },
   { key: 'estimated_units_sold', label: 'Estimated Units Sold' },
@@ -189,7 +188,7 @@ export default function UnifiedDashboard() {
   const [dropdownOptions, setDropdownOptions] = useState({ market: [], brand: [], samplingType: [], products: [] });
 
   const [metrics, setMetrics] = useState({
-    sampled: 0, sold: 0, activations: 0, conversion: 0,
+    approached: 0, sampled: 0, sold: 0, activations: 0, conversion: 0,
     markets: [] as any[], upcoming: [] as any[], previous: [] as any[], intel: [] as any[]
   });
 
@@ -210,6 +209,7 @@ export default function UnifiedDashboard() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setMetrics({
+        approached: data.approached ?? 0,
         sampled: data.sampled ?? 0,
         sold: data.sold ?? 0,
         activations: data.activations ?? 0,
@@ -706,7 +706,7 @@ export default function UnifiedDashboard() {
 
         <div className={`section ${activeSection==='dashboard'?'active':''}`}>
           <div className="stat-grid">
-            <div className="stat-card"><p className="stat-label">QR Code Scans</p><p className="stat-value">{metrics.sampled}</p></div>
+            <div className="stat-card"><p className="stat-label">Consumers Approached</p><p className="stat-value">{metrics.approached}</p></div>
             <div className="stat-card"><p className="stat-label">Total Purchases</p><p className="stat-value green">{metrics.sold}</p></div>
             <div className="stat-card"><p className="stat-label">Conversion Rate</p><p className="stat-value">{metrics.conversion}%</p></div>
             <div className="stat-card"><p className="stat-label">Total Activations</p><p className="stat-value">{metrics.activations}</p></div>
