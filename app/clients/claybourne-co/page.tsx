@@ -273,7 +273,7 @@ export default function UnifiedDashboard() {
     if (force) setEventPhotos([]);
     setPhotoLoading(true);
     try {
-      const res = await fetch('/api/photos?client=claybourne-co');
+      const res = await fetch('/api/photos?client=claybourne');
       const data = await res.json();
       if (data.events) setEventPhotos(data.events);
     } catch {}
