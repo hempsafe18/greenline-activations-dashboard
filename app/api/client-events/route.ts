@@ -101,11 +101,12 @@ export async function GET(req: Request) {
   }
 
   // Aggregate stats from recaps
-  let sampled = 0, sold = 0;
+  let approached = 0, sampled = 0, sold = 0;
   const cityMap: Record<string, number> = {};
   const flavorMap: Record<string, number> = {};
 
   for (const r of recaps) {
+    approached += Number(r.consumers_approached) || 0;
     sampled += Number(r.consumers_sampled) || 0;
     sold += Number(r.estimated_units_sold) || 0;
     const city = r.city?.trim();
@@ -175,10 +176,14 @@ export async function GET(req: Request) {
   return NextResponse.json({
     upcoming: upcomingFormatted,
     previous: previousFormatted,
+    approached,
     sampled,
     sold,
     activations: recaps.length,
     conversion: sampled > 0 ? Math.round((sold / sampled) * 100) : 0,
+    // Conversion off consumers approached — for clients that measure reach
+    // rather than QR/sampling (e.g. Claybourne Co.).
+    conversionApproached: approached > 0 ? Math.round((sold / approached) * 100) : 0,
     markets,
     intel: intel.slice(0, 5),
   });
