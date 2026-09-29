@@ -798,6 +798,7 @@ export default function AdminDashboard() {
                           <td>{m.requestType ?? "Request"}</td>
                           <td>
                             <div>{m.storeName}</div>
+                            {(r.requester_name || r.requester_email) && <div style={{ fontSize: 10, color: "var(--muted)" }}>Requested by {r.requester_name || r.requester_email}</div>}
                             {m.address && <div style={{ fontSize: 10, color: "var(--muted)" }}>{m.address}</div>}
                           </td>
                           <td>{m.date}</td>
