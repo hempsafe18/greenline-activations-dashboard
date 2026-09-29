@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { supabase } from '../../../lib/supabase';
+import { notifyAmbassadorOfShipment } from '../../../lib/shipment-email';
 
 // Same brand-code <-> company_name mapping used by /api/client-events, /api/dropdown-data,
 // and /api/notifications so this stays consistent with how the rest of the dashboard
@@ -254,6 +255,9 @@ export async function POST(req: Request) {
   if (insertError || !inserted) {
     return NextResponse.json({ error: insertError?.message ?? 'Failed to log shipment' }, { status: 500 });
   }
+
+  // Await so the serverless function isn't frozen before the request goes out; the helper never throws.
+  await notifyAmbassadorOfShipment('inventory', inserted.map(r => r.id));
 
   const { data: balances } = await supabase
     .from('inventory_balance_by_ambassador')
