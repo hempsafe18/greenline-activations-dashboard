@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { currentUser } from '@clerk/nextjs/server';
 import { supabase } from '../../../lib/supabase';
 
 export async function POST(req: Request) {
@@ -21,16 +22,31 @@ export async function POST(req: Request) {
       "Cancel Request": `A cancellation request for your activation at ${storeName} on ${date} has been submitted.${notes ? ` Reason: ${notes}` : ""}`,
     };
 
+    // Who submitted this — the requester-update emails (approved / declined /
+    // cancelled / rescheduled) go only to this person. Null when the request
+    // comes in without a Clerk session; the email trigger logs skipped_no_email.
+    const user = await currentUser();
+    const requesterEmail = user?.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress
+      ?? user?.emailAddresses[0]?.emailAddress
+      ?? null;
+    const requesterName = user
+      ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.fullName || null
+      : null;
+
     if (client) {
-      await supabase.from('client_notifications').insert({
+      const { error: insertError } = await supabase.from('client_notifications').insert({
         client_id: client,
         type: requestType === "New Activation Request" ? "update" : "alert",
         subject: notifSubjectMap[requestType] ?? `${requestType}: ${storeName}`,
         body: notifBodyMap[requestType] ?? `Type: ${requestType}\nClient: ${client}\nStore: ${storeName}\nDate: ${date}`,
         read: false,
         status: 'pending',
-        metadata: { storeName, address, date, startTime, endTime, requestType, market, brand, samplingType, productPurchase, products, notes },
+        requester_email: requesterEmail,
+        requester_name: requesterName,
+        // Fallback copy — the email function reads either location.
+        metadata: { storeName, address, date, startTime, endTime, requestType, market, brand, samplingType, productPurchase, products, notes, requesterEmail, requesterName },
       });
+      if (insertError) throw insertError;
     }
 
     return NextResponse.json({ success: true, message: "Request sent successfully" });

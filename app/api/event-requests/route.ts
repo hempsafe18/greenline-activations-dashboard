@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { supabase } from '../../../lib/supabase';
+import { toTitleCase, toSentenceCase } from '../../../lib/format';
 
 const ADMIN_EMAILS = ["asmar@greenlineactivations.com", "sedell@greenlineactivations.com", "asmar.gary@gmail.com"];
 
@@ -116,12 +117,14 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: false, error: 'Request is missing a store name or date' }, { status: 422 });
   }
 
+  const venueName = toTitleCase(storeName);
+
   const { data: event, error: eventError } = await supabase
     .from('events')
     .insert({
-      title: `${companyName} - ${storeName}`,
-      description: notes ?? '',
-      location_name: storeName,
+      title: `${companyName} - ${venueName}`,
+      description: toSentenceCase(notes),
+      location_name: venueName,
       location_address: address ?? '',
       event_date: date,
       start_time: startTime || null,
