@@ -157,7 +157,7 @@ export default function UnifiedDashboard() {
 
   const [shipmentData, setShipmentData] = useState<{
     ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
-    skus: { sku: string; flavor_name: string; cans_per_case: number }[];
+    skus: { sku: string; flavor_name: string; cans_per_case: number; potency_mg?: number | null }[];
     events: { id: string; title: string; event_date: string; city: string | null }[];
     recentShipments: any[];
   }>({ ambassadors: [], skus: [], events: [], recentShipments: [] });
@@ -233,8 +233,15 @@ export default function UnifiedDashboard() {
       setShipmentError("Please fill out recipient, tracking number, and ship date.");
       return;
     }
-    if (items.length === 0) {
-      setShipmentError("Add at least one flavor with a case count.");
+    // A half-filled flavor line (flavor without cases, or cases without flavor) would be
+    // silently dropped, so flag it instead. Flavors themselves are optional: supplies-only
+    // shipments are common.
+    if (flavorLines.some(l => Boolean(l.sku) !== Boolean(l.cases_sent))) {
+      setShipmentError("Finish or remove the flavor line: each one needs a flavor and a case count.");
+      return;
+    }
+    if (items.length === 0 && materials.length === 0) {
+      setShipmentError("Add at least one flavor or material to ship.");
       return;
     }
     setShipmentSubmitting(true);
@@ -1284,7 +1291,7 @@ const downloadRecapReport = async () => {
               </div>
 
               <div className="form-group full">
-                <label className="form-label">Flavors (up to {shipmentData.skus.length || 3})</label>
+                <label className="form-label">Flavors (optional, up to {shipmentData.skus.length || 3})</label>
                 <div className="flavor-lines">
                   {flavorLines.map((line, i) => {
                     const hint = canHintFor(line);
@@ -1297,9 +1304,9 @@ const downloadRecapReport = async () => {
                             value={line.sku}
                             onChange={(e) => updateFlavorLine(i, { sku: e.target.value })}
                           >
-                            <option value="">Select Flavor</option>
+                            <option value="">No flavor (supplies only)</option>
                             {shipmentData.skus.filter(s => !taken.has(s.sku) || s.sku === line.sku).map(s => (
-                              <option key={s.sku} value={s.sku}>{s.flavor_name}</option>
+                              <option key={s.sku} value={s.sku}>{s.potency_mg ? `${s.flavor_name} · ${s.potency_mg}mg` : s.flavor_name}</option>
                             ))}
                           </select>
                           <button

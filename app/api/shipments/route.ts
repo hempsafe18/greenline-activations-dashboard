@@ -60,7 +60,7 @@ async function authorizeClient(requestedClient: string | null) {
     return { error: NextResponse.json({ error: 'Client not found' }, { status: 404 }) } as const;
   }
 
-  return { clientUuid: clientRow.id as string } as const;
+  return { clientUuid: clientRow.id as string, brand: CLIENT_COMPANY[requestedClient] } as const;
 }
 
 type ShipmentRow = {
@@ -74,7 +74,7 @@ type ShipmentRow = {
   notes: string | null;
   materials: { item: string; quantity: number }[];
   profile: { full_name: string } | null;
-  sku_info: { flavor_name: string } | null;
+  sku_info: { flavor_name: string; brand: string } | null;
 };
 
 // GET /api/shipments?client=AMIGOS
@@ -86,9 +86,9 @@ export async function GET(req: Request) {
   const requestedClient = new URL(req.url).searchParams.get('client');
   const auth = await authorizeClient(requestedClient);
   if ('error' in auth) return auth.error;
-  const { clientUuid } = auth;
+  const { clientUuid, brand } = auth;
 
-  const [ambassadorsResult, skusResult, eventsResult, shipmentsResult] = await Promise.all([
+  const [ambassadorsResult, skusResult, eventsResult, shipmentsResult, materialsResult] = await Promise.all([
     supabase
       .from('applications')
       // Address fields are included here (unlike the public ambassador directory in
@@ -97,10 +97,15 @@ export async function GET(req: Request) {
       .select('user_id, status, event:events!inner(client_id), profile:profiles(id, full_name, city, state, street_address, address_line_2, zip_code)')
       .eq('status', 'confirmed')
       .eq('event.client_id', clientUuid),
+    // Only this client's own products: inventory_skus is shared across every brand
+    // (Amigos, Willie's, Claybourne...), so it must be filtered by brand.
     supabase
       .from('inventory_skus')
-      .select('sku, flavor_name, cans_per_case')
-      .order('flavor_name', { ascending: true }),
+      .select('sku, flavor_name, cans_per_case, potency_mg, product_line')
+      .eq('brand', brand)
+      .order('product_line', { ascending: true })
+      .order('flavor_name', { ascending: true })
+      .order('potency_mg', { ascending: true }),
     supabase
       .from('events')
       .select('id, title, event_date, city')
@@ -109,9 +114,16 @@ export async function GET(req: Request) {
       .limit(50),
     supabase
       .from('ambassador_inventory_shipments')
-      .select('id, user_id, sku, event_id, cases_sent, tracking_number, shipped_at, notes, materials, profile:profiles(full_name), sku_info:inventory_skus(flavor_name)')
+      .select('id, user_id, sku, event_id, cases_sent, tracking_number, shipped_at, notes, materials, profile:profiles(full_name), sku_info:inventory_skus(flavor_name, brand)')
       .order('shipped_at', { ascending: false })
       .limit(75),
+    // Supplies-only shipments (no product) live in ambassador_materials_shipments.
+    supabase
+      .from('ambassador_materials_shipments')
+      .select('id, user_id, tracking_number, shipped_at, notes, materials, profile:profiles(full_name)')
+      .eq('client_id', clientUuid)
+      .order('shipped_at', { ascending: false })
+      .limit(25),
   ]);
 
   // De-dupe ambassadors confirmed on more than one of this client's events.
@@ -129,7 +141,10 @@ export async function GET(req: Request) {
   // Recent shipments are scoped to this client's own ambassadors so one client can never
   // see another client's shipment history through this endpoint.
   const allowedIds = new Set(ambassadors.map(a => a.id));
-  const rows = ((shipmentsResult.data ?? []) as unknown as ShipmentRow[]).filter(s => allowedIds.has(s.user_id));
+  // An ambassador can be confirmed for more than one client, so also require the SKU to be
+  // this client's own brand or another client's product shipments would show up here.
+  const rows = ((shipmentsResult.data ?? []) as unknown as ShipmentRow[])
+    .filter(s => allowedIds.has(s.user_id) && s.sku_info?.brand === brand);
 
   // Re-group the flat per-SKU rows back into one shipment per tracking_number+shipped_at
   // so the client sees "1 box, multiple flavors + materials" instead of duplicate rows.
@@ -154,7 +169,24 @@ export async function GET(req: Request) {
     }
     grouped.get(key)!.flavors.push({ sku: row.sku, flavor_name: row.sku_info?.flavor_name || row.sku, cases_sent: row.cases_sent });
   }
-  const recentShipments = Array.from(grouped.values()).slice(0, 25);
+  for (const m of (materialsResult.data ?? []) as unknown as {
+    id: string; user_id: string; tracking_number: string | null; shipped_at: string;
+    notes: string | null; materials: { item: string; quantity: number }[]; profile: { full_name: string } | null;
+  }[]) {
+    grouped.set(`materials|${m.id}`, {
+      key: `materials|${m.id}`,
+      user_id: m.user_id,
+      ambassador_name: m.profile?.full_name || '—',
+      tracking_number: m.tracking_number ?? '',
+      shipped_at: m.shipped_at,
+      notes: m.notes,
+      materials: m.materials || [],
+      flavors: [],
+    });
+  }
+  const recentShipments = Array.from(grouped.values())
+    .sort((a, b) => new Date(b.shipped_at).getTime() - new Date(a.shipped_at).getTime())
+    .slice(0, 25);
 
   return NextResponse.json({
     ambassadors,
@@ -169,34 +201,33 @@ const MAX_ITEMS_PER_SHIPMENT = 3; // one row per flavor; only 3 Amigos SKUs exis
 // POST /api/shipments
 // body: { client, user_id, event_id?, items: [{sku, cases_sent}], materials?: [{item, quantity}],
 //         tracking_number, shipped_at, notes? }
-// `items` is one shipment covering 1-3 flavors; `materials` are non-SKU extras (tablecloth,
-// standee, ice bucket, stickers, ...) that rode along in the same box. Inserts one
+// `items` covers 0-3 flavors; `materials` are non-SKU extras (tablecloth, standee, ice bucket,
+// stickers, ...). At least one of the two is required. With flavors, inserts one
 // ambassador_inventory_shipments row per item, all sharing tracking_number/shipped_at/materials.
+// With no flavors (supplies only, no samples), the shipment goes to ambassador_materials_shipments.
 export async function POST(req: Request) {
   const body = await req.json();
   const { client, user_id, event_id, items, materials, tracking_number, shipped_at, notes } = body;
 
   const auth = await authorizeClient(client);
   if ('error' in auth) return auth.error;
-  const { clientUuid } = auth;
+  const { clientUuid, brand } = auth;
 
   if (!user_id || !tracking_number || !shipped_at) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
-  if (!Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: 'Add at least one flavor to the shipment' }, { status: 400 });
-  }
-  if (items.length > MAX_ITEMS_PER_SHIPMENT) {
+  const itemList: { sku: string; cases_sent: number }[] = Array.isArray(items) ? items : [];
+  if (itemList.length > MAX_ITEMS_PER_SHIPMENT) {
     return NextResponse.json({ error: `A shipment can include at most ${MAX_ITEMS_PER_SHIPMENT} flavors` }, { status: 400 });
   }
 
-  const skus = items.map((i: { sku: string }) => i?.sku);
+  const skus = itemList.map(i => i?.sku);
   if (new Set(skus).size !== skus.length) {
     return NextResponse.json({ error: 'Each flavor can only be listed once per shipment' }, { status: 400 });
   }
 
   const casesBySku = new Map<string, number>();
-  for (const item of items) {
+  for (const item of itemList) {
     const casesSentNum = Number(item?.cases_sent);
     if (!item?.sku || !Number.isFinite(casesSentNum) || casesSentNum <= 0) {
       return NextResponse.json({ error: 'Every flavor line needs a SKU and a positive number of cases' }, { status: 400 });
@@ -209,6 +240,10 @@ export async function POST(req: Request) {
         .filter((m: { item?: string; quantity?: number }) => m?.item && Number(m.quantity) > 0)
         .map((m: { item: string; quantity: number }) => ({ item: m.item, quantity: Number(m.quantity) }))
     : [];
+
+  if (itemList.length === 0 && cleanMaterials.length === 0) {
+    return NextResponse.json({ error: 'Add at least one flavor or material to the shipment' }, { status: 400 });
+  }
 
   // The recipient must be an ambassador confirmed on one of THIS client's own events —
   // this is the actual enforcement point for "clients can only ship to their own roster"
@@ -226,9 +261,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'That ambassador is not confirmed on one of your events' }, { status: 403 });
   }
 
-  const { data: skuRows } = await supabase.from('inventory_skus').select('sku').in('sku', skus);
-  if (!skuRows || skuRows.length !== skus.length) {
-    return NextResponse.json({ error: 'One or more SKUs were not recognized' }, { status: 400 });
+  if (skus.length > 0) {
+    // Enforced server-side too: a client may only ship its own brand's SKUs.
+    const { data: skuRows } = await supabase.from('inventory_skus').select('sku').in('sku', skus).eq('brand', brand);
+    if (!skuRows || skuRows.length !== skus.length) {
+      return NextResponse.json({ error: 'One or more flavors are not products for your account' }, { status: 400 });
+    }
   }
 
   if (event_id) {
@@ -236,6 +274,28 @@ export async function POST(req: Request) {
     if (!eventRow) {
       return NextResponse.json({ error: 'That event does not belong to your account' }, { status: 403 });
     }
+  }
+
+  if (skus.length === 0) {
+    const { data: materialsRow, error: materialsError } = await supabase
+      .from('ambassador_materials_shipments')
+      .insert({
+        user_id,
+        client_id: clientUuid,
+        event_id: event_id || null,
+        materials: cleanMaterials,
+        tracking_number,
+        shipped_at,
+        notes: notes || null,
+      })
+      .select('id')
+      .single();
+
+    if (materialsError || !materialsRow) {
+      return NextResponse.json({ error: materialsError?.message ?? 'Failed to log shipment' }, { status: 500 });
+    }
+    await notifyAmbassadorOfShipment('materials', [materialsRow.id]);
+    return NextResponse.json({ success: true, ids: [materialsRow.id], balances: [] });
   }
 
   const { data: inserted, error: insertError } = await supabase
