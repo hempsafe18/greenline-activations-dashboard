@@ -546,6 +546,7 @@ export default function UnifiedDashboard() {
         <a className={`nav-item ${activeSection==='calendar'?'active':''}`} onClick={()=>setActiveSection('calendar')}><span className="icon">📅</span> Calendar</a>
         <a className={`nav-item ${activeSection==='intel'?'active':''}`} onClick={()=>setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
         <a className={`nav-item ${activeSection==='request'?'active':''}`} onClick={()=>setActiveSection('request')}><span className="icon">➕</span> Request</a>
+        <Link href="/profiles" className="nav-item"><span className="icon">👥</span> View BA Profiles</Link>
         <a className={`nav-item ${activeSection==='notifications'?'active':''}`} onClick={()=>setActiveSection('notifications')}>
           <span className="icon">🔔</span> Notifications
           {notifications.filter(n=>!n.read).length>0&&(<span className="nav-notif-badge">{notifications.filter(n=>!n.read).length}</span>)}

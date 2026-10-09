@@ -941,6 +941,7 @@ const downloadRecapReport = async () => {
         <a className={`nav-item ${activeSection === 'intel' ? 'active' : ''}`} onClick={() => setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
         <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
         <a className={`nav-item ${activeSection === 'shipment' ? 'active' : ''}`} onClick={() => setActiveSection('shipment')}><span className="icon">📦</span> Log Shipment</a>
+        <Link href="/profiles" className="nav-item"><span className="icon">👥</span> View BA Profiles</Link>
         <a className={`nav-item ${activeSection === 'notifications' ? 'active' : ''}`} onClick={() => setActiveSection('notifications')}>
           <span className="icon">🔔</span> Notifications
           {notifications.filter(n => !n.read).length > 0 && (

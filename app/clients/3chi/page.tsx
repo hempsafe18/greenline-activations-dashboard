@@ -616,6 +616,7 @@ const downloadRecapReport = async () => {
         <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
         <a className={`nav-item ${activeSection === 'intel' ? 'active' : ''}`} onClick={() => setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
         <a className={`nav-item ${activeSection === 'request' ? 'active' : ''}`} onClick={() => setActiveSection('request')}><span className="icon">➕</span> Request Activation</a>
+        <a href="/profiles" className="nav-item"><span className="icon">👥</span> View BA Profiles</a>
         <hr style={{border:'none',borderTop:'1px solid rgba(250,240,234,0.12)',margin:'16px 0 8px'}} />
         <a className="nav-item" href="/dashboard"><span className="icon">←</span> Admin Dashboard</a>
       </div>

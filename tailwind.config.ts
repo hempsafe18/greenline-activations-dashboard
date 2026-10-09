@@ -20,9 +20,12 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["Manrope", "system-ui", "sans-serif"],
+        display: ['"Cabinet Grotesk"', "Manrope", "system-ui", "sans-serif"],
       },
       boxShadow: {
         card: "0 2px 8px rgba(10,10,10,0.08)",
+        soft: "0 2px 8px rgba(10,10,10,0.08)",
+        "soft-lg": "0 8px 24px rgba(10,10,10,0.12)",
       },
     },
   },

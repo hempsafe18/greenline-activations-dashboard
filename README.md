@@ -6,8 +6,8 @@ Next.js (App Router) dashboard for Greenline Activations — client brand dashbo
 
 A client-facing directory of brand ambassadors, backed by Supabase.
 
-- `/profiles` — directory grid of active ambassadors (search, market filter, HempSafe-certified toggle). Requires Greenline admin login (Clerk), gated to the emails in `ADMIN_EMAILS` in `app/profiles/page.tsx`.
-- `/profiles/[id]` — a single ambassador's profile. Publicly accessible with no login — this is the link you share with a client ahead of an event. It never shows phone, email, or any other contact info.
+- `/profiles` — directory grid of active ambassadors (search, state/city, HempSafe-certified and has-photo filters, sort by name or conversion). Open to signed-in Greenline admins (`ADMIN_EMAILS` in `lib/viewer.ts`) and client brand users (email domain matched to a client dashboard). The "Back to Dashboard" button returns each viewer to their own dashboard; every client dashboard has a "View BA Profiles" sidebar link.
+- `/profiles/[slug]` — a single ambassador's profile: photo, markets, HempSafe cert, conversion rate, application experience and about. Publicly accessible with no login — this is the link you share with a client ahead of an event. It never shows phone, email, or any other contact info.
 
 Ambassador data is **not** a separate table — it's read directly from the existing `profiles` table (the same one the ambassador portal itself uses), filtered to `role = 'staff'`. That means every ambassador who signs up through the portal automatically shows up here; there's no separate roster to keep in sync. A migration (`supabase/migrations/20260721_add_ambassador_directory_columns.sql`) adds four columns this directory needs that the portal didn't already have: `markets`, `strengths`, `hempsafe_cert_date`, and `status` — it's purely additive and doesn't touch any existing column, data, or RLS policy on `profiles`.
 
@@ -24,9 +24,17 @@ To edit what a client sees for a given ambassador:
 3. `full_name`, `avatar_url`, and `hempsafe_certified` already come from the ambassador portal itself — don't duplicate them here, edit them at the source if they're wrong.
 4. Changes appear immediately — there's no rebuild or redeploy needed.
 
+### Application experience & about
+
+`profiles.application_experience` and `profiles.application_bio` hold the ambassador's HubSpot application answers ("Brand Ambassador Experience" and "About"). To pull in new applicants, run `npm run sync:applications` (dry run) then `npm run sync:applications:execute`. It matches on email and only fills empty columns, so hand edits are never overwritten. Needs `HUBSPOT_ACCESS_TOKEN` in `.env.local`.
+
+### Conversion rate
+
+Calculated live from the `recaps` table (matched on `recaps.user_id = profiles.id`): units sold ÷ consumers sampled, summed across every recap — the same figure as the portal's "Avg. Conversion Rate". It is hidden until an ambassador has sampled `MIN_SAMPLED_FOR_RATE` (10) consumers, since a rate from a handful of samples is noise, and shows as "100%+" when units sold exceed consumers sampled.
+
 ### Headshots
 
-Headshots render straight from each ambassador's existing `avatar_url` (uploaded through the portal, hosted on Supabase Storage) — no extra step needed for most ambassadors. If `avatar_url` is missing or fails to load, the profile falls back to a rounded initials avatar automatically.
+Headshots come from each ambassador's existing `avatar_url` (uploaded through the portal, hosted on Supabase Storage) — no extra step needed. Originals are full-size phone photos (often 1–8 MB), so they are served through `next/image`, which resizes and re-encodes them to small WebP/AVIF thumbnails, lazy-loads below the fold, and fades them in. The Supabase and Cloudinary hosts are allow-listed in `next.config.mjs`. If `avatar_url` is empty or fails to load, the profile falls back to an initials avatar, and the "Has Photo" filter treats an empty `avatar_url` as no photo.
 
 If you'd rather host a specific photo on Cloudinary instead (cloud name `activation`), `lib/cloudinary.ts` has a helper to build a face-cropped delivery URL:
 
@@ -41,7 +49,7 @@ Paste the resulting URL into that ambassador's `avatar_url` — the directory do
 See `.env.example`. The profiles feature needs:
 
 - `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SECRET_KEY` — Supabase project + service role key (data is read server-side).
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — Clerk auth, gates `/profiles` (not `/profiles/[id]`).
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — Clerk auth, gates `/profiles` (not `/profiles/[slug]`).
 - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` — defaults to `activation`; only needed if you use `cloudinaryHeadshotUrl()`.
 
 ### Migrations

@@ -9,7 +9,9 @@
     "migrate:storage": "node scripts/migrate-storage.mjs",
     "migrate:storage:execute": "node scripts/migrate-storage.mjs --execute",
     "backfill:photos": "node scripts/backfill-photo-paths.mjs",
-    "backfill:photos:execute": "node scripts/backfill-photo-paths.mjs --execute"
+    "backfill:photos:execute": "node scripts/backfill-photo-paths.mjs --execute",
+    "sync:applications": "node scripts/sync-hubspot-applications.mjs",
+    "sync:applications:execute": "node scripts/sync-hubspot-applications.mjs --execute"
   },
   "dependencies": {
     "@clerk/nextjs": "latest",
