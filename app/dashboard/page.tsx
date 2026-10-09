@@ -524,7 +524,7 @@ export default function AdminDashboard() {
               <div className="adm-stat-card ac-dark">
                 <p className="adm-stat-label">Ambassador Roster</p>
                 <p className="adm-stat-value">{ambassadors === null ? "—" : ambassadors}</p>
-                <p className="adm-stat-sub">HempSafe-certified ambassadors on the profiles roster</p>
+                <p className="adm-stat-sub">Active ambassadors on the roster</p>
               </div>
               <div className="adm-stat-card">
                 <p className="adm-stat-label">Active Markets</p>

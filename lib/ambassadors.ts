@@ -111,14 +111,13 @@ export async function getAmbassadorBySlug(slug: string): Promise<Ambassador | nu
   return toAmbassador(row, performance.get(row.id));
 }
 
-/** Size of the roster shown on /profiles: onboarded (role=staff), active, HempSafe-certified ambassadors. Excludes HubSpot applicants, who have no profiles row. */
+/** Admin roster size: every onboarded (role=staff), active ambassador, certified or not. Excludes HubSpot applicants, who have no profiles row. (/profiles shows only the certified subset.) */
 export async function countActiveAmbassadors(): Promise<number> {
   const { count, error } = await supabase
     .from("profiles")
     .select("id", { count: "exact", head: true })
     .eq("role", "staff")
-    .eq("status", "active")
-    .eq("hempsafe_certified", true);
+    .eq("status", "active");
 
   if (error) {
     console.error("Error counting ambassadors:", error);
