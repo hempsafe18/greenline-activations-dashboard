@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -13,36 +14,51 @@ export default function AmbassadorAvatar({
   src,
   name,
   size = 96,
+  eager = false,
+  rounded = "rounded-lg",
   className = "",
 }: {
   src: string | null;
   name: string;
   size?: number;
+  /** Load immediately (above-the-fold photos) instead of lazily. */
+  eager?: boolean;
+  rounded?: string;
   className?: string;
 }) {
   const [errored, setErrored] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   const showFallback = !src || errored;
+
+  // A cached or eager image can finish loading before React hydrates, in which
+  // case onLoad never fires — check `complete` so it doesn't stay invisible.
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setLoaded(true);
+  }, [src]);
 
   return (
     <div
-      className={`rounded-lg overflow-hidden border border-ink/5 shadow-card bg-mist flex items-center justify-center shrink-0 ${className}`}
+      className={`relative ${rounded} overflow-hidden border border-ink/5 shadow-soft bg-mist flex items-center justify-center shrink-0 ${className}`}
       style={{ width: size, height: size }}
     >
       {showFallback ? (
-        <span
-          className="font-bold tracking-tight text-ink/60"
-          style={{ fontSize: size * 0.32 }}
-        >
+        <span className="font-display font-extrabold tracking-tight text-ink/40" style={{ fontSize: size * 0.32 }}>
           {initials(name)}
         </span>
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src ?? undefined}
+        <Image
+          ref={imgRef}
+          src={src}
           alt={name}
-          width={size}
-          height={size}
-          className="w-full h-full object-cover"
+          fill
+          sizes={`${size}px`}
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : "auto"}
+          className={`object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+          // Headshots are portrait crops — keep faces in frame when squared off.
+          style={{ objectPosition: "50% 22%" }}
+          onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
         />
       )}

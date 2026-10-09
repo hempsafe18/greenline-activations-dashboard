@@ -1,3 +1,4 @@
+@import url("https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
@@ -8,4 +9,16 @@
   font-family: "Manrope", system-ui, sans-serif;
   background-color: #faf0ea;
   min-height: 100vh;
+}
+
+/* Tailwind preflight is off for this scope, so neutralize browser defaults.
+   In the base layer so Tailwind's utility classes (mt-*, etc.) still win. */
+@layer base {
+  .profiles-scope :where(p, h1, h2, h3, ol, ul) {
+    margin: 0;
+  }
+  .profiles-scope :where(ol, ul) {
+    padding: 0;
+    list-style: none;
+  }
 }

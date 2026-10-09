@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { useUser, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 
@@ -66,7 +66,8 @@ export default function AdminDashboard() {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
-  const [loginsToday, setLoginsToday] = useState(0);
+  const [loginsError, setLoginsError] = useState<string | null>(null);
+  const [includeInternal, setIncludeInternal] = useState(false);
   const [loginsLoading, setLoginsLoading] = useState(false);
 
   // Client-side auth guard
@@ -81,7 +82,7 @@ export default function AdminDashboard() {
     setIsLoading(true);
 
     // Fetch ambassador count in parallel (non-blocking)
-    fetch("/api/hubspot-ambassadors")
+    fetch("/api/ambassador-roster")
       .then(r => r.json())
       .then(d => setAmbassadors(d.count ?? 0))
       .catch(() => setAmbassadors(0));
@@ -125,20 +126,31 @@ export default function AdminDashboard() {
     setRequestsLoading(false);
   };
 
-  const fetchLoginEvents = async () => {
+  const fetchLoginEvents = async (internal = includeInternal) => {
     setLoginsLoading(true);
+    setLoginsError(null);
     try {
-      const res = await fetch("/api/client-logins");
-      if (res.ok) {
-        const data = await res.json();
-        setLoginEvents(data.logins ?? []);
-        setLoginsToday(data.todayCount ?? 0);
-      }
-    } catch (e) { console.error("Failed to fetch login events", e); }
+      const res = await fetch(`/api/client-logins?days=7&includeInternal=${internal}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setLoginEvents(data.logins ?? []);
+      else setLoginsError(res.status === 401 ? "Not authorized to view login activity." : data.error ?? `Request failed (${res.status})`);
+    } catch (e) {
+      console.error("Failed to fetch login events", e);
+      setLoginsError("Couldn't load login activity.");
+    }
     setLoginsLoading(false);
   };
 
   useEffect(() => { if (isLoaded && user) { fetchAll(); fetchEventRequests(); fetchLoginEvents(); } }, [isLoaded]);
+
+  const isSameDay = (a: string | Date, b: string | Date) => new Date(a).toDateString() === new Date(b).toDateString();
+
+  const dayLabel = (iso: string) => {
+    const d = new Date(iso);
+    if (isSameDay(d, new Date())) return "Today";
+    if (isSameDay(d, new Date(Date.now() - 86400000))) return "Yesterday";
+    return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+  };
 
   const timeAgo = (iso: string) => {
     const diffMs = Date.now() - new Date(iso).getTime();
@@ -453,6 +465,7 @@ export default function AdminDashboard() {
         <p className="adm-brand">Admin Hub</p>
         <p className="adm-nav-label">Overview</p>
         <a className="adm-nav-item active"><span>📊</span> Master Dashboard</a>
+        <Link className="adm-nav-item" href="/profiles"><span>👥</span> Ambassador Profiles</Link>
         <hr className="adm-divider" />
         <p className="adm-nav-label">Client Portals</p>
         {CLIENTS.map(c => (
@@ -511,7 +524,7 @@ export default function AdminDashboard() {
               <div className="adm-stat-card ac-dark">
                 <p className="adm-stat-label">Ambassador Roster</p>
                 <p className="adm-stat-value">{ambassadors === null ? "—" : ambassadors}</p>
-                <p className="adm-stat-sub">Brand ambassadors on file</p>
+                <p className="adm-stat-sub">HempSafe-certified ambassadors on the profiles roster</p>
               </div>
               <div className="adm-stat-card">
                 <p className="adm-stat-label">Active Markets</p>
@@ -844,9 +857,18 @@ export default function AdminDashboard() {
                     fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "2px solid var(--ink)",
                     textTransform: "uppercase", letterSpacing: ".06em", background: "var(--canopy)",
                   }}>
-                    {loginsToday} today
+                    {loginEvents.filter(l => isSameDay(l.occurred_at, new Date())).length} today
                   </span>
-                  <button className="adm-btn-sync" onClick={fetchLoginEvents} disabled={loginsLoading}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "2px solid var(--ink)",
+                    textTransform: "uppercase", letterSpacing: ".06em", background: "var(--white)",
+                  }}>
+                    {loginEvents.length} last 7 days
+                  </span>
+                  <button className="adm-btn-sync" onClick={() => { const next = !includeInternal; setIncludeInternal(next); fetchLoginEvents(next); }} disabled={loginsLoading}>
+                    {includeInternal ? "☑" : "☐"} Include Greenline team
+                  </button>
+                  <button className="adm-btn-sync" onClick={() => fetchLoginEvents()} disabled={loginsLoading}>
                     {loginsLoading ? "⟳ Loading..." : "↻ Refresh"}
                   </button>
                 </div>
@@ -854,9 +876,11 @@ export default function AdminDashboard() {
 
               {loginsLoading && loginEvents.length === 0 ? (
                 <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 14 }}>Loading login activity...</p>
+              ) : loginsError ? (
+                <p style={{ fontSize: 12, color: "var(--street, #ff4f33)", fontWeight: 700, marginTop: 14 }}>{loginsError}</p>
               ) : loginEvents.length === 0 ? (
                 <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 14 }}>
-                  No client logins recorded yet. Make sure the Clerk webhook is configured (see README).
+                  No {includeInternal ? "" : "client "}logins in the last 7 days. Logins are recorded when someone loads a client dashboard (and by the Clerk webhook, see README).
                 </p>
               ) : (
                 <table className="adm-table" style={{ marginTop: 14 }}>
@@ -869,10 +893,19 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {loginEvents.map(l => {
+                    {loginEvents.map((l, i) => {
                       const client = CLIENTS.find(c => c.clientKey === l.client_id);
+                      const newDay = i === 0 || !isSameDay(l.occurred_at, loginEvents[i - 1].occurred_at);
                       return (
-                        <tr key={l.id}>
+                        <Fragment key={l.id}>
+                        {newDay && (
+                          <tr>
+                            <td colSpan={4} style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", background: "rgba(10,10,10,.04)" }}>
+                              {dayLabel(l.occurred_at)}
+                            </td>
+                          </tr>
+                        )}
+                        <tr>
                           <td>
                             <div className="adm-client-name" style={{ fontSize: 12 }}>
                               {client && <div className="adm-client-dot" style={{ background: client.color }} />}
@@ -881,8 +914,12 @@ export default function AdminDashboard() {
                           </td>
                           <td>{l.name ?? "—"}</td>
                           <td>{l.email ?? "—"}</td>
-                          <td title={new Date(l.occurred_at).toLocaleString()}>{timeAgo(l.occurred_at)}</td>
+                          <td title={new Date(l.occurred_at).toLocaleString()}>
+                            {new Date(l.occurred_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                            <span style={{ color: "var(--muted)" }}> · {timeAgo(l.occurred_at)}</span>
+                          </td>
                         </tr>
+                        </Fragment>
                       );
                     })}
                   </tbody>

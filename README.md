@@ -6,8 +6,8 @@ Next.js (App Router) dashboard for Greenline Activations — client brand dashbo
 
 A client-facing directory of brand ambassadors, backed by Supabase.
 
-- `/profiles` — directory grid of active ambassadors (search, market filter, HempSafe-certified toggle). Requires Greenline admin login (Clerk), gated to the emails in `ADMIN_EMAILS` in `app/profiles/page.tsx`.
-- `/profiles/[id]` — a single ambassador's profile. Publicly accessible with no login — this is the link you share with a client ahead of an event. It never shows phone, email, or any other contact info.
+- `/profiles` — directory grid of active, HempSafe-certified ambassadors only (search, state/city and has-photo filters, sort by name or conversion). Uncertified ambassadors are hidden and their profile links 404. Open to signed-in Greenline admins (`ADMIN_EMAILS` in `lib/viewer.ts`) and client brand users (email domain matched to a client dashboard). The "Back to Dashboard" button returns each viewer to their own dashboard; every client dashboard has a "View BA Profiles" sidebar link.
+- `/profiles/[slug]` — a single ambassador's profile: photo, markets, HempSafe cert, conversion rate, application experience and about. Publicly accessible with no login — this is the link you share with a client ahead of an event. It never shows phone, email, or any other contact info.
 
 Ambassador data is **not** a separate table — it's read directly from the existing `profiles` table (the same one the ambassador portal itself uses), filtered to `role = 'staff'`. That means every ambassador who signs up through the portal automatically shows up here; there's no separate roster to keep in sync. A migration (`supabase/migrations/20260721_add_ambassador_directory_columns.sql`) adds four columns this directory needs that the portal didn't already have: `markets`, `strengths`, `hempsafe_cert_date`, and `status` — it's purely additive and doesn't touch any existing column, data, or RLS policy on `profiles`.
 
@@ -24,9 +24,17 @@ To edit what a client sees for a given ambassador:
 3. `full_name`, `avatar_url`, and `hempsafe_certified` already come from the ambassador portal itself — don't duplicate them here, edit them at the source if they're wrong.
 4. Changes appear immediately — there's no rebuild or redeploy needed.
 
+### Application experience & about
+
+`profiles.application_experience` and `profiles.application_bio` hold the ambassador's HubSpot application answers ("Brand Ambassador Experience" and "About"). To pull in new applicants, run `npm run sync:applications` (dry run) then `npm run sync:applications:execute`. It matches on email and only fills empty columns, so hand edits are never overwritten. Needs `HUBSPOT_ACCESS_TOKEN` in `.env.local`.
+
+### Conversion rate
+
+Calculated live from the `recaps` table (matched on `recaps.user_id = profiles.id`): units sold ÷ consumers sampled, summed across every recap — the same figure as the portal's "Avg. Conversion Rate". It is hidden until an ambassador has sampled `MIN_SAMPLED_FOR_RATE` (10) consumers, since a rate from a handful of samples is noise, and shows as "100%+" when units sold exceed consumers sampled.
+
 ### Headshots
 
-Headshots render straight from each ambassador's existing `avatar_url` (uploaded through the portal, hosted on Supabase Storage) — no extra step needed for most ambassadors. If `avatar_url` is missing or fails to load, the profile falls back to a rounded initials avatar automatically.
+Headshots come from each ambassador's existing `avatar_url` (uploaded through the portal, hosted on Supabase Storage) — no extra step needed. Originals are full-size phone photos (often 1–8 MB), so they are served through `next/image`, which resizes and re-encodes them to small WebP/AVIF thumbnails, lazy-loads below the fold, and fades them in. The Supabase and Cloudinary hosts are allow-listed in `next.config.mjs`. If `avatar_url` is empty or fails to load, the profile falls back to an initials avatar, and the "Has Photo" filter treats an empty `avatar_url` as no photo.
 
 If you'd rather host a specific photo on Cloudinary instead (cloud name `activation`), `lib/cloudinary.ts` has a helper to build a face-cropped delivery URL:
 
@@ -41,7 +49,7 @@ Paste the resulting URL into that ambassador's `avatar_url` — the directory do
 See `.env.example`. The profiles feature needs:
 
 - `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SECRET_KEY` — Supabase project + service role key (data is read server-side).
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — Clerk auth, gates `/profiles` (not `/profiles/[id]`).
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — Clerk auth, gates `/profiles` (not `/profiles/[slug]`).
 - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` — defaults to `activation`; only needed if you use `cloudinaryHeadshotUrl()`.
 
 ### Migrations
@@ -52,15 +60,16 @@ Apply `supabase/migrations/20260721_add_ambassador_directory_columns.sql` to the
 
 A "Client Login Activity" panel on the admin master dashboard shows when client contacts sign in, without needing to check Clerk's own dashboard logs.
 
-- Every Clerk `session.created` event (a real sign-in) is delivered to `app/api/webhooks/clerk`, which verifies the webhook signature and writes a row to the `client_login_events` Supabase table — email, name, which client's email domain it matched, timestamp, and (when Clerk includes it) IP/user agent.
-- `app/api/client-logins` (admin-only, same `ADMIN_EMAILS` gate as the rest of `/dashboard`) reads the most recent rows, and the dashboard panel refreshes on load and on demand.
-- Table schema: `supabase/migrations/20260921_create_client_login_events.sql` (already applied to the `Greenline Team Portal` Supabase project). Service-role only — no client-side Supabase access to this table.
+Logins are written to the `client_login_events` Supabase table (one row per Clerk session) from two places, so the panel works even if one of them isn't set up:
 
-**One-time setup required in the Clerk dashboard** (not something this app can do on its own):
+- **Dashboard loads** (`lib/login-log.ts`, called from each `app/clients/*/layout.tsx`): the first time a Clerk session loads a client dashboard it is logged, deduped by session id. Needs no Clerk setup.
+- **Clerk webhook** (`app/api/webhooks/clerk`): every `session.created` event, signature-verified. Clerk's payload usually omits the user's email, so the route looks the user up through the Clerk API. A DB failure returns 500 so Clerk retries and the failure shows in the endpoint's delivery log.
+
+The panel shows the last 7 days, grouped by day. By default only sign-ins from a known client email domain are listed (`clientIdFromEmail` in `lib/login-log.ts`); the "Include Greenline team" toggle also shows internal sessions, which is the quickest way to confirm logging works (open any client dashboard yourself, then Refresh). `app/api/client-logins` (admin-only) reads the most recent rows. Schema: `supabase/migrations/20260921_create_client_login_events.sql` plus `20261009_client_login_events_unique_session.sql` (both applied to the `Greenline Team Portal` project).
+
+**Optional Clerk setup** (adds the exact sign-in moment, even if the client never opens a dashboard):
 
 1. Clerk dashboard → **Webhooks** → **Add Endpoint**.
 2. Endpoint URL: `https://<your-deployed-domain>/api/webhooks/clerk`.
 3. Subscribe to the **`session.created`** event only.
 4. Copy the endpoint's signing secret into `CLERK_WEBHOOK_SECRET` in Vercel env vars (see `.env.example`).
-
-Until that's configured, the panel just shows "No client logins recorded yet."

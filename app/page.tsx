@@ -1,6 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { landingPathForEmail } from "@/lib/viewer";
 
 const BRAND_STYLE = `
   @import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900,500&display=swap');
@@ -29,23 +30,9 @@ export default async function HomePage() {
 
     // 3. Our Enterprise Routing Logic
     if (email) {
-      if (email.endsWith("@plift.com")) {
-        redirect("/clients/plift");
-      } else if (email.endsWith("@3chi.com")) {
-        redirect("/clients/3chi");
-      } else if (email.endsWith("@drinkamigos.com")) {
-        redirect("/clients/amigos");
-      } else if (email.endsWith("@mellowfellowcannabis.com") || email.endsWith("@mfdrinks.com")) {
-        redirect("/clients/mellow-fellow");
-      } else if (email.endsWith("@workingrelief.com")) {
-        redirect("/clients/groovewagon");
-      } else if (email.endsWith("@drinkwillies.com")) {
-        redirect("/clients/willies-remedy");
-      } else if (email.endsWith("@claybourneco.com")) {
-        redirect("/clients/claybourne-co");
-      } else if (email.endsWith("@greenlineactivations.com")) {
-        // Admin Routing - Change this if you have a specific master dashboard!
-        redirect("/dashboard");
+      const landing = landingPathForEmail(email);
+      if (landing) {
+        redirect(landing);
       } else {
         // FALLBACK: If their email doesn't match any client, show Access Denied
         return (
