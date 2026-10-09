@@ -934,7 +934,6 @@ const downloadRecapReport = async () => {
         <img src="/brand/greenline-icon-canopy.svg" alt="" className="sidebar-icon" />
         <p className="sidebar-logo">Greenline Activations</p>
         <p className="sidebar-brand">{TARGET_BRAND}</p>
-        <Link href="/dashboard" className="nav-item" style={{ marginBottom: 12, opacity: 0.7 }}><span className="icon">←</span> Main Dashboard</Link>
         <p className="nav-label">Menu</p>
         <a className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
         <a className={`nav-item ${activeSection === 'calendar' ? 'active' : ''}`} onClick={() => setActiveSection('calendar')}><span className="icon">📅</span> Activation Calendar</a>
