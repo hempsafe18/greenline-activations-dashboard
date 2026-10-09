@@ -1,5 +1,11 @@
 import { supabase } from "./supabase";
-import { MIN_SAMPLED_FOR_RATE, type Ambassador, type AmbassadorPerformance } from "./ambassador-format";
+import {
+  MIN_SAMPLED_FOR_RATE,
+  normalizeCity,
+  normalizeState,
+  type Ambassador,
+  type AmbassadorPerformance,
+} from "./ambassador-format";
 
 export type { Ambassador, AmbassadorPerformance } from "./ambassador-format";
 
@@ -23,6 +29,8 @@ function toAmbassador(row: AmbassadorRow, performance?: AmbassadorPerformance): 
     has_photo: !!headshot,
     strengths: row.strengths ?? [],
     markets: row.markets ?? [],
+    state: normalizeState(row.state),
+    city: normalizeCity(row.city),
     experience: row.experience?.trim() || null,
     about: row.about?.trim() || null,
     performance: performance ?? EMPTY_PERFORMANCE,
