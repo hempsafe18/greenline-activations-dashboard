@@ -51,7 +51,6 @@ export default function ProfilesDirectory({
   const [search, setSearch] = useState("");
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
-  const [certifiedOnly, setCertifiedOnly] = useState(false);
   const [hasPhotoOnly, setHasPhotoOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>("name");
 
@@ -69,15 +68,12 @@ export default function ProfilesDirectory({
     return Array.from(set).sort();
   }, [ambassadors, state]);
 
-  const certifiedCount = useMemo(() => ambassadors.filter((a) => a.hempsafe_certified).length, [ambassadors]);
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = ambassadors.filter((a) => {
       if (q && !a.name.toLowerCase().includes(q)) return false;
       if (state && a.state !== state) return false;
       if (city && a.city !== city) return false;
-      if (certifiedOnly && !a.hempsafe_certified) return false;
       if (hasPhotoOnly && !a.has_photo) return false;
       return true;
     });
@@ -89,7 +85,7 @@ export default function ProfilesDirectory({
       );
     }
     return list;
-  }, [ambassadors, search, state, city, certifiedOnly, hasPhotoOnly, sort]);
+  }, [ambassadors, search, state, city, hasPhotoOnly, sort]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -161,9 +157,6 @@ export default function ProfilesDirectory({
             </option>
           ))}
         </select>
-        <FilterToggle active={certifiedOnly} onClick={() => setCertifiedOnly((v) => !v)}>
-          HempSafe Certified Only
-        </FilterToggle>
         <FilterToggle active={hasPhotoOnly} onClick={() => setHasPhotoOnly((v) => !v)}>
           Has Photo
         </FilterToggle>
@@ -172,7 +165,7 @@ export default function ProfilesDirectory({
           <option value="conversion">Sort: Top conversion</option>
         </select>
         <span className="text-xs font-bold text-ink/40">
-          {filtered.length} of {ambassadors.length} ambassadors · {certifiedCount} HempSafe certified
+          {filtered.length} of {ambassadors.length} ambassadors
         </span>
       </div>
 

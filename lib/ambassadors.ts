@@ -7,6 +7,7 @@ export type { Ambassador, AmbassadorPerformance } from "./ambassador-format";
 // (role='staff' distinguishes ambassadors from portal admins). Only the
 // columns the directory actually renders are selected — never phone, email,
 // street_address, zip_code, or tracking_number.
+// Only HempSafe-certified ambassadors are shown to brand managers.
 const AMBASSADOR_COLUMNS =
   "id, slug, name:full_name, headshot_url:avatar_url, strengths, markets, state, city, hempsafe_certified, hempsafe_cert_date, experience:application_experience, about:application_bio, status, created_at";
 
@@ -76,6 +77,7 @@ export async function getActiveAmbassadors(): Promise<Ambassador[]> {
     .select(AMBASSADOR_COLUMNS)
     .eq("role", "staff")
     .eq("status", "active")
+    .eq("hempsafe_certified", true)
     .order("full_name", { ascending: true });
 
   if (error) {
@@ -95,6 +97,7 @@ export async function getAmbassadorBySlug(slug: string): Promise<Ambassador | nu
     .eq("slug", slug)
     .eq("role", "staff")
     .eq("status", "active")
+    .eq("hempsafe_certified", true)
     .maybeSingle();
 
   if (error) {
@@ -108,13 +111,14 @@ export async function getAmbassadorBySlug(slug: string): Promise<Ambassador | nu
   return toAmbassador(row, performance.get(row.id));
 }
 
-/** Size of the roster shown on /profiles: onboarded (role=staff) ambassadors with status=active. Excludes HubSpot applicants, who have no profiles row. */
+/** Size of the roster shown on /profiles: onboarded (role=staff), active, HempSafe-certified ambassadors. Excludes HubSpot applicants, who have no profiles row. */
 export async function countActiveAmbassadors(): Promise<number> {
   const { count, error } = await supabase
     .from("profiles")
     .select("id", { count: "exact", head: true })
     .eq("role", "staff")
-    .eq("status", "active");
+    .eq("status", "active")
+    .eq("hempsafe_certified", true);
 
   if (error) {
     console.error("Error counting ambassadors:", error);

@@ -39,8 +39,8 @@ export async function recordLoginEvent(event: LoginEventInput) {
 }
 
 /**
- * Logs the current Clerk session as a client login the first time that
- * session loads a client dashboard. Backstop for the `session.created` webhook:
+ * Logs the current Clerk session the first time that session loads a client
+ * dashboard (client_id is set for client email domains, null for internal users). Backstop for the `session.created` webhook:
  * works even if the webhook isn't configured or its payload has no email.
  * Never throws — logging must not break a page load.
  */
@@ -60,7 +60,8 @@ export async function recordClientSession() {
     const email = user?.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress
       ?? user?.emailAddresses[0]?.emailAddress
       ?? null;
-    if (!email || !clientIdFromEmail(email)) return; // only client sign-ins
+    if (!email) return;
+    // Internal (non-client) sessions are logged with client_id null; the admin panel hides them unless asked.
 
     const h = await headers();
     await recordLoginEvent({

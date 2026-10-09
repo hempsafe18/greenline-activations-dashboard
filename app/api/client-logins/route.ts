@@ -15,27 +15,24 @@ export async function GET(req: Request) {
   if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const url = new URL(req.url);
-  const onlyClients = url.searchParams.get('onlyClients') !== 'false';
-  const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
+  const includeInternal = url.searchParams.get('includeInternal') === 'true';
+  const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 7, 1), 90);
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
   let query = supabase
     .from('client_login_events')
     .select('id, email, name, client_id, occurred_at')
+    .gte('occurred_at', since)
     .order('occurred_at', { ascending: false })
-    .limit(limit);
+    .limit(500);
 
-  if (onlyClients) query = query.not('client_id', 'is', null);
+  if (!includeInternal) query = query.not('client_id', 'is', null);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ logins: [], error: error.message });
+  if (error) {
+    console.error('client-logins query failed', error);
+    return NextResponse.json({ logins: [], error: error.message }, { status: 500 });
+  }
 
-  const since = new Date();
-  since.setHours(0, 0, 0, 0);
-  const { count: todayCount } = await supabase
-    .from('client_login_events')
-    .select('id', { count: 'exact', head: true })
-    .not('client_id', 'is', null)
-    .gte('occurred_at', since.toISOString());
-
-  return NextResponse.json({ logins: data ?? [], todayCount: todayCount ?? 0 });
+  return NextResponse.json({ logins: data ?? [], days });
 }
