@@ -60,15 +60,16 @@ Apply `supabase/migrations/20260721_add_ambassador_directory_columns.sql` to the
 
 A "Client Login Activity" panel on the admin master dashboard shows when client contacts sign in, without needing to check Clerk's own dashboard logs.
 
-- Every Clerk `session.created` event (a real sign-in) is delivered to `app/api/webhooks/clerk`, which verifies the webhook signature and writes a row to the `client_login_events` Supabase table — email, name, which client's email domain it matched, timestamp, and (when Clerk includes it) IP/user agent.
-- `app/api/client-logins` (admin-only, same `ADMIN_EMAILS` gate as the rest of `/dashboard`) reads the most recent rows, and the dashboard panel refreshes on load and on demand.
-- Table schema: `supabase/migrations/20260921_create_client_login_events.sql` (already applied to the `Greenline Team Portal` Supabase project). Service-role only — no client-side Supabase access to this table.
+Logins are written to the `client_login_events` Supabase table (one row per Clerk session) from two places, so the panel works even if one of them isn't set up:
 
-**One-time setup required in the Clerk dashboard** (not something this app can do on its own):
+- **Dashboard loads** (`lib/login-log.ts`, called from each `app/clients/*/layout.tsx`): the first time a Clerk session loads a client dashboard it is logged, deduped by session id. Needs no Clerk setup.
+- **Clerk webhook** (`app/api/webhooks/clerk`): every `session.created` event, signature-verified. Clerk's payload usually omits the user's email, so the route looks the user up through the Clerk API. A DB failure returns 500 so Clerk retries and the failure shows in the endpoint's delivery log.
+
+Only sign-ins from a known client email domain appear in the panel (`clientIdFromEmail` in `lib/login-log.ts`); admin sessions are not listed. `app/api/client-logins` (admin-only) reads the most recent rows. Schema: `supabase/migrations/20260921_create_client_login_events.sql` plus `20261009_client_login_events_unique_session.sql` (both applied to the `Greenline Team Portal` project).
+
+**Optional Clerk setup** (adds the exact sign-in moment, even if the client never opens a dashboard):
 
 1. Clerk dashboard → **Webhooks** → **Add Endpoint**.
 2. Endpoint URL: `https://<your-deployed-domain>/api/webhooks/clerk`.
 3. Subscribe to the **`session.created`** event only.
 4. Copy the endpoint's signing secret into `CLERK_WEBHOOK_SECRET` in Vercel env vars (see `.env.example`).
-
-Until that's configured, the panel just shows "No client logins recorded yet."

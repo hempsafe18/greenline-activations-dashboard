@@ -107,3 +107,18 @@ export async function getAmbassadorBySlug(slug: string): Promise<Ambassador | nu
   const performance = await getPerformanceByUser([row.id]);
   return toAmbassador(row, performance.get(row.id));
 }
+
+/** Size of the roster shown on /profiles: onboarded (role=staff) ambassadors with status=active. Excludes HubSpot applicants, who have no profiles row. */
+export async function countActiveAmbassadors(): Promise<number> {
+  const { count, error } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "staff")
+    .eq("status", "active");
+
+  if (error) {
+    console.error("Error counting ambassadors:", error);
+    return 0;
+  }
+  return count ?? 0;
+}

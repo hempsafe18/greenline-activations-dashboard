@@ -81,7 +81,7 @@ export default function AdminDashboard() {
     setIsLoading(true);
 
     // Fetch ambassador count in parallel (non-blocking)
-    fetch("/api/hubspot-ambassadors")
+    fetch("/api/ambassador-roster")
       .then(r => r.json())
       .then(d => setAmbassadors(d.count ?? 0))
       .catch(() => setAmbassadors(0));
@@ -453,6 +453,7 @@ export default function AdminDashboard() {
         <p className="adm-brand">Admin Hub</p>
         <p className="adm-nav-label">Overview</p>
         <a className="adm-nav-item active"><span>📊</span> Master Dashboard</a>
+        <Link className="adm-nav-item" href="/profiles"><span>👥</span> Ambassador Profiles</Link>
         <hr className="adm-divider" />
         <p className="adm-nav-label">Client Portals</p>
         {CLIENTS.map(c => (
@@ -511,7 +512,7 @@ export default function AdminDashboard() {
               <div className="adm-stat-card ac-dark">
                 <p className="adm-stat-label">Ambassador Roster</p>
                 <p className="adm-stat-value">{ambassadors === null ? "—" : ambassadors}</p>
-                <p className="adm-stat-sub">Brand ambassadors on file</p>
+                <p className="adm-stat-sub">Active ambassadors on the profiles roster</p>
               </div>
               <div className="adm-stat-card">
                 <p className="adm-stat-label">Active Markets</p>
@@ -747,6 +748,10 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: 20 }}>→</span>
                 </Link>
               ))}
+              <Link href="/profiles" className="adm-quick-card">
+                <span>👥 Ambassador Profiles</span>
+                <span style={{ fontSize: 20 }}>→</span>
+              </Link>
             </div>
 
             {/* ── Event Requests Panel ── */}
