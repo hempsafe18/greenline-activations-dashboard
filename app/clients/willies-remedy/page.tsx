@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
+import AdminDashboardLink from "../components/AdminDashboardLink";
 import Link from "next/link";
 
 const TARGET_BRAND = "WILLIES_REMEDY";
@@ -535,6 +536,7 @@ export default function UnifiedDashboard() {
         <img src="/brand/greenline-icon-canopy.svg" alt="" className="sidebar-icon" />
         <p className="sidebar-logo">Greenline Activations</p>
         <p className="sidebar-brand">WILLIE'S REMEDY</p>
+        <AdminDashboardLink />
         <p className="nav-label">Menu</p>
         <a className={`nav-item ${activeSection==='dashboard'?'active':''}`} onClick={()=>setActiveSection('dashboard')}><span className="icon">📊</span> Dashboard</a>
         <a className={`nav-item ${activeSection==='calendar'?'active':''}`} onClick={()=>setActiveSection('calendar')}><span className="icon">📅</span> Calendar</a>

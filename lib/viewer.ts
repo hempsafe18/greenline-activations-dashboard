@@ -1,10 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
+import { ADMIN_EMAILS } from "./admin-emails";
 
-export const ADMIN_EMAILS = [
-  "asmar@greenlineactivations.com",
-  "sedell@greenlineactivations.com",
-  "asmar.gary@gmail.com",
-];
+export { ADMIN_EMAILS };
 
 // Client email domain -> that client's dashboard. Single source of truth for
 // the post-login redirect on `/` and for where "Back to Dashboard" leads from
