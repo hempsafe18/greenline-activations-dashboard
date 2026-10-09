@@ -55,3 +55,37 @@ export function describeExperience(raw: string | null): { label: string; detail?
   if (/^no experience/i.test(text)) return { label: "New to brand ambassador work" };
   return { label: text };
 }
+
+const US_STATES: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA", colorado: "CO", connecticut: "CT",
+  delaware: "DE", "district of columbia": "DC", florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL",
+  indiana: "IN", iowa: "IA", kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD",
+  massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS", missouri: "MO", montana: "MT",
+  nebraska: "NE", nevada: "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY",
+  "north carolina": "NC", "north dakota": "ND", ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA",
+  "rhode island": "RI", "south carolina": "SC", "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT",
+  vermont: "VT", virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI", wyoming: "WY",
+};
+const STATE_CODES = new Set(Object.values(US_STATES));
+// Common typos seen in staff-entered data ("FI" is Fl with a capital I).
+const STATE_ALIASES: Record<string, string> = { FI: "FL" };
+
+/**
+ * Staff type their own state in the portal, so the column holds "Fl", "Florida ",
+ * "FLORIDA", blanks and typos. Collapse the recognizable ones to a two-letter
+ * code; anything unrecognized becomes null so it can't pollute the state filter.
+ */
+export function normalizeState(raw: string | null | undefined): string | null {
+  const text = raw?.trim().replace(/\./g, "").replace(/\s+/g, " ");
+  if (!text) return null;
+  const upper = text.toUpperCase();
+  if (STATE_CODES.has(upper)) return upper;
+  if (STATE_ALIASES[upper]) return STATE_ALIASES[upper];
+  return US_STATES[text.toLowerCase()] ?? null;
+}
+
+/** Trims and collapses whitespace so "Myrtle Beach " and "Myrtle Beach" are one filter option. */
+export function normalizeCity(raw: string | null | undefined): string | null {
+  const text = raw?.trim().replace(/\s+/g, " ");
+  return text || null;
+}
