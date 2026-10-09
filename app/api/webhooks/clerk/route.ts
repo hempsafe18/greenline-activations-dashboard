@@ -8,12 +8,24 @@ import { lookupClerkUser, recordLoginEvent } from '../../../../lib/login-log';
 // Clerk dashboard (Webhooks > Add Endpoint), subscribed to "session.created",
 // and set the signing secret it gives you as CLERK_WEBHOOK_SECRET.
 export async function POST(req: NextRequest) {
+  // verifyWebhook falls back to CLERK_WEBHOOK_SIGNING_SECRET (Clerk's default
+  // name) when CLERK_WEBHOOK_SECRET is unset.
+  if (!process.env.CLERK_WEBHOOK_SECRET && !process.env.CLERK_WEBHOOK_SIGNING_SECRET) {
+    console.error('Clerk webhook: CLERK_WEBHOOK_SECRET is not set');
+    return NextResponse.json({ error: 'CLERK_WEBHOOK_SECRET is not set on this deployment' }, { status: 500 });
+  }
+
   let evt;
   try {
     evt = await verifyWebhook(req, { signingSecret: process.env.CLERK_WEBHOOK_SECRET });
   } catch (err) {
+    const reason = err instanceof Error ? err.message : 'unknown error';
     console.error('Clerk webhook signature verification failed', err);
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    // The reason shows in the Clerk endpoint's attempt log (Response tab).
+    return NextResponse.json(
+      { error: `Signature verification failed: ${reason}. Check CLERK_WEBHOOK_SECRET matches this endpoint's signing secret.` },
+      { status: 400 }
+    );
   }
 
   if (evt.type !== 'session.created') {
