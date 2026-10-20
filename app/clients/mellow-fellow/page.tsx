@@ -65,6 +65,25 @@ function cleanEventDescription(description?: string | null): string {
   return (match ? match[0] : description).trim();
 }
 
+// Carrier tracking deep links. Shipments are logged with just a tracking number (no carrier
+// field), so the carrier is inferred from the number format; anything unrecognized falls back
+// to a multi-carrier tracker.
+function trackingUrl(raw: string): string {
+  const n = raw.replace(/\s+/g, '');
+  if (/^1Z[0-9A-Z]{16}$/i.test(n)) return `https://www.ups.com/track?tracknum=${n}`;
+  if (/^9[2345]\d{18,24}$/.test(n) || /^[A-Z]{2}\d{9}US$/i.test(n)) return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${n}`;
+  if (/^(\d{12}|\d{15})$/.test(n)) return `https://www.fedex.com/fedextrack/?trknbr=${n}`;
+  return `https://t.17track.net/en#nums=${n}`;
+}
+
+function TrackingLink({ number }: { number: string | null }) {
+  if (!number) return <>—</>;
+  return <a href={trackingUrl(number)} target="_blank" rel="noopener noreferrer" className="tracking-link">{number} ↗</a>;
+}
+
+const formatShipmentFlavor = (f: { flavor_name: string; potency_mg?: number | null; cases_sent: number }) =>
+  `${f.flavor_name}${f.potency_mg ? ` ${f.potency_mg}mg` : ''} ×${f.cases_sent}`;
+
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const { theme, toggleTheme, themeColor } = useDashboardTheme();
@@ -104,9 +123,7 @@ export default function UnifiedDashboard() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
 
-  // --- SHIPMENT ENTRY (log table/booth materials sent directly to an ambassador) ---
-  // Mellow Fellow has no product-SKU inventory to ship or track (see /api/materials-shipments),
-  // so unlike Amigos' shipment tab this only ever logs materials, never flavors/cases.
+  // --- SHIPMENT ENTRY (log 4-pack cases + materials sent directly to an ambassador) ---
   const MATERIAL_OPTIONS = [
     { key: 'tee', label: 'Tee' },
     { key: 'tablecloth', label: 'Table Cloth' },
@@ -117,25 +134,27 @@ export default function UnifiedDashboard() {
 
   const [shipmentData, setShipmentData] = useState<{
     ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
+    skus: { sku: string; flavor_name: string; cans_per_case: number; potency_mg?: number | null; retail_price?: number | null }[];
     events: { id: string; title: string; event_date: string; city: string | null }[];
     recentShipments: any[];
-  }>({ ambassadors: [], events: [], recentShipments: [] });
+  }>({ ambassadors: [], skus: [], events: [], recentShipments: [] });
   const [shipmentLoading, setShipmentLoading] = useState(false);
   const [shipmentForm, setShipmentForm] = useState({
     user_id: "", event_id: "", tracking_number: "",
     shipped_at: new Date().toISOString().split("T")[0], notes: "",
   });
+  const [flavorLines, setFlavorLines] = useState<{ sku: string; cases_sent: string }[]>([{ sku: "", cases_sent: "" }]);
   const [materialQty, setMaterialQty] = useState<Record<string, string>>({});
   const [ambassadorQuery, setAmbassadorQuery] = useState("");
   const [showAmbassadorList, setShowAmbassadorList] = useState(false);
   const [shipmentSubmitting, setShipmentSubmitting] = useState(false);
   const [shipmentError, setShipmentError] = useState("");
-  const [shipmentResult, setShipmentResult] = useState<{ ambassadorName: string; materials: { item: string; quantity: number }[] } | null>(null);
+  const [shipmentResult, setShipmentResult] = useState<{ ambassadorName: string; balances: any[]; materials: { item: string; quantity: number }[] } | null>(null);
 
   const fetchShipmentData = async () => {
     setShipmentLoading(true);
     try {
-      const res = await fetch(`/api/materials-shipments?client=${encodeURIComponent(TARGET_BRAND)}`);
+      const res = await fetch(`/api/shipments?client=${encodeURIComponent(TARGET_BRAND)}`);
       if (res.ok) setShipmentData(await res.json());
     } catch (e) { console.error('Failed to fetch shipment data', e); }
     setShipmentLoading(false);
@@ -169,8 +188,20 @@ export default function UnifiedDashboard() {
       ].filter(Boolean) as string[]
     : [];
 
+  const updateFlavorLine = (index: number, patch: Partial<{ sku: string; cases_sent: string }>) => {
+    setFlavorLines(prev => prev.map((line, i) => i === index ? { ...line, ...patch } : line));
+  };
+  const addFlavorLine = () => setFlavorLines(prev => prev.length < shipmentData.skus.length ? [...prev, { sku: "", cases_sent: "" }] : prev);
+  const removeFlavorLine = (index: number) => setFlavorLines(prev => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
+  const skusAlreadyPicked = (excludeIndex: number) => new Set(flavorLines.filter((_, i) => i !== excludeIndex).map(l => l.sku).filter(Boolean));
+  const canHintFor = (line: { sku: string; cases_sent: string }) => {
+    const sku = shipmentData.skus.find(s => s.sku === line.sku);
+    return sku && Number(line.cases_sent) > 0 ? { cans: Number(line.cases_sent) * sku.cans_per_case, perCase: sku.cans_per_case } : null;
+  };
+
   const submitShipment = async () => {
     setShipmentError("");
+    const items = flavorLines.filter(l => l.sku && l.cases_sent);
     const materials = MATERIAL_OPTIONS
       .filter(m => Number(materialQty[m.key]) > 0)
       .map(m => ({ item: m.key, quantity: Number(materialQty[m.key]) }));
@@ -179,22 +210,30 @@ export default function UnifiedDashboard() {
       setShipmentError("Please fill out recipient, tracking number, and ship date.");
       return;
     }
-    if (materials.length === 0) {
-      setShipmentError("Add at least one material with a quantity.");
+    // A half-filled flavor line (flavor without cases, or cases without flavor) would be
+    // silently dropped, so flag it instead. Flavors themselves are optional: supplies-only
+    // shipments are common.
+    if (flavorLines.some(l => Boolean(l.sku) !== Boolean(l.cases_sent))) {
+      setShipmentError("Finish or remove the flavor line: each one needs a flavor and a case count.");
+      return;
+    }
+    if (items.length === 0 && materials.length === 0) {
+      setShipmentError("Add at least one flavor or material to ship.");
       return;
     }
     setShipmentSubmitting(true);
     try {
-      const res = await fetch('/api/materials-shipments', {
+      const res = await fetch('/api/shipments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...shipmentForm, event_id: shipmentForm.event_id || null, materials, client: TARGET_BRAND }),
+        body: JSON.stringify({ ...shipmentForm, event_id: shipmentForm.event_id || null, items, materials, client: TARGET_BRAND }),
       });
       const data = await res.json();
       if (res.ok) {
         const ambassadorName = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id)?.full_name || 'Ambassador';
-        setShipmentResult({ ambassadorName, materials });
+        setShipmentResult({ ambassadorName, balances: data.balances || [], materials });
         setShipmentForm({ user_id: "", event_id: "", tracking_number: "", shipped_at: new Date().toISOString().split("T")[0], notes: "" });
+        setFlavorLines([{ sku: "", cases_sent: "" }]);
         setMaterialQty({});
         setAmbassadorQuery("");
         fetchShipmentData();
@@ -604,16 +643,16 @@ export default function UnifiedDashboard() {
           </div>
         </div>
 
-        <div className={`section ${activeSection==='shipment'?'active':''}`} data-html2canvas-ignore="true">
+        <div className={`section ${activeSection === 'shipment' ? 'active' : ''}`} data-html2canvas-ignore="true">
           <div className="card">
             <div className="card-header">
               <div>
-                <p className="card-title">Log a Materials Shipment</p>
-                <p className="card-sub">Record tees, table/booth setup materials, and POS items shipped directly to an ambassador ahead of an activation.</p>
+                <p className="card-title">Log a Sample Shipment</p>
+                <p className="card-sub">Record what you've shipped directly to an ambassador — Day Drinking and Evening Buzz cases, plus swag — so their sample balance stays accurate. Add the tracking number and you can follow every box from the list below.</p>
               </div>
             </div>
 
-            {shipmentLoading && <p style={{fontSize: '12px', color: 'var(--muted)'}}>Loading ambassadors…</p>}
+            {shipmentLoading && <p style={{fontSize: '12px', color: 'var(--muted)'}}>Loading ambassadors and flavors…</p>}
 
             <div className="form-grid">
               <div className="form-group combobox full">
@@ -653,7 +692,55 @@ export default function UnifiedDashboard() {
               </div>
 
               <div className="form-group full">
-                <label className="form-label">Materials Included</label>
+                <label className="form-label">Flavors (optional, up to {shipmentData.skus.length || 3})</label>
+                <div className="flavor-lines">
+                  {flavorLines.map((line, i) => {
+                    const hint = canHintFor(line);
+                    const taken = skusAlreadyPicked(i);
+                    return (
+                      <div className="flavor-line" key={i}>
+                        <div className="flavor-line-top">
+                          <select
+                            className="form-input"
+                            value={line.sku}
+                            onChange={(e) => updateFlavorLine(i, { sku: e.target.value })}
+                          >
+                            <option value="">No flavor (supplies only)</option>
+                            {shipmentData.skus.filter(s => !taken.has(s.sku) || s.sku === line.sku).map(s => (
+                              <option key={s.sku} value={s.sku}>{`${s.flavor_name}${s.potency_mg ? ` · ${s.potency_mg}mg` : ''}${s.retail_price ? ` · $${Number(s.retail_price).toFixed(2)}/4pk` : ''}`}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="flavor-line-remove"
+                            onClick={() => removeFlavorLine(i)}
+                            disabled={flavorLines.length === 1}
+                            aria-label="Remove flavor"
+                          >✕</button>
+                        </div>
+                        <div className="flavor-line-cases">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            className="form-input"
+                            placeholder="4-packs"
+                            value={line.cases_sent}
+                            onChange={(e) => updateFlavorLine(i, { cases_sent: e.target.value })}
+                          />
+                          {hint && <p className="can-hint">= <strong>{hint.cans}</strong> cans ({hint.perCase}/4-pack)</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {flavorLines.length < shipmentData.skus.length && (
+                  <button type="button" className="btn-action-primary" style={{marginTop: '8px'}} onClick={addFlavorLine}>+ Add Another Flavor</button>
+                )}
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Materials Included (Optional)</label>
                 <div className="materials-grid">
                   {MATERIAL_OPTIONS.map(m => {
                     const checked = Number(materialQty[m.key]) > 0;
@@ -704,7 +791,7 @@ export default function UnifiedDashboard() {
               </div>
 
               <div className="form-group full">
-                <label className="form-label">Activation Date (Optional)</label>
+                <label className="form-label">Tour Date (Optional)</label>
                 <select
                   className="form-input"
                   value={shipmentForm.event_id}
@@ -734,17 +821,31 @@ export default function UnifiedDashboard() {
             {shipmentError && <div className="error-msg">{shipmentError}</div>}
 
             {shipmentResult && (
-              <div className="shipment-confirm-card">
-                <p className="shipment-confirm-title">✅ Shipment logged for {shipmentResult.ambassadorName}</p>
-                <p style={{fontSize: '12px', margin: 0}}>
-                  Included: {shipmentResult.materials.map(m => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}
-                </p>
+              <div className="balance-card">
+                <p className="balance-card-title">✅ Shipment logged for {shipmentResult.ambassadorName}</p>
+                {shipmentResult.balances.length > 0 ? (
+                  shipmentResult.balances.map((b: any) => (
+                    <div key={b.sku} style={{marginBottom: '10px'}}>
+                      <div className="balance-stat-row"><span>{b.flavor_name}{shipmentData.skus.find(k => k.sku === b.sku)?.potency_mg ? ` ${shipmentData.skus.find(k => k.sku === b.sku)?.potency_mg}mg` : ''}</span><span></span></div>
+                      <div className="balance-stat-row"><span>Total Cans Sent</span><span>{b.total_cans_sent}</span></div>
+                      <div className="balance-stat-row"><span>Total Cans Used</span><span>{b.total_cans_used}</span></div>
+                      <div className="balance-stat-row"><span>Updated Cans Remaining</span><span className="balance-stat-value">{b.calculated_cans_remaining}</span></div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{fontSize: '12px', margin: 0}}>Shipment saved. Balance will appear once the ambassador reports usage.</p>
+                )}
+                {shipmentResult.materials.length > 0 && (
+                  <p style={{fontSize: '12px', marginTop: '8px', marginBottom: 0}}>
+                    Also included: {shipmentResult.materials.map(m => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}
+                  </p>
+                )}
               </div>
             )}
           </div>
 
           <div className="card" style={{marginTop: '14px'}}>
-            <div className="card-header"><div><p className="card-title">Recent Shipments</p><p className="card-sub">Last 50 shipments logged to your ambassadors</p></div></div>
+            <div className="card-header"><div><p className="card-title">Recent Shipments</p><p className="card-sub">Last 25 shipments logged to your ambassadors</p></div></div>
             {shipmentData.recentShipments.length === 0 ? (
               <p style={{fontSize: '12px', color: 'var(--muted)'}}>No shipments logged yet.</p>
             ) : (
@@ -752,15 +853,16 @@ export default function UnifiedDashboard() {
                 <div className="shipment-table-wrap">
                   <table className="shipment-table">
                     <thead>
-                      <tr><th>Date</th><th>Ambassador</th><th>Materials</th><th>Tracking #</th></tr>
+                      <tr><th>Date</th><th>Ambassador</th><th>Flavors</th><th>Materials</th><th>Tracking #</th></tr>
                     </thead>
                     <tbody>
                       {shipmentData.recentShipments.map((s: any) => (
-                        <tr key={s.id}>
+                        <tr key={s.key}>
                           <td>{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                           <td>{s.ambassador_name}</td>
-                          <td>{s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</td>
-                          <td>{s.tracking_number}</td>
+                          <td>{s.flavors.map(formatShipmentFlavor).join(', ')}</td>
+                          <td>{s.materials.length > 0 ? s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ') : '—'}</td>
+                          <td><TrackingLink number={s.tracking_number} /></td>
                         </tr>
                       ))}
                     </tbody>
@@ -768,13 +870,16 @@ export default function UnifiedDashboard() {
                 </div>
                 <div className="shipment-cards">
                   {shipmentData.recentShipments.map((s: any) => (
-                    <div className="shipment-card" key={s.id}>
+                    <div className="shipment-card" key={s.key}>
                       <div className="shipment-card-top">
                         <span className="shipment-card-ambassador">{s.ambassador_name}</span>
                         <span className="shipment-card-date">{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                       </div>
-                      <div className="shipment-card-materials">{s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</div>
-                      <div className="shipment-card-tracking">Tracking: {s.tracking_number}</div>
+                      <div className="shipment-card-flavors">{s.flavors.map(formatShipmentFlavor).join(', ')}</div>
+                      {s.materials.length > 0 && (
+                        <div className="shipment-card-materials">+ {s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</div>
+                      )}
+                      <div className="shipment-card-tracking">Tracking: <TrackingLink number={s.tracking_number} /></div>
                     </div>
                   ))}
                 </div>
