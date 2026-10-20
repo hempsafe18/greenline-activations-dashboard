@@ -12,6 +12,7 @@ const CLIENT_COMPANY: Record<string, string> = {
   GROW:             'Grow',
   GROOVEWAGON:      'Groovewagon',
   WILLIES_REMEDY:   "Willie's Remedy",
+  KICK_FIZZ:   'Kick Fizz',
   CLAYBOURNE_CO:    'Claybourne Co.',
 };
 

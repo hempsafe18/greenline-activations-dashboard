@@ -9,6 +9,7 @@ const CLIENT_COMPANY: Record<string, string> = {
   GROW:            'Grow',
   GROOVEWAGON:     'Groovewagon',
   WILLIES_REMEDY:  "Willie's Remedy",
+  KICK_FIZZ:  'Kick Fizz',
   CLAYBOURNE_CO:   'Claybourne Co.',
 };
 
@@ -20,6 +21,7 @@ const RECAP_BRAND_NAMES: Record<string, string[]> = {
   GROW:            ['GROW', 'Grow', 'Grow Cannabis'],
   GROOVEWAGON:     ['Groovewagon', 'GROOVEWAGON', 'groovewagon'],
   WILLIES_REMEDY:  ["Willie's Remedy", 'Willies Remedy', 'WILLIES REMEDY'],
+  KICK_FIZZ:       ['Kick Fizz', 'KICK FIZZ', 'KICK_FIZZ', 'kickfizz'],
   CLAYBOURNE_CO:   ['Claybourne Co.', 'Claybourne', 'CLAYBOURNE'],
 };
 
