@@ -1,13 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
-import "./dashboard.css";
+import "../dashboard.css";
+import { useDashboardTheme, ThemeToggle } from "../components/theme";
 import { UserButton } from "@clerk/nextjs";
 import AdminDashboardLink from "../components/AdminDashboardLink";
 import NotificationStaff from "../components/NotificationStaff";
 import Link from "next/link";
 
 const TARGET_BRAND = "AMIGOS";
-const THEME_KEY = "greenline-dashboard-theme";
 
 const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
   { key: 'sampling_type', label: 'Sampling Type' },
@@ -104,20 +104,7 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
-  // Light (bone) is the default; dark is opt-in and remembered per browser.
-  // Storage can throw (private mode, blocked site data), so the page must work without it.
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  useEffect(() => {
-    try { if (localStorage.getItem(THEME_KEY) === "dark") setTheme("dark"); } catch {}
-  }, []);
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    try { localStorage.setItem(THEME_KEY, next); } catch {}
-  };
-  // html2canvas paints its own background, so read the live theme token for PDF exports.
-  const themeColor = (name: string, fallback: string) =>
-    getComputedStyle(document.querySelector(".dashboard-wrapper") ?? document.body).getPropertyValue(name).trim() || fallback;
+  const { theme, toggleTheme, themeColor } = useDashboardTheme();
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -665,12 +652,7 @@ const downloadRecapReport = async () => {
             <p style={{marginTop: '2px'}}>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right" data-html2canvas-ignore="true">
-            <button
-              className="btn-action-primary theme-toggle"
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-              title={theme === "dark" ? "Light theme" : "Dark theme"}
-            >{theme === "dark" ? "☀" : "☾"}</button>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <UserButton />
             <span className="badge">{metrics.activations} Activations Logged</span>
           </div>

@@ -3,22 +3,25 @@
 
 /* Theme tokens. Light (bone) is the default; dark is opt-in via data-theme="dark"
    on .dashboard-wrapper (toggle in the topbar). Legacy names (--ink, --bone, --white,
-   --muted, --canopy*, --street*) are kept because page.tsx uses them inline, and are
-   remapped per theme. Never hard-code #0a0a0a / #fff in rules below; use a token. */
+   --muted, --canopy*, --street*) are kept because page.tsx files use them inline, and are
+   remapped per theme. Never hard-code #0a0a0a / #fff in rules below; use a token.
+   Brand accent: a client sets data-brand on the wrapper; only --brand, --brand-pale and
+   --on-brand differ (see "Brand accents" at the end of the tokens). */
 .dashboard-wrapper {
+  --brand: #00c853; --brand-pale: #e8f5e9; --on-brand: #0a0a0a; --brand-dark: #34c759;
   --bone: #faf0ea; --ink: #0a0a0a; --white: #ffffff;
-  --canopy: #00c853; --canopy-pale: #e8f5e9; --canopy-text: #00873a;
-  --street: #ff4f33; --street-pale: #ffe3de;
-  --on-canopy: #0a0a0a; --on-street: #0a0a0a;
+  --canopy: var(--brand); --canopy-pale: var(--brand-pale); --on-canopy: var(--on-brand);
+  --canopy-text: color-mix(in srgb, var(--brand), #000 25%);
+  --street: #ff4f33; --street-pale: #ffe3de; --on-street: #0a0a0a;
   --muted: #6b6b66; --card: #ffffff; --border: rgba(10,10,10,0.08);
   --surface: #ffffff; --surface-2: #f5f5f5;
-  --line: rgba(10,10,10,0.08); --line-strong: var(--line);
-  --placeholder: var(--placeholder);
+  --line: rgba(10,10,10,0.08); --line-strong: rgba(10,10,10,0.14);
+  --placeholder: rgba(10,10,10,0.35);
   --tint-blue: #dbe6ff; --tint-amber: #fdecb0;
   --sidebar-bg: #0a0a0a; --sidebar-line: rgba(250,240,234,0.12);
   --btn-bg: #0a0a0a; --btn-fg: #faf0ea;
-  --overlay-bg: var(--overlay-bg);
-  --shadow: 0 2px 8px rgba(10,10,10,0.08); --shadow-lg: 0 8px 24px var(--line);
+  --overlay-bg: rgba(250,240,234,0.85);
+  --shadow: 0 2px 8px rgba(10,10,10,0.08); --shadow-lg: 0 8px 24px rgba(10,10,10,0.12);
   --radius: 14px; --radius-sm: 10px;
   --bg: var(--bone); --black: var(--ink);
   --green: var(--canopy); --green-light: var(--canopy); --green-pale: var(--canopy-pale);
@@ -30,21 +33,29 @@
   color-scheme: light;
 }
 .dashboard-wrapper[data-theme="dark"] {
+  --canopy: var(--brand-dark, color-mix(in srgb, var(--brand), #fff 22%));
+  --canopy-pale: color-mix(in srgb, var(--canopy) 15%, transparent);
+  --canopy-text: var(--canopy); --on-canopy: #08090b;
   --bone: #08090b; --ink: #f2f2ee; --white: #111316;
-  --canopy: #34c759; --canopy-pale: rgba(52,199,89,0.14); --canopy-text: #34c759;
-  --street: #ff6a47; --street-pale: rgba(255,106,71,0.14);
-  --on-canopy: #08090b; --on-street: #08090b;
+  --street: #ff6a47; --street-pale: rgba(255,106,71,0.14); --on-street: #08090b;
   --muted: #9a9a94; --card: #111316; --border: rgba(255,255,255,0.08);
   --surface: #111316; --surface-2: #181b1f;
   --line: rgba(255,255,255,0.08); --line-strong: rgba(255,255,255,0.16);
   --placeholder: rgba(242,242,238,0.35);
   --tint-blue: rgba(120,160,255,0.2); --tint-amber: rgba(253,224,71,0.18);
   --sidebar-bg: #0d0f12; --sidebar-line: rgba(255,255,255,0.08);
-  --btn-bg: #34c759; --btn-fg: #08090b;
+  --btn-bg: var(--canopy); --btn-fg: #08090b;
   --overlay-bg: rgba(8,9,11,0.85);
   --shadow: 0 2px 8px rgba(0,0,0,0.45); --shadow-lg: 0 8px 24px rgba(0,0,0,0.6);
   color-scheme: dark;
 }
+/* Brand accents (light value + pale tint; --on-brand is the readable text colour on the accent).
+   Dark theme lightens the accent automatically; unset --brand-dark so it can derive. */
+.dashboard-wrapper[data-brand="kick-fizz"]       { --brand: #1f8f84; --brand-pale: #dff3f0; --on-brand: #ffffff; --brand-dark: initial; }
+.dashboard-wrapper[data-brand="claybourne-co"]   { --brand: #a9822c; --brand-pale: #f4e8c8; --on-brand: #ffffff; --brand-dark: initial; }
+.dashboard-wrapper[data-brand="groovewagon"]     { --brand: #0d9488; --brand-pale: #ccfbf1; --on-brand: #ffffff; --brand-dark: initial; }
+.dashboard-wrapper[data-brand="mellow-fellow"]   { --brand: #9b59b6; --brand-pale: #ead5f5; --on-brand: #ffffff; --brand-dark: initial; }
+.dashboard-wrapper[data-brand="willies-remedy"]  { --brand: #0284c7; --brand-pale: #e0f2fe; --on-brand: #ffffff; --brand-dark: initial; }
 .dashboard-wrapper * { box-sizing: border-box; }
 
 .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-line); padding: 28px 20px; display: flex; flex-direction: column; z-index: 100; }
@@ -274,6 +285,11 @@
 .theme-toggle { min-width: 36px; justify-content: center; }
 .theme-toggle:focus-visible, .nav-item:focus-visible, .btn-submit:focus-visible { outline: 2px solid var(--canopy); outline-offset: 2px; }
 
+/* ── Rules only some dashboards use (shipments tab, tracking links) ── */
+.tracking-link { color: var(--ink); font-weight: 700; text-decoration: underline; word-break: break-all; }
+.shipment-confirm-card { background: var(--canopy-pale); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); margin-top: 16px; padding: 18px 20px; }
+.shipment-confirm-title { color: var(--ink); font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; margin: 0 0 6px 0; }
+
 /* ── Tablet (900px and below) ── */
 @media (max-width: 900px) {
   .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 1px solid var(--sidebar-line); border-right: none; }
@@ -331,6 +347,7 @@
   .recap-key { font-size: 8px; }
   .recap-val { font-size: 12px; }
   .time-inputs { flex-direction: column; gap: 8px; }
+  .cal-products { font-size: 9px; }
   .materials-grid { grid-template-columns: 1fr; }
   .shipment-table-wrap { display: none; }
   .shipment-cards { display: block; }

@@ -82,3 +82,10 @@ Client dashboard for Kick Fizz, built on the Amigos layout (events, calendar, ma
 - **Shipment tracking:** logged shipments appear under Recent Shipments with the flavor + dosage and a tracking link. The carrier (UPS, USPS, FedEx) is inferred from the tracking number format; anything else opens a multi-carrier tracker. The tab deep-links at `/clients/kick-fizz?section=shipment`.
 - **Setup:** apply `supabase/migrations/20261020_add_kick_fizz_client_and_skus.sql` (client row + SKUs), contact is Julie Rhodes. Events pick up the client from `events.brand_name = 'Kick Fizz'`.
 - **Client logins:** `@kickbeverages.com` maps to this dashboard in `lib/viewer.ts`, `lib/login-log.ts` and each `clientIdFromEmail` in `app/api/*`.
+
+## Dashboard styling and themes
+
+- Client dashboards (`app/clients/*`) share one stylesheet, `app/clients/dashboard.css`. The master dashboard (`app/dashboard`) has its own, `admin.css`, with the same tokens. Don't add inline `<style>` blocks to pages; change the shared file so all dashboards stay in step.
+- Light (bone) is the default theme; dark is opt-in via the topbar toggle (`useDashboardTheme` / `ThemeToggle` in `app/clients/components/theme.tsx`, remembered in `localStorage` under `greenline-dashboard-theme`, shared across dashboards).
+- Colors are theme tokens on `.dashboard-wrapper` / `.admin-wrap`. Use `var(--ink)`, `var(--surface)`, `var(--line)`, `var(--canopy)`, etc. in CSS and inline styles; never hard-code `#0a0a0a` or `#fff`, which breaks dark mode. Text on a canopy/street fill uses `var(--on-canopy)` / `var(--on-street)`.
+- Each client's accent color is set with `data-brand="<slug>"` on the wrapper and defined once in the "Brand accents" block of `dashboard.css` (new client: add a line there, set `data-brand`). No `data-brand` means the default Greenline green.
