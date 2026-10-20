@@ -101,6 +101,131 @@ export default function UnifiedDashboard() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
 
+  // --- SHIPMENT ENTRY (log product, merch + materials sent directly to an ambassador) ---
+  const MATERIAL_OPTIONS = [
+    { key: 'Table Cloth', label: 'Table Cloth' },
+    { key: 'Standee', label: 'Standee' },
+    { key: 'Ice Bucket', label: 'Ice Bucket' },
+    { key: 'Stickers', label: 'Stickers' },
+    { key: 'Flyers / Literature', label: 'Flyers / Literature' },
+    { key: 'Merch / Swag', label: 'Merch / Swag' },
+  ];
+
+  const [shipmentData, setShipmentData] = useState<{
+    ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
+    skus: { sku: string; flavor_name: string; cans_per_case: number; potency_mg?: number | null }[];
+    events: { id: string; title: string; event_date: string; city: string | null }[];
+    recentShipments: any[];
+  }>({ ambassadors: [], skus: [], events: [], recentShipments: [] });
+  const [shipmentLoading, setShipmentLoading] = useState(false);
+  const [shipmentForm, setShipmentForm] = useState({
+    user_id: "", event_id: "", tracking_number: "",
+    shipped_at: new Date().toISOString().split("T")[0], notes: "",
+  });
+  const [flavorLines, setFlavorLines] = useState<{ sku: string; cases_sent: string }[]>([{ sku: "", cases_sent: "" }]);
+  const [materialQty, setMaterialQty] = useState<Record<string, string>>({});
+  const [ambassadorQuery, setAmbassadorQuery] = useState("");
+  const [showAmbassadorList, setShowAmbassadorList] = useState(false);
+  const [shipmentSubmitting, setShipmentSubmitting] = useState(false);
+  const [shipmentError, setShipmentError] = useState("");
+  const [shipmentResult, setShipmentResult] = useState<{ ambassadorName: string; balances: any[]; materials: { item: string; quantity: number }[] } | null>(null);
+
+  const fetchShipmentData = async () => {
+    setShipmentLoading(true);
+    try {
+      const res = await fetch(`/api/shipments?client=${encodeURIComponent(TARGET_BRAND)}`);
+      if (res.ok) setShipmentData(await res.json());
+    } catch (e) { console.error('Failed to fetch shipment data', e); }
+    setShipmentLoading(false);
+  };
+
+  useEffect(() => { if (activeSection === 'shipment') fetchShipmentData(); }, [activeSection]);
+
+  // Deep link support so a "Log a Shipment" email can jump straight to this tab, e.g.
+  // /clients/mellow-fellow?section=shipment
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section) setActiveSection(section);
+  }, []);
+
+  const filteredAmbassadors = ambassadorQuery.trim()
+    ? shipmentData.ambassadors.filter(a => a.full_name.toLowerCase().includes(ambassadorQuery.trim().toLowerCase()))
+    : shipmentData.ambassadors;
+
+  const selectAmbassador = (a: { id: string; full_name: string }) => {
+    setShipmentForm(prev => ({ ...prev, user_id: a.id }));
+    setAmbassadorQuery(a.full_name);
+    setShowAmbassadorList(false);
+  };
+
+  const selectedAmbassador = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id) || null;
+  const selectedAmbassadorAddressLines = selectedAmbassador
+    ? [
+        selectedAmbassador.street_address,
+        selectedAmbassador.address_line_2,
+        [selectedAmbassador.city, selectedAmbassador.state, selectedAmbassador.zip_code].filter(Boolean).join(', '),
+      ].filter(Boolean) as string[]
+    : [];
+
+  const updateFlavorLine = (index: number, patch: Partial<{ sku: string; cases_sent: string }>) => {
+    setFlavorLines(prev => prev.map((line, i) => i === index ? { ...line, ...patch } : line));
+  };
+  const addFlavorLine = () => setFlavorLines(prev => prev.length < shipmentData.skus.length ? [...prev, { sku: "", cases_sent: "" }] : prev);
+  const removeFlavorLine = (index: number) => setFlavorLines(prev => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
+  const skusAlreadyPicked = (excludeIndex: number) => new Set(flavorLines.filter((_, i) => i !== excludeIndex).map(l => l.sku).filter(Boolean));
+  const canHintFor = (line: { sku: string; cases_sent: string }) => {
+    const sku = shipmentData.skus.find(s => s.sku === line.sku);
+    return sku && Number(line.cases_sent) > 0 ? { cans: Number(line.cases_sent) * sku.cans_per_case, perCase: sku.cans_per_case } : null;
+  };
+
+  const submitShipment = async () => {
+    setShipmentError("");
+    const items = flavorLines.filter(l => l.sku && l.cases_sent);
+    const materials = MATERIAL_OPTIONS
+      .filter(m => Number(materialQty[m.key]) > 0)
+      .map(m => ({ item: m.key, quantity: Number(materialQty[m.key]) }));
+
+    if (!shipmentForm.user_id || !shipmentForm.tracking_number || !shipmentForm.shipped_at) {
+      setShipmentError("Please fill out recipient, tracking number, and ship date.");
+      return;
+    }
+    // A half-filled flavor line (flavor without cases, or cases without flavor) would be
+    // silently dropped, so flag it instead. Flavors themselves are optional: supplies-only
+    // shipments are common.
+    if (flavorLines.some(l => Boolean(l.sku) !== Boolean(l.cases_sent))) {
+      setShipmentError("Finish or remove the product line: each one needs a product and a case count.");
+      return;
+    }
+    if (items.length === 0 && materials.length === 0) {
+      setShipmentError("Add at least one product, merch or material to ship.");
+      return;
+    }
+    setShipmentSubmitting(true);
+    try {
+      const res = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...shipmentForm, event_id: shipmentForm.event_id || null, items, materials, client: TARGET_BRAND }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const ambassadorName = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id)?.full_name || 'Ambassador';
+        setShipmentResult({ ambassadorName, balances: data.balances || [], materials });
+        setShipmentForm({ user_id: "", event_id: "", tracking_number: "", shipped_at: new Date().toISOString().split("T")[0], notes: "" });
+        setFlavorLines([{ sku: "", cases_sent: "" }]);
+        setMaterialQty({});
+        setAmbassadorQuery("");
+        fetchShipmentData();
+      } else {
+        setShipmentError(data.error || "Failed to log shipment. Please try again.");
+      }
+    } catch (e) {
+      setShipmentError("Network error. Please try again.");
+    }
+    setShipmentSubmitting(false);
+  };
+
+
   const fetchClientData = async () => {
     setIsLoading(true);
     setVisibleUpcoming(ITEMS_PER_PAGE);
@@ -401,10 +526,58 @@ export default function UnifiedDashboard() {
         .nav-notif-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--street); color: var(--bone); border: 1px solid var(--bone); font-size: 9px; font-weight: 700; min-width: 16px; height: 15px; padding: 0 3px; margin-left: 5px; }
         .notif-type { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; margin-right: 4px; }
         .notif-email-status { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; }
+        .combobox { position: relative; min-width: 0; }
+        .combobox-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50; background: var(--white); border: 2px solid var(--ink); box-shadow: var(--shadow); max-height: 220px; overflow-y: auto; }
+        .combobox-option { padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 1px solid rgba(10,10,10,0.1); }
+        .combobox-option:last-child { border-bottom: none; }
+        .combobox-option:hover, .combobox-option.active { background: var(--canopy-pale); }
+        .combobox-option-sub { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+        .combobox-empty { padding: 10px 14px; font-size: 12px; color: var(--muted); }
+        .address-preview { margin-top: 8px; padding: 10px 14px; background: var(--canopy-pale); border: 2px solid var(--ink); }
+        .address-preview-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px 0; }
+        .address-preview-line { font-size: 13px; font-weight: 600; color: var(--ink); margin: 0; line-height: 1.4; }
+        .address-preview-missing { font-size: 12px; font-weight: 600; color: var(--ink); }
+        .can-hint { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+        .can-hint strong { color: var(--ink); }
+        .balance-card { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 18px 20px; margin-top: 16px; box-shadow: var(--shadow); }
+        .balance-card-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0 0 10px 0; }
+        .balance-stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid rgba(10,10,10,0.15); font-size: 12px; font-weight: 600; }
+        .balance-stat-row:last-child { border-bottom: none; }
+        .balance-stat-value { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; font-weight: 800; }
+        .shipment-table-wrap { overflow-x: auto; }
+        .shipment-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        .shipment-table th { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--ink); }
+        .shipment-table td { font-size: 12px; font-weight: 500; padding: 8px 10px; border-bottom: 1px solid rgba(10,10,10,0.12); }
+        .shipment-cards { display: none; }
+        .shipment-card { background: var(--white); border: 2px solid var(--ink); padding: 12px 14px; margin-bottom: 10px; box-shadow: 3px 3px 0 0 var(--ink); }
+        .shipment-card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+        .shipment-card-ambassador { font-family: 'Cabinet Grotesk', sans-serif; font-size: 13px; font-weight: 800; color: var(--ink); }
+        .shipment-card-date { font-size: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+        .shipment-card-flavors { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+        .shipment-card-materials { font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+        .shipment-card-tracking { font-size: 10px; font-weight: 500; color: var(--muted); }
+
+        .flavor-lines { display: flex; flex-direction: column; gap: 10px; }
+        .flavor-line { border: 2px solid var(--ink); background: var(--white); padding: 10px; box-shadow: 3px 3px 0 0 var(--ink); }
+        .flavor-line-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .flavor-line-top select { flex: 1; min-width: 0; }
+        .flavor-line-cases { display: flex; flex-direction: column; }
+        .flavor-line-remove {
+          flex-shrink: 0; width: 38px; height: 38px; padding: 0;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 14px; font-weight: 700; color: var(--ink);
+          background: var(--bone); border: 2px solid var(--ink); cursor: pointer;
+        }
+        .flavor-line-remove:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .materials-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; min-width: 0; }
+          .shipment-table-wrap { display: none; }
+          .shipment-cards { display: block; }
         /* ── Tablet (900px and below) ── */
         @media (max-width: 900px) {
           .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; border-top: 2px solid rgba(250,240,234,0.2); border-right: none; }
           .sidebar-icon, .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
+          .materials-grid { grid-template-columns: 1fr; }
           .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; width: 25%; margin-bottom: 0; border: none; }
           .nav-item .icon { font-size: 18px; width: auto; text-align: center; margin: 0 auto; }
           .main { margin-left: 0; padding: 18px; padding-bottom: 90px; padding-top: 20px; }
@@ -548,6 +721,7 @@ export default function UnifiedDashboard() {
         <a className={`nav-item ${activeSection==='calendar'?'active':''}`} onClick={()=>setActiveSection('calendar')}><span className="icon">📅</span> Calendar</a>
         <a className={`nav-item ${activeSection==='intel'?'active':''}`} onClick={()=>setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
         <a className={`nav-item ${activeSection==='request'?'active':''}`} onClick={()=>setActiveSection('request')}><span className="icon">➕</span> Request</a>
+        <a className={`nav-item ${activeSection==='shipment'?'active':''}`} onClick={()=>setActiveSection('shipment')}><span className="icon">📦</span> Shipments</a>
         <Link href="/profiles" className="nav-item"><span className="icon">👥</span> View BA Profiles</Link>
         <a className={`nav-item ${activeSection==='notifications'?'active':''}`} onClick={()=>setActiveSection('notifications')}>
           <span className="icon">🔔</span> Notifications
@@ -715,6 +889,251 @@ export default function UnifiedDashboard() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+
+        <div className={`section ${activeSection === 'shipment' ? 'active' : ''}`} data-html2canvas-ignore="true">
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Log a Shipment</p>
+                <p className="card-sub">Record product, merch and materials you've shipped directly to an ambassador. They get a shipping notification with what's coming and the tracking number.</p>
+              </div>
+            </div>
+
+            {shipmentLoading && <p style={{fontSize: '12px', color: 'var(--muted)'}}>Loading ambassadors and products…</p>}
+
+            <div className="form-grid">
+              <div className="form-group combobox full">
+                <label className="form-label">Recipient (Ambassador)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search by name…"
+                  value={ambassadorQuery}
+                  onFocus={() => setShowAmbassadorList(true)}
+                  onChange={(e) => { setAmbassadorQuery(e.target.value); setShipmentForm(prev => ({ ...prev, user_id: "" })); setShowAmbassadorList(true); }}
+                  onBlur={() => setTimeout(() => setShowAmbassadorList(false), 150)}
+                />
+                {showAmbassadorList && (
+                  <div className="combobox-list">
+                    {filteredAmbassadors.length === 0 && <div className="combobox-empty">No ambassadors confirmed on your events yet.</div>}
+                    {filteredAmbassadors.map(a => (
+                      <div key={a.id} className="combobox-option" onMouseDown={() => selectAmbassador(a)}>
+                        {a.full_name}
+                        {(a.city || a.state) && <div className="combobox-option-sub">{[a.city, a.state].filter(Boolean).join(', ')}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedAmbassador && (
+                  selectedAmbassadorAddressLines.length > 0 ? (
+                    <div className="address-preview">
+                      <p className="address-preview-label">Shipping Address on File</p>
+                      {selectedAmbassadorAddressLines.map((line, i) => <p key={i} className="address-preview-line">{line}</p>)}
+                    </div>
+                  ) : (
+                    <div className="address-preview address-preview-missing">
+                      No shipping address on file for {selectedAmbassador.full_name} — confirm with them before shipping.
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Flavors (optional, up to {shipmentData.skus.length || 3})</label>
+                <div className="flavor-lines">
+                  {flavorLines.map((line, i) => {
+                    const hint = canHintFor(line);
+                    const taken = skusAlreadyPicked(i);
+                    return (
+                      <div className="flavor-line" key={i}>
+                        <div className="flavor-line-top">
+                          <select
+                            className="form-input"
+                            value={line.sku}
+                            onChange={(e) => updateFlavorLine(i, { sku: e.target.value })}
+                          >
+                            <option value="">No product (merch / materials only)</option>
+                            {shipmentData.skus.filter(s => !taken.has(s.sku) || s.sku === line.sku).map(s => (
+                              <option key={s.sku} value={s.sku}>{s.potency_mg ? `${s.flavor_name} · ${s.potency_mg}mg` : s.flavor_name}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="flavor-line-remove"
+                            onClick={() => removeFlavorLine(i)}
+                            disabled={flavorLines.length === 1}
+                            aria-label="Remove flavor"
+                          >✕</button>
+                        </div>
+                        <div className="flavor-line-cases">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            className="form-input"
+                            placeholder="Cases"
+                            value={line.cases_sent}
+                            onChange={(e) => updateFlavorLine(i, { cases_sent: e.target.value })}
+                          />
+                          {hint && <p className="can-hint">= <strong>{hint.cans}</strong> cans ({hint.perCase}/case)</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {flavorLines.length < shipmentData.skus.length && (
+                  <button type="button" className="btn-action-primary" style={{marginTop: '8px'}} onClick={addFlavorLine}>+ Add Another Flavor</button>
+                )}
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Materials Included (Optional)</label>
+                <div className="materials-grid">
+                  {MATERIAL_OPTIONS.map(m => {
+                    const checked = Number(materialQty[m.key]) > 0;
+                    return (
+                      <div className={`material-item ${checked ? 'checked' : ''}`} key={m.key}>
+                        <label className="material-item-check">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => setMaterialQty(prev => ({ ...prev, [m.key]: e.target.checked ? (prev[m.key] || '1') : '' }))}
+                          />
+                          {m.label}
+                        </label>
+                        {checked && (
+                          <input
+                            type="number"
+                            min="1"
+                            className="form-input material-item-qty"
+                            value={materialQty[m.key] ?? '1'}
+                            onChange={(e) => setMaterialQty(prev => ({ ...prev, [m.key]: e.target.value }))}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Tracking Number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 1Z999AA10123456784"
+                  value={shipmentForm.tracking_number}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, tracking_number: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Date Shipped</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={shipmentForm.shipped_at}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, shipped_at: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Tour Date (Optional)</label>
+                <select
+                  className="form-input"
+                  value={shipmentForm.event_id}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, event_id: e.target.value }))}
+                >
+                  <option value="">Not tied to a specific date</option>
+                  {shipmentData.events.map(ev => (
+                    <option key={ev.id} value={ev.id}>{ev.title} — {ev.event_date}{ev.city ? ` (${ev.city})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Notes (Optional)</label>
+                <textarea
+                  className="form-input form-textarea"
+                  placeholder="Anything the team should know about this shipment…"
+                  value={shipmentForm.notes}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <button className="btn-submit" onClick={submitShipment} disabled={shipmentSubmitting}>
+              {shipmentSubmitting ? "Logging Shipment..." : "Log Shipment"}
+            </button>
+            {shipmentError && <div className="error-msg">{shipmentError}</div>}
+
+            {shipmentResult && (
+              <div className="balance-card">
+                <p className="balance-card-title">✅ Shipment logged for {shipmentResult.ambassadorName}</p>
+                {shipmentResult.balances.length > 0 ? (
+                  shipmentResult.balances.map((b: any) => (
+                    <div key={b.sku} style={{marginBottom: '10px'}}>
+                      <div className="balance-stat-row"><span>{b.flavor_name}</span><span></span></div>
+                      <div className="balance-stat-row"><span>Total Cans Sent</span><span>{b.total_cans_sent}</span></div>
+                      <div className="balance-stat-row"><span>Total Cans Used</span><span>{b.total_cans_used}</span></div>
+                      <div className="balance-stat-row"><span>Updated Cans Remaining</span><span className="balance-stat-value">{b.calculated_cans_remaining}</span></div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{fontSize: '12px', margin: 0}}>Shipment saved. Balance will appear once the ambassador reports usage.</p>
+                )}
+                {shipmentResult.materials.length > 0 && (
+                  <p style={{fontSize: '12px', marginTop: '8px', marginBottom: 0}}>
+                    Also included: {shipmentResult.materials.map(m => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{marginTop: '14px'}}>
+            <div className="card-header"><div><p className="card-title">Recent Shipments</p><p className="card-sub">Last 25 shipments logged to your ambassadors</p></div></div>
+            {shipmentData.recentShipments.length === 0 ? (
+              <p style={{fontSize: '12px', color: 'var(--muted)'}}>No shipments logged yet.</p>
+            ) : (
+              <>
+                <div className="shipment-table-wrap">
+                  <table className="shipment-table">
+                    <thead>
+                      <tr><th>Date</th><th>Ambassador</th><th>Flavors</th><th>Materials</th><th>Tracking #</th></tr>
+                    </thead>
+                    <tbody>
+                      {shipmentData.recentShipments.map((s: any) => (
+                        <tr key={s.key}>
+                          <td>{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                          <td>{s.ambassador_name}</td>
+                          <td>{s.flavors.map((f: any) => `${f.flavor_name} ×${f.cases_sent}`).join(', ')}</td>
+                          <td>{s.materials.length > 0 ? s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ') : '—'}</td>
+                          <td>{s.tracking_number}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="shipment-cards">
+                  {shipmentData.recentShipments.map((s: any) => (
+                    <div className="shipment-card" key={s.key}>
+                      <div className="shipment-card-top">
+                        <span className="shipment-card-ambassador">{s.ambassador_name}</span>
+                        <span className="shipment-card-date">{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div className="shipment-card-flavors">{s.flavors.map((f: any) => `${f.flavor_name} ×${f.cases_sent}`).join(', ')}</div>
+                      {s.materials.length > 0 && (
+                        <div className="shipment-card-materials">+ {s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</div>
+                      )}
+                      <div className="shipment-card-tracking">Tracking: {s.tracking_number}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
