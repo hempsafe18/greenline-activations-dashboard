@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { supabase } from '../../../lib/supabase';
+import { clientIdAliases, notificationBelongsToClient } from '../../../lib/client-notifications';
 
 // Derive the client_id from the authenticated user's email domain —
 // the same mapping used in app/page.tsx for routing.
@@ -35,7 +36,7 @@ export async function GET(req: Request) {
   const { data, error } = await supabase
     .from('client_notifications')
     .select('*')
-    .eq('client_id', requestedClient)
+    .in('client_id', await clientIdAliases(requestedClient))
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ notifications: [], error: error.message });
@@ -56,7 +57,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: false }, { status: 403 });
     }
     const { error } = await supabase.from('client_notifications')
-      .update({ read: true }).eq('client_id', client).eq('read', false);
+      .update({ read: true }).in('client_id', await clientIdAliases(client)).eq('read', false);
     if (error) return NextResponse.json({ success: false, error: error.message });
     return NextResponse.json({ success: true });
   }
@@ -69,7 +70,7 @@ export async function PATCH(req: Request) {
         .select('client_id')
         .eq('id', id)
         .single();
-      if (!notif || notif.client_id !== allowedClient) {
+      if (!notif || !(await notificationBelongsToClient(notif.client_id, allowedClient))) {
         return NextResponse.json({ success: false }, { status: 403 });
       }
     }

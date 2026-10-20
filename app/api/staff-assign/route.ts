@@ -15,13 +15,29 @@ export async function POST(req: Request) {
       ? `${staffLabel} has been assigned to your activation at ${storeName} on ${eventDate}.${notes ? ` Notes: ${notes}` : ''}`
       : `Staff has been assigned to your activation at ${storeName} on ${eventDate}.${notes ? ` Notes: ${notes}` : ''}`;
 
+    // Link to the public ambassador profile when one exists (same filter as /profiles/[slug]).
+    let staff: { name: string; slug: string | null; profile_url: string | null }[] = [];
+    if (staffName) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('slug')
+        .ilike('full_name', staffName.trim())
+        .eq('role', 'staff')
+        .eq('status', 'active')
+        .eq('hempsafe_certified', true)
+        .not('slug', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      staff = [{ name: staffName, slug: profile?.slug ?? null, profile_url: profile?.slug ? `/profiles/${profile.slug}` : null }];
+    }
+
     const { error } = await supabase.from('client_notifications').insert({
       client_id: client,
       type: 'update',
       subject,
       body,
       read: false,
-      metadata: { storeName, eventDate, staffName, staffRole, notes },
+      metadata: { storeName, eventDate, staffName, staffRole, notes, staff },
     });
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
