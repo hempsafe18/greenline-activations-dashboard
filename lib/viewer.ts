@@ -13,6 +13,7 @@ const CLIENT_DASHBOARDS: { domains: string[]; path: string }[] = [
   { domains: ["mellowfellowcannabis.com", "mfdrinks.com"], path: "/clients/mellow-fellow" },
   { domains: ["workingrelief.com"], path: "/clients/groovewagon" },
   { domains: ["drinkwillies.com"], path: "/clients/willies-remedy" },
+  { domains: ["kickbeverages.com"], path: "/clients/kick-fizz" },
   { domains: ["claybourneco.com"], path: "/clients/claybourne-co" },
 ];
 

@@ -21,6 +21,7 @@ const CLIENT_BRAND_CODE: Record<string, string> = {
   "Grow": "GROW",
   "Groovewagon": "GROOVEWAGON",
   "Willie's Remedy": "WILLIES_REMEDY",
+  "Kick Fizz": "KICK_FIZZ",
 };
 
 // Matches the app/clients/<slug> routing in greenline-activations-dashboard, and the
@@ -32,6 +33,7 @@ const CLIENT_ROUTE_SLUG: Record<string, string> = {
   "Grow": "grow",
   "Groovewagon": "groovewagon",
   "Willie's Remedy": "willies-remedy",
+  "Kick Fizz": "kick-fizz",
   // Claybourne Co. has no shipment/inventory concept (educational activation client,
   // no physical sample stock to alert on), so it's intentionally absent from both maps above.
 };

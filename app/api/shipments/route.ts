@@ -14,6 +14,7 @@ const CLIENT_COMPANY: Record<string, string> = {
   GROW:            'Grow',
   GROOVEWAGON:     'Groovewagon',
   WILLIES_REMEDY:  "Willie's Remedy",
+  KICK_FIZZ:  'Kick Fizz',
 };
 
 // Claybourne Co. deliberately has no entry above or in clientIdFromEmail below — it's an
@@ -26,6 +27,7 @@ function clientIdFromEmail(email: string): string | null {
   if (email.endsWith('@growcannabis.group')) return 'GROW';
   if (email.endsWith('@workingrelief.com')) return 'GROOVEWAGON';
   if (email.endsWith('@drinkwillies.com')) return 'WILLIES_REMEDY';
+  if (email.endsWith('@kickbeverages.com')) return 'KICK_FIZZ';
   if (email.endsWith('@plift.com')) return 'PLIFT';
   if (email.endsWith('@greenlineactivations.com')) return null; // admin: allow any client
   return null;
@@ -74,7 +76,7 @@ type ShipmentRow = {
   notes: string | null;
   materials: { item: string; quantity: number }[];
   profile: { full_name: string } | null;
-  sku_info: { flavor_name: string; brand: string } | null;
+  sku_info: { flavor_name: string; brand: string; potency_mg: number | null } | null;
 };
 
 // GET /api/shipments?client=AMIGOS
@@ -101,7 +103,7 @@ export async function GET(req: Request) {
     // (Amigos, Willie's, Claybourne...), so it must be filtered by brand.
     supabase
       .from('inventory_skus')
-      .select('sku, flavor_name, cans_per_case, potency_mg, product_line')
+      .select('sku, flavor_name, cans_per_case, potency_mg, product_line, retail_price')
       .eq('brand', brand)
       .order('product_line', { ascending: true })
       .order('flavor_name', { ascending: true })
@@ -114,7 +116,7 @@ export async function GET(req: Request) {
       .limit(50),
     supabase
       .from('ambassador_inventory_shipments')
-      .select('id, user_id, sku, event_id, cases_sent, tracking_number, shipped_at, notes, materials, profile:profiles(full_name), sku_info:inventory_skus(flavor_name, brand)')
+      .select('id, user_id, sku, event_id, cases_sent, tracking_number, shipped_at, notes, materials, profile:profiles(full_name), sku_info:inventory_skus(flavor_name, brand, potency_mg)')
       .order('shipped_at', { ascending: false })
       .limit(75),
     // Supplies-only shipments (no product) live in ambassador_materials_shipments.
@@ -151,7 +153,7 @@ export async function GET(req: Request) {
   const grouped = new Map<string, {
     key: string; user_id: string; ambassador_name: string; tracking_number: string;
     shipped_at: string; notes: string | null; materials: { item: string; quantity: number }[];
-    flavors: { sku: string; flavor_name: string; cases_sent: number }[];
+    flavors: { sku: string; flavor_name: string; potency_mg: number | null; cases_sent: number }[];
   }>();
   for (const row of rows.sort((a, b) => new Date(b.shipped_at).getTime() - new Date(a.shipped_at).getTime())) {
     const key = `${row.user_id}|${row.tracking_number}|${row.shipped_at}`;
@@ -167,7 +169,7 @@ export async function GET(req: Request) {
         flavors: [],
       });
     }
-    grouped.get(key)!.flavors.push({ sku: row.sku, flavor_name: row.sku_info?.flavor_name || row.sku, cases_sent: row.cases_sent });
+    grouped.get(key)!.flavors.push({ sku: row.sku, flavor_name: row.sku_info?.flavor_name || row.sku, potency_mg: row.sku_info?.potency_mg ?? null, cases_sent: row.cases_sent });
   }
   for (const m of (materialsResult.data ?? []) as unknown as {
     id: string; user_id: string; tracking_number: string | null; shipped_at: string;
@@ -196,7 +198,10 @@ export async function GET(req: Request) {
   });
 }
 
-const MAX_ITEMS_PER_SHIPMENT = 3; // one row per flavor; only 3 Amigos SKUs exist today
+// One row per SKU in a shipment. Defaults to 3; Kick Fizz has 4 SKUs (2 flavors x 2 dosages)
+// and a box can reasonably hold all of them.
+const DEFAULT_MAX_ITEMS_PER_SHIPMENT = 3;
+const MAX_ITEMS_PER_SHIPMENT_BY_CLIENT: Record<string, number> = { KICK_FIZZ: 4 };
 
 // POST /api/shipments
 // body: { client, user_id, event_id?, items: [{sku, cases_sent}], materials?: [{item, quantity}],
@@ -217,8 +222,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
   const itemList: { sku: string; cases_sent: number }[] = Array.isArray(items) ? items : [];
-  if (itemList.length > MAX_ITEMS_PER_SHIPMENT) {
-    return NextResponse.json({ error: `A shipment can include at most ${MAX_ITEMS_PER_SHIPMENT} flavors` }, { status: 400 });
+  const maxItems = MAX_ITEMS_PER_SHIPMENT_BY_CLIENT[client] ?? DEFAULT_MAX_ITEMS_PER_SHIPMENT;
+  if (itemList.length > maxItems) {
+    return NextResponse.json({ error: `A shipment can include at most ${maxItems} flavors` }, { status: 400 });
   }
 
   const skus = itemList.map(i => i?.sku);

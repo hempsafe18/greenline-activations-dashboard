@@ -73,3 +73,12 @@ The panel shows the last 7 days, grouped by day. By default only sign-ins from a
 2. Endpoint URL: `https://<your-deployed-domain>/api/webhooks/clerk`.
 3. Subscribe to the **`session.created`** event only.
 4. Copy the endpoint's signing secret into `CLERK_WEBHOOK_SECRET` in Vercel env vars (see `.env.example`).
+
+## Kick Fizz Dashboard (`/clients/kick-fizz`)
+
+Client dashboard for Kick Fizz, built on the Amigos layout (events, calendar, market intel, requests, notifications, and the **Log Shipment** tab). Brand code `KICK_FIZZ`, company name `Kick Fizz`.
+
+- **SKUs:** Day Drinking – Lemonberry Ice and Evening Buzz – Black Cherry Vanilla, each in 2mg and 5mg (4 SKUs in `inventory_skus`, 4-pack cases, $14.99 at 2mg and $17.99 at 5mg per 4-pack (`inventory_skus.retail_price`)). A single shipment can include all four.
+- **Shipment tracking:** logged shipments appear under Recent Shipments with the flavor + dosage and a tracking link. The carrier (UPS, USPS, FedEx) is inferred from the tracking number format; anything else opens a multi-carrier tracker. The tab deep-links at `/clients/kick-fizz?section=shipment`.
+- **Setup:** apply `supabase/migrations/20261020_add_kick_fizz_client_and_skus.sql` (client row + SKUs), contact is Julie Rhodes. Events pick up the client from `events.brand_name = 'Kick Fizz'`.
+- **Client logins:** `@kickbeverages.com` maps to this dashboard in `lib/viewer.ts`, `lib/login-log.ts` and each `clientIdFromEmail` in `app/api/*`.

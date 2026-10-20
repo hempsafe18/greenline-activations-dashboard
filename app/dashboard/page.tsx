@@ -13,6 +13,7 @@ const CLIENTS = [
   { id: "mellow-fellow",  name: "MELLOW FELLOW",  clientKey: "MELLOW FELLOW",  color: "#9b59b6", icon: "😌", href: "/clients/mellow-fellow" },
   { id: "groovewagon",    name: "GROOVEWAGON",    clientKey: "GROOVEWAGON",    color: "#0d9488", icon: "🎵", href: "/clients/groovewagon" },
   { id: "willies-remedy", name: "WILLIE'S REMEDY", clientKey: "WILLIES_REMEDY", color: "#0284c7", icon: "🍃", href: "/clients/willies-remedy" },
+  { id: "kick-fizz",       name: "KICK FIZZ",       clientKey: "KICK_FIZZ",      color: "#1f8f84", icon: "🥤", href: "/clients/kick-fizz" },
   { id: "claybourne-co",  name: "CLAYBOURNE CO.",  clientKey: "CLAYBOURNE_CO",  color: "#a9822c", icon: "🦅", href: "/clients/claybourne-co" },
 ];
 
@@ -25,7 +26,7 @@ interface ClientStats {
   upcoming: number; monthlyData: Record<string, number>;
 }
 
-const CLIENT_IDS = ["3CHI", "AMIGOS", "MELLOW FELLOW", "GROW", "GROOVEWAGON", "WILLIES_REMEDY", "CLAYBOURNE_CO"];
+const CLIENT_IDS = ["3CHI", "AMIGOS", "MELLOW FELLOW", "GROW", "GROOVEWAGON", "WILLIES_REMEDY", "KICK_FIZZ", "CLAYBOURNE_CO"];
 
 interface LoginEvent {
   id: string;
