@@ -104,6 +104,109 @@ export default function UnifiedDashboard() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
 
+  // --- SHIPMENT ENTRY (log table/booth materials sent directly to an ambassador) ---
+  // Mellow Fellow has no product-SKU inventory to ship or track (see /api/materials-shipments),
+  // so unlike Amigos' shipment tab this only ever logs materials, never flavors/cases.
+  const MATERIAL_OPTIONS = [
+    { key: 'tee', label: 'Tee' },
+    { key: 'tablecloth', label: 'Table Cloth' },
+    { key: 'standee', label: 'Standee / Banner' },
+    { key: 'pos_items', label: 'POS Items' },
+    { key: 'merch', label: 'Merch' },
+  ];
+
+  const [shipmentData, setShipmentData] = useState<{
+    ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
+    events: { id: string; title: string; event_date: string; city: string | null }[];
+    recentShipments: any[];
+  }>({ ambassadors: [], events: [], recentShipments: [] });
+  const [shipmentLoading, setShipmentLoading] = useState(false);
+  const [shipmentForm, setShipmentForm] = useState({
+    user_id: "", event_id: "", tracking_number: "",
+    shipped_at: new Date().toISOString().split("T")[0], notes: "",
+  });
+  const [materialQty, setMaterialQty] = useState<Record<string, string>>({});
+  const [ambassadorQuery, setAmbassadorQuery] = useState("");
+  const [showAmbassadorList, setShowAmbassadorList] = useState(false);
+  const [shipmentSubmitting, setShipmentSubmitting] = useState(false);
+  const [shipmentError, setShipmentError] = useState("");
+  const [shipmentResult, setShipmentResult] = useState<{ ambassadorName: string; materials: { item: string; quantity: number }[] } | null>(null);
+
+  const fetchShipmentData = async () => {
+    setShipmentLoading(true);
+    try {
+      const res = await fetch(`/api/materials-shipments?client=${encodeURIComponent(TARGET_BRAND)}`);
+      if (res.ok) setShipmentData(await res.json());
+    } catch (e) { console.error('Failed to fetch shipment data', e); }
+    setShipmentLoading(false);
+  };
+
+  useEffect(() => { if (activeSection === 'shipment') fetchShipmentData(); }, [activeSection]);
+
+  // Deep link support so a "Log a Shipment" email can jump straight to this tab, e.g.
+  // /clients/mellow-fellow?section=shipment
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section) setActiveSection(section);
+  }, []);
+
+  const filteredAmbassadors = ambassadorQuery.trim()
+    ? shipmentData.ambassadors.filter(a => a.full_name.toLowerCase().includes(ambassadorQuery.trim().toLowerCase()))
+    : shipmentData.ambassadors;
+
+  const selectAmbassador = (a: { id: string; full_name: string }) => {
+    setShipmentForm(prev => ({ ...prev, user_id: a.id }));
+    setAmbassadorQuery(a.full_name);
+    setShowAmbassadorList(false);
+  };
+
+  const selectedAmbassador = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id) || null;
+  const selectedAmbassadorAddressLines = selectedAmbassador
+    ? [
+        selectedAmbassador.street_address,
+        selectedAmbassador.address_line_2,
+        [selectedAmbassador.city, selectedAmbassador.state, selectedAmbassador.zip_code].filter(Boolean).join(', '),
+      ].filter(Boolean) as string[]
+    : [];
+
+  const submitShipment = async () => {
+    setShipmentError("");
+    const materials = MATERIAL_OPTIONS
+      .filter(m => Number(materialQty[m.key]) > 0)
+      .map(m => ({ item: m.key, quantity: Number(materialQty[m.key]) }));
+
+    if (!shipmentForm.user_id || !shipmentForm.tracking_number || !shipmentForm.shipped_at) {
+      setShipmentError("Please fill out recipient, tracking number, and ship date.");
+      return;
+    }
+    if (materials.length === 0) {
+      setShipmentError("Add at least one material with a quantity.");
+      return;
+    }
+    setShipmentSubmitting(true);
+    try {
+      const res = await fetch('/api/materials-shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...shipmentForm, event_id: shipmentForm.event_id || null, materials, client: TARGET_BRAND }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const ambassadorName = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id)?.full_name || 'Ambassador';
+        setShipmentResult({ ambassadorName, materials });
+        setShipmentForm({ user_id: "", event_id: "", tracking_number: "", shipped_at: new Date().toISOString().split("T")[0], notes: "" });
+        setMaterialQty({});
+        setAmbassadorQuery("");
+        fetchShipmentData();
+      } else {
+        setShipmentError(data.error || "Failed to log shipment. Please try again.");
+      }
+    } catch (e) {
+      setShipmentError("Network error. Please try again.");
+    }
+    setShipmentSubmitting(false);
+  };
+
   const fetchClientData = async () => {
     setIsLoading(true);
     setVisibleUpcoming(ITEMS_PER_PAGE);
@@ -328,6 +431,7 @@ export default function UnifiedDashboard() {
         <a className={`nav-item ${activeSection==='calendar'?'active':''}`} onClick={()=>setActiveSection('calendar')}><span className="icon">📅</span> Calendar</a>
         <a className={`nav-item ${activeSection==='intel'?'active':''}`} onClick={()=>setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
         <a className={`nav-item ${activeSection==='request'?'active':''}`} onClick={()=>setActiveSection('request')}><span className="icon">➕</span> Request</a>
+        <a className={`nav-item ${activeSection==='shipment'?'active':''}`} onClick={()=>setActiveSection('shipment')}><span className="icon">📦</span> Log Shipment</a>
         <Link href="/profiles" className="nav-item"><span className="icon">👥</span> View BA Profiles</Link>
         <a className={`nav-item ${activeSection==='notifications'?'active':''}`} onClick={()=>setActiveSection('notifications')}>
           <span className="icon">🔔</span> Notifications
@@ -496,6 +600,185 @@ export default function UnifiedDashboard() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+
+        <div className={`section ${activeSection==='shipment'?'active':''}`} data-html2canvas-ignore="true">
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Log a Materials Shipment</p>
+                <p className="card-sub">Record tees, table/booth setup materials, and POS items shipped directly to an ambassador ahead of an activation.</p>
+              </div>
+            </div>
+
+            {shipmentLoading && <p style={{fontSize: '12px', color: 'var(--muted)'}}>Loading ambassadors…</p>}
+
+            <div className="form-grid">
+              <div className="form-group combobox full">
+                <label className="form-label">Recipient (Ambassador)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search by name…"
+                  value={ambassadorQuery}
+                  onFocus={() => setShowAmbassadorList(true)}
+                  onChange={(e) => { setAmbassadorQuery(e.target.value); setShipmentForm(prev => ({ ...prev, user_id: "" })); setShowAmbassadorList(true); }}
+                  onBlur={() => setTimeout(() => setShowAmbassadorList(false), 150)}
+                />
+                {showAmbassadorList && (
+                  <div className="combobox-list">
+                    {filteredAmbassadors.length === 0 && <div className="combobox-empty">No ambassadors confirmed on your events yet.</div>}
+                    {filteredAmbassadors.map(a => (
+                      <div key={a.id} className="combobox-option" onMouseDown={() => selectAmbassador(a)}>
+                        {a.full_name}
+                        {(a.city || a.state) && <div className="combobox-option-sub">{[a.city, a.state].filter(Boolean).join(', ')}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedAmbassador && (
+                  selectedAmbassadorAddressLines.length > 0 ? (
+                    <div className="address-preview">
+                      <p className="address-preview-label">Shipping Address on File</p>
+                      {selectedAmbassadorAddressLines.map((line, i) => <p key={i} className="address-preview-line">{line}</p>)}
+                    </div>
+                  ) : (
+                    <div className="address-preview address-preview-missing">
+                      No shipping address on file for {selectedAmbassador.full_name} — confirm with them before shipping.
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Materials Included</label>
+                <div className="materials-grid">
+                  {MATERIAL_OPTIONS.map(m => {
+                    const checked = Number(materialQty[m.key]) > 0;
+                    return (
+                      <div className={`material-item ${checked ? 'checked' : ''}`} key={m.key}>
+                        <label className="material-item-check">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => setMaterialQty(prev => ({ ...prev, [m.key]: e.target.checked ? (prev[m.key] || '1') : '' }))}
+                          />
+                          {m.label}
+                        </label>
+                        {checked && (
+                          <input
+                            type="number"
+                            min="1"
+                            className="form-input material-item-qty"
+                            value={materialQty[m.key] ?? '1'}
+                            onChange={(e) => setMaterialQty(prev => ({ ...prev, [m.key]: e.target.value }))}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Tracking Number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 1Z999AA10123456784"
+                  value={shipmentForm.tracking_number}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, tracking_number: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Date Shipped</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={shipmentForm.shipped_at}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, shipped_at: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Activation Date (Optional)</label>
+                <select
+                  className="form-input"
+                  value={shipmentForm.event_id}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, event_id: e.target.value }))}
+                >
+                  <option value="">Not tied to a specific date</option>
+                  {shipmentData.events.map(ev => (
+                    <option key={ev.id} value={ev.id}>{ev.title} — {ev.event_date}{ev.city ? ` (${ev.city})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Notes (Optional)</label>
+                <textarea
+                  className="form-input form-textarea"
+                  placeholder="Anything the team should know about this shipment…"
+                  value={shipmentForm.notes}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <button className="btn-submit" onClick={submitShipment} disabled={shipmentSubmitting}>
+              {shipmentSubmitting ? "Logging Shipment..." : "Log Shipment"}
+            </button>
+            {shipmentError && <div className="error-msg">{shipmentError}</div>}
+
+            {shipmentResult && (
+              <div className="shipment-confirm-card">
+                <p className="shipment-confirm-title">✅ Shipment logged for {shipmentResult.ambassadorName}</p>
+                <p style={{fontSize: '12px', margin: 0}}>
+                  Included: {shipmentResult.materials.map(m => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{marginTop: '14px'}}>
+            <div className="card-header"><div><p className="card-title">Recent Shipments</p><p className="card-sub">Last 50 shipments logged to your ambassadors</p></div></div>
+            {shipmentData.recentShipments.length === 0 ? (
+              <p style={{fontSize: '12px', color: 'var(--muted)'}}>No shipments logged yet.</p>
+            ) : (
+              <>
+                <div className="shipment-table-wrap">
+                  <table className="shipment-table">
+                    <thead>
+                      <tr><th>Date</th><th>Ambassador</th><th>Materials</th><th>Tracking #</th></tr>
+                    </thead>
+                    <tbody>
+                      {shipmentData.recentShipments.map((s: any) => (
+                        <tr key={s.id}>
+                          <td>{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                          <td>{s.ambassador_name}</td>
+                          <td>{s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</td>
+                          <td>{s.tracking_number}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="shipment-cards">
+                  {shipmentData.recentShipments.map((s: any) => (
+                    <div className="shipment-card" key={s.id}>
+                      <div className="shipment-card-top">
+                        <span className="shipment-card-ambassador">{s.ambassador_name}</span>
+                        <span className="shipment-card-date">{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div className="shipment-card-materials">{s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</div>
+                      <div className="shipment-card-tracking">Tracking: {s.tracking_number}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
