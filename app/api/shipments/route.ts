@@ -198,10 +198,10 @@ export async function GET(req: Request) {
   });
 }
 
-// One row per SKU in a shipment. Defaults to 3; Kick Fizz has 4 SKUs (2 flavors x 2 dosages)
-// and a box can reasonably hold all of them.
+// One row per SKU in a shipment. Defaults to 3; Kick Fizz (2 flavors x 2 dosages) and Mellow Fellow
+// (4 flavors) have 4 SKUs and a box can reasonably hold all of them.
 const DEFAULT_MAX_ITEMS_PER_SHIPMENT = 3;
-const MAX_ITEMS_PER_SHIPMENT_BY_CLIENT: Record<string, number> = { KICK_FIZZ: 4 };
+const MAX_ITEMS_PER_SHIPMENT_BY_CLIENT: Record<string, number> = { KICK_FIZZ: 4, 'MELLOW FELLOW': 4, MELLOW_FELLOW: 4 };
 
 // POST /api/shipments
 // body: { client, user_id, event_id?, items: [{sku, cases_sent}], materials?: [{item, quantity}],

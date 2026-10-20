@@ -1,5 +1,7 @@
 "use client";
 import { Fragment, useState, useEffect } from "react";
+import "./admin.css";
+import { useDashboardTheme, ThemeToggle } from "../clients/components/theme";
 import { useUser, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 
@@ -50,6 +52,7 @@ interface NotifyForm {
 }
 
 export default function AdminDashboard() {
+  const { theme, toggleTheme } = useDashboardTheme();
   const { user, isLoaded } = useUser();
   const [clientStats, setClientStats] = useState<ClientStats[]>([]);
   const [ambassadors, setAmbassadors] = useState<number | null>(null);
@@ -240,224 +243,7 @@ export default function AdminDashboard() {
   if (!isLoaded) return null;
 
   return (
-    <div className="admin-wrap">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900,500&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-
-        .admin-wrap {
-          --bone:#faf0ea; --ink:#0a0a0a; --white:#ffffff;
-          --canopy:#00c853; --canopy-pale:#d3f5df;
-          --street:#ff4f33; --street-pale:#ffe3de;
-          --muted:#767672; --card:#ffffff;
-          --shadow:4px 4px 0 0 #0a0a0a; --shadow-lg:6px 6px 0 0 #0a0a0a;
-          font-family:'Manrope',system-ui,sans-serif;
-          background:var(--bone); color:var(--ink);
-          min-height:100vh; position:absolute; top:0; left:0; right:0; z-index:10;
-          -webkit-font-smoothing:antialiased;
-        }
-        .admin-wrap * { box-sizing:border-box; }
-
-        /* ── Sidebar ── */
-        .adm-sidebar { position:fixed; top:0; left:0; width:220px; height:100vh; background:var(--ink); padding:28px 20px; display:flex; flex-direction:column; z-index:100; overflow-y:auto; }
-        .adm-icon { width:26px; height:26px; border-radius:6px; display:block; margin:0 0 12px; }
-        .adm-logo { font-family:'Cabinet Grotesk',sans-serif; font-size:10px; font-weight:700; color:rgba(250,240,234,.45); letter-spacing:.14em; text-transform:uppercase; margin:0 0 4px; }
-        .adm-brand { font-family:'Cabinet Grotesk',sans-serif; font-size:19px; font-weight:800; color:var(--bone); margin:0 0 32px; letter-spacing:-.02em; line-height:1.2; }
-        .adm-nav-label { font-size:9px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(250,240,234,.3); margin:20px 0 8px; }
-        .adm-nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; font-size:11px; font-weight:700; color:rgba(250,240,234,.6); text-decoration:none; text-transform:uppercase; letter-spacing:.06em; border:2px solid transparent; margin-bottom:2px; transition:all .15s; cursor:pointer; }
-        .adm-nav-item:hover { background:rgba(250,240,234,.08); color:var(--bone); }
-        .adm-nav-item.active { background:var(--canopy); color:var(--ink); border-color:var(--canopy); }
-        .adm-nav-dot { width:8px; height:8px; border-radius:50%; border:2px solid rgba(250,240,234,.4); flex-shrink:0; }
-        .adm-divider { border:none; border-top:1px solid rgba(250,240,234,.12); margin:16px 0; }
-
-        /* ── Main ── */
-        .adm-main { margin-left:220px; padding:32px; min-height:100vh; }
-
-        /* ── Topbar ── */
-        .adm-topbar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:28px; }
-        .adm-topbar-title { font-family:'Cabinet Grotesk',sans-serif; font-size:28px; font-weight:800; color:var(--ink); margin:0; letter-spacing:-.02em; }
-        .adm-topbar-sub { font-size:12px; font-weight:500; color:var(--muted); margin:4px 0 0; }
-        .adm-topbar-right { display:flex; align-items:center; gap:12px; }
-        .adm-live-dot { width:8px; height:8px; background:var(--canopy); border-radius:50%; border:2px solid var(--ink); }
-        .adm-btn-sync { background:var(--white); border:2px solid var(--ink); padding:8px 16px; font-size:10px; font-weight:700; cursor:pointer; color:var(--ink); transition:all .15s; display:flex; align-items:center; gap:6px; box-shadow:3px 3px 0 0 var(--ink); text-transform:uppercase; letter-spacing:.05em; font-family:'Manrope',sans-serif; }
-        .adm-btn-sync:hover { transform:translate(-2px,-2px); box-shadow:4px 4px 0 0 var(--ink); }
-        .adm-btn-sync:active { transform:none; box-shadow:none; }
-
-        /* ── Stat Grid ── */
-        .adm-stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px; }
-        .adm-stat-card { background:var(--card); border:2px solid var(--ink); padding:20px 22px; box-shadow:var(--shadow); }
-        .adm-stat-card.ac-green { background:var(--canopy); }
-        .adm-stat-card.ac-red { background:var(--street); }
-        .adm-stat-card.ac-dark { background:var(--ink); }
-        .adm-stat-label { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; margin:0 0 10px; }
-        .adm-stat-card.ac-green .adm-stat-label,
-        .adm-stat-card.ac-red .adm-stat-label { color:rgba(10,10,10,.5); }
-        .adm-stat-card.ac-dark .adm-stat-label { color:rgba(250,240,234,.4); }
-        .adm-stat-value { font-family:'Cabinet Grotesk',sans-serif; font-size:38px; font-weight:800; color:var(--ink); line-height:1; margin:0 0 4px; letter-spacing:-.02em; }
-        .adm-stat-card.ac-dark .adm-stat-value { color:var(--canopy); }
-        .adm-stat-sub { font-size:11px; font-weight:500; color:var(--muted); margin:0; }
-        .adm-stat-card.ac-green .adm-stat-sub,
-        .adm-stat-card.ac-red .adm-stat-sub { color:rgba(10,10,10,.5); }
-        .adm-stat-card.ac-dark .adm-stat-sub { color:rgba(250,240,234,.4); }
-
-        /* ── Card ── */
-        .adm-card { background:var(--card); border:2px solid var(--ink); padding:22px; box-shadow:var(--shadow); margin-bottom:14px; }
-        .adm-card-title { font-family:'Cabinet Grotesk',sans-serif; font-size:15px; font-weight:800; color:var(--ink); margin:0 0 2px; letter-spacing:-.02em; }
-        .adm-card-sub { font-size:11px; font-weight:500; color:var(--muted); margin:0 0 18px; }
-
-        /* ── Vertical Bar Chart ── */
-        .adm-vbars { display:flex; align-items:flex-end; gap:10px; height:130px; padding-bottom:24px; position:relative; }
-        .adm-vbars::after { content:''; position:absolute; bottom:24px; left:0; right:0; height:2px; background:var(--ink); }
-        .adm-vbar-col { flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; }
-        .adm-vbar-fill { width:100%; border:2px solid var(--ink); border-bottom:none; transition:height .6s ease; position:relative; min-height:4px; }
-        .adm-vbar-val { position:absolute; top:-20px; left:50%; transform:translateX(-50%); font-size:10px; font-weight:700; color:var(--ink); white-space:nowrap; }
-        .adm-vbar-label { font-size:10px; font-weight:700; color:var(--muted); margin-top:6px; text-align:center; text-transform:uppercase; letter-spacing:.05em; }
-
-        /* ── Horizontal Bar Chart ── */
-        .adm-hbar-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
-        .adm-hbar-label { font-size:11px; font-weight:700; color:var(--ink); width:85px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .adm-hbar-track { flex:1; height:22px; background:rgba(10,10,10,.06); border:2px solid var(--ink); position:relative; overflow:hidden; }
-        .adm-hbar-fill { height:100%; transition:width .6s ease; }
-        .adm-hbar-val { font-size:10px; font-weight:700; color:var(--muted); width:52px; text-align:right; flex-shrink:0; }
-
-        /* ── Status Overview ── */
-        .adm-status-row { display:flex; gap:16px; }
-        .adm-status-item { flex:1; background:var(--bone); border:2px solid var(--ink); padding:14px 16px; display:flex; flex-direction:column; gap:4px; }
-        .adm-status-num { font-family:'Cabinet Grotesk',sans-serif; font-size:28px; font-weight:800; color:var(--ink); line-height:1; }
-        .adm-status-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); }
-        .adm-status-bar { height:4px; border:1px solid var(--ink); margin-top:6px; }
-
-        /* ── Client Breakdown Table ── */
-        .adm-table { width:100%; border-collapse:collapse; }
-        .adm-table th { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); padding:8px 12px; text-align:left; border-bottom:2px solid var(--ink); white-space:nowrap; }
-        .adm-table td { font-size:13px; font-weight:500; padding:13px 12px; border-bottom:1px solid rgba(10,10,10,.08); vertical-align:middle; }
-        .adm-table tr:last-child td { border-bottom:none; }
-        .adm-table tr:hover td { background:rgba(10,10,10,.02); }
-        .adm-client-name { font-family:'Cabinet Grotesk',sans-serif; font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; }
-        .adm-client-dot { width:10px; height:10px; border-radius:50%; border:2px solid var(--ink); flex-shrink:0; }
-        .adm-conv-wrap { display:flex; align-items:center; gap:8px; }
-        .adm-conv-bar { height:6px; width:60px; background:rgba(10,10,10,.06); border:1px solid var(--ink); position:relative; overflow:hidden; }
-        .adm-conv-fill { height:100%; }
-        .adm-open-btn { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:var(--ink); text-decoration:none; padding:5px 10px; border:2px solid var(--ink); text-transform:uppercase; letter-spacing:.05em; background:var(--white); box-shadow:2px 2px 0 0 var(--ink); transition:all .15s; }
-        .adm-open-btn:hover { transform:translate(-1px,-1px); box-shadow:3px 3px 0 0 var(--ink); }
-
-        /* ── Bottom Quick Links ── */
-        .adm-quick-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:14px; }
-        .adm-quick-card { background:var(--white); border:2px solid var(--ink); padding:20px 22px; text-decoration:none; color:var(--ink); box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; font-family:'Cabinet Grotesk',sans-serif; font-weight:800; font-size:15px; transition:all .15s; }
-        .adm-quick-card:hover { transform:translate(-2px,-2px); box-shadow:var(--shadow-lg); }
-
-        /* ── Notify Panel ── */
-        .adm-notify-tabs { display:flex; gap:0; margin-bottom:18px; border:2px solid var(--ink); overflow:hidden; }
-        .adm-notify-tab { flex:1; padding:10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; background:var(--bone); border:none; cursor:pointer; border-right:2px solid var(--ink); font-family:'Manrope',sans-serif; }
-        .adm-notify-tab:last-child { border-right:none; }
-        .adm-notify-tab.active { background:var(--ink); color:var(--bone); }
-        .adm-notify-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
-        .adm-notify-group { display:flex; flex-direction:column; gap:5px; }
-        .adm-notify-group.full { grid-column:1/-1; }
-        .adm-notify-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); }
-        .adm-notify-input { border:2px solid var(--ink); padding:8px 10px; font-size:13px; font-family:'Manrope',sans-serif; outline:none; width:100%; background:var(--white); }
-        .adm-notify-select { border:2px solid var(--ink); padding:8px 10px; font-size:13px; font-family:'Manrope',sans-serif; outline:none; width:100%; background:var(--white); }
-        .adm-notify-msg { font-size:12px; font-weight:600; margin-top:10px; }
-
-        /* ── Loading ── */
-        .adm-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:360px; gap:16px; }
-        .adm-spinner { border:4px solid rgba(10,10,10,.1); width:40px; height:40px; border-left-color:var(--ink); animation:adm-spin 1s linear infinite; }
-        @keyframes adm-spin { to { transform:rotate(360deg); } }
-
-        /* ── Grid layouts ── */
-        .adm-two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
-
-        /* ── Tablet (900px and below) ── */
-        @media (max-width:900px) {
-          .adm-sidebar { display:none; }
-          .adm-main { margin-left:0; padding:20px; }
-          .adm-stat-grid { grid-template-columns:1fr 1fr; }
-          .adm-two-col { grid-template-columns:1fr; }
-          .adm-topbar { flex-direction:column; gap:12px; }
-          .adm-topbar-title { font-size:24px; }
-          .adm-topbar-right { width:100%; justify-content:flex-start; }
-          .adm-card { padding:16px; }
-          .adm-stat-card { padding:16px 18px; }
-          .adm-stat-value { font-size:32px; }
-          .adm-vbars { height:120px; }
-          .adm-status-row { gap:12px; }
-          .adm-status-item { padding:12px 14px; }
-          .adm-status-num { font-size:24px; }
-          .adm-hbar-label { width:70px; font-size:10px; }
-          .adm-hbar-val { width:45px; }
-          .adm-notify-grid { grid-template-columns:1fr; }
-          .adm-table th, .adm-table td { padding:10px 8px; font-size:12px; }
-          .adm-quick-grid { grid-template-columns:1fr; }
-        }
-
-        /* ── Mobile (600px and below) ── */
-        @media (max-width:600px) {
-          .admin-wrap { position:static; }
-          .adm-main { padding:14px; margin-left:0; }
-          .adm-topbar-title { font-size:20px; }
-          .adm-topbar-sub { font-size:11px; }
-          .adm-btn-sync { padding:6px 12px; font-size:9px; box-shadow:2px 2px 0 0 var(--ink); }
-          .adm-stat-grid { grid-template-columns:1fr; gap:10px; margin-bottom:10px; }
-          .adm-stat-card { padding:14px 16px; }
-          .adm-stat-value { font-size:28px; }
-          .adm-stat-label { font-size:9px; margin-bottom:6px; }
-          .adm-stat-sub { font-size:10px; }
-          .adm-card { padding:14px; margin-bottom:10px; box-shadow:2px 2px 0 0 var(--ink); }
-          .adm-card-title { font-size:14px; }
-          .adm-card-sub { font-size:10px; margin-bottom:12px; }
-          .adm-vbars { height:110px; gap:8px; padding-bottom:20px; }
-          .adm-vbar-fill { min-height:3px; }
-          .adm-vbar-val { font-size:9px; top:-18px; }
-          .adm-vbar-label { font-size:9px; }
-          .adm-hbar-row { gap:8px; margin-bottom:8px; }
-          .adm-hbar-label { width:60px; font-size:9px; }
-          .adm-hbar-track { height:20px; }
-          .adm-hbar-val { width:40px; font-size:9px; }
-          .adm-status-row { flex-direction:column; gap:10px; }
-          .adm-status-item { padding:10px 12px; }
-          .adm-status-num { font-size:22px; }
-          .adm-status-label { font-size:9px; }
-          .adm-table { font-size:11px; }
-          .adm-table th { padding:6px 4px; font-size:8px; }
-          .adm-table td { padding:8px 4px; }
-          .adm-client-name { font-size:13px; }
-          .adm-open-btn { font-size:9px; padding:4px 8px; }
-          .adm-notify-tabs { margin-bottom:12px; }
-          .adm-notify-tab { padding:8px 6px; font-size:9px; }
-          .adm-notify-grid { gap:8px; }
-          .adm-notify-label { font-size:9px; }
-          .adm-notify-input, .adm-notify-select { padding:6px 8px; font-size:12px; }
-          .adm-quick-grid { gap:8px; margin-top:10px; }
-          .adm-quick-card { padding:14px 12px; font-size:13px; }
-        }
-
-        /* ── Extra small (480px and below) ── */
-        @media (max-width:480px) {
-          .adm-main { padding:10px; }
-          .adm-topbar { gap:8px; }
-          .adm-topbar-title { font-size:18px; }
-          .adm-topbar-right { flex-direction:column; gap:8px; width:100%; }
-          .adm-btn-sync { width:100%; justify-content:center; }
-          .adm-stat-grid { gap:8px; }
-          .adm-stat-card { padding:12px 14px; }
-          .adm-stat-value { font-size:24px; }
-          .adm-card { padding:12px; }
-          .adm-vbars { height:100px; }
-          .adm-hbar-row { gap:6px; }
-          .adm-table { display:block; overflow-x:auto; }
-          .adm-quick-card { flex-direction:column; text-align:center; gap:8px; }
-        }
-
-        /* ── Bottom Menu ── */
-        .adm-bottom-menu { display:none; }
-        @media (max-width:600px) {
-          .adm-bottom-menu { position:fixed; bottom:0; left:0; right:0; background:var(--ink); border-top:2px solid var(--ink); display:flex; justify-content:space-around; align-items:center; z-index:90; height:70px; }
-          .adm-menu-item { display:flex; flex-direction:column; align-items:center; gap:4px; text-decoration:none; color:rgba(250,240,234,.6); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; flex:1; height:100%; justify-content:center; transition:all .15s; border:none; background:none; cursor:pointer; font-family:'Manrope',sans-serif; }
-          .adm-menu-item:hover { background:rgba(250,240,234,.08); color:var(--bone); }
-          .adm-menu-item.active { background:var(--canopy); color:var(--ink); }
-          .adm-menu-item-icon { font-size:16px; margin-bottom:2px; }
-        }
-      `}} />
+    <div className="admin-wrap" data-theme={theme}>
 
       {/* ── Sidebar ── */}
       <div className="adm-sidebar">
@@ -494,6 +280,7 @@ export default function AdminDashboard() {
           </div>
           <div className="adm-topbar-right">
             <div className="adm-live-dot" />
+            <ThemeToggle theme={theme} onToggle={toggleTheme} className="adm-btn-sync adm-theme-toggle" />
             <button className="adm-btn-sync" onClick={fetchAll} disabled={isLoading}>
               {isLoading ? "⟳ Syncing..." : "↻ Sync All"}
             </button>
@@ -661,14 +448,14 @@ export default function AdminDashboard() {
                 <div className="adm-status-item" style={{ borderLeft: "4px solid var(--canopy)" }}>
                   <span className="adm-status-label">Completed</span>
                   <span className="adm-status-num">{totalActivations}</span>
-                  <div className="adm-status-bar" style={{ background: "rgba(10,10,10,.06)" }}>
+                  <div className="adm-status-bar" style={{ background: "var(--tint-neutral)" }}>
                     <div style={{ height: "100%", width: "100%", background: "var(--canopy)" }} />
                   </div>
                 </div>
                 <div className="adm-status-item" style={{ borderLeft: "4px solid var(--street)" }}>
                   <span className="adm-status-label">Upcoming / Scheduled</span>
                   <span className="adm-status-num">{totalUpcoming}</span>
-                  <div className="adm-status-bar" style={{ background: "rgba(10,10,10,.06)" }}>
+                  <div className="adm-status-bar" style={{ background: "var(--tint-neutral)" }}>
                     <div style={{
                       height: "100%",
                       width: totalActivations + totalUpcoming > 0
@@ -681,16 +468,16 @@ export default function AdminDashboard() {
                 <div className="adm-status-item" style={{ borderLeft: "4px solid var(--ink)" }}>
                   <span className="adm-status-label">Brands Active</span>
                   <span className="adm-status-num">{CLIENTS.length}</span>
-                  <div className="adm-status-bar" style={{ background: "rgba(10,10,10,.06)" }}>
+                  <div className="adm-status-bar" style={{ background: "var(--tint-neutral)" }}>
                     <div style={{ height: "100%", width: "100%", background: "var(--ink)" }} />
                   </div>
                 </div>
-                <div className="adm-status-item" style={{ borderLeft: "4px solid rgba(10,10,10,.3)" }}>
+                <div className="adm-status-item" style={{ borderLeft: "4px solid var(--line-strong)" }}>
                   <span className="adm-status-label">Ambassadors on Roster</span>
                   <span className="adm-status-num" style={{ color: ambassadors === null ? "var(--muted)" : "var(--ink)" }}>
                     {ambassadors === null ? "—" : ambassadors}
                   </span>
-                  <div className="adm-status-bar" style={{ background: "rgba(10,10,10,.06)" }}>
+                  <div className="adm-status-bar" style={{ background: "var(--tint-neutral)" }}>
                     <div style={{ height: "100%", width: ambassadors ? "100%" : "0%", background: "var(--ink)" }} />
                   </div>
                 </div>
@@ -738,8 +525,9 @@ export default function AdminDashboard() {
                       <td>
                         <span style={{
                           display: "inline-block", fontSize: 9, fontWeight: 700, padding: "3px 8px",
-                          border: "2px solid var(--ink)", textTransform: "uppercase", letterSpacing: ".06em",
-                          background: c.upcoming > 0 ? "var(--canopy)" : "rgba(10,10,10,.06)"
+                          border: "1px solid var(--line)", borderRadius: 999, textTransform: "uppercase", letterSpacing: ".06em",
+                          background: c.upcoming > 0 ? "var(--canopy)" : "var(--tint-neutral)",
+                          color: c.upcoming > 0 ? "var(--on-canopy)" : "var(--ink)"
                         }}>
                           {c.upcoming} scheduled
                         </span>
@@ -773,8 +561,8 @@ export default function AdminDashboard() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   {eventRequests.length > 0 && (
                     <span style={{
-                      fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "2px solid var(--ink)",
-                      textTransform: "uppercase", letterSpacing: ".06em", background: "var(--street)",
+                      fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "1px solid var(--line)", borderRadius: 999,
+                      textTransform: "uppercase", letterSpacing: ".06em", background: "var(--street)", color: "var(--on-street)",
                     }}>
                       {eventRequests.length} pending
                     </span>
@@ -822,7 +610,7 @@ export default function AdminDashboard() {
                             <div style={{ display: "flex", gap: 6 }}>
                               <button
                                 className="adm-btn-sync"
-                                style={{ background: "var(--canopy)" }}
+                                style={{ background: "var(--canopy)", color: "var(--on-canopy)" }}
                                 disabled={resolvingId === r.id}
                                 onClick={() => resolveEventRequest(r.id, "approve")}
                               >
@@ -830,7 +618,7 @@ export default function AdminDashboard() {
                               </button>
                               <button
                                 className="adm-btn-sync"
-                                style={{ background: "var(--street)" }}
+                                style={{ background: "var(--street)", color: "var(--on-street)" }}
                                 disabled={resolvingId === r.id}
                                 onClick={() => resolveEventRequest(r.id, "decline")}
                               >
@@ -855,13 +643,13 @@ export default function AdminDashboard() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{
-                    fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "2px solid var(--ink)",
-                    textTransform: "uppercase", letterSpacing: ".06em", background: "var(--canopy)",
+                    fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "1px solid var(--line)", borderRadius: 999,
+                    textTransform: "uppercase", letterSpacing: ".06em", background: "var(--canopy)", color: "var(--on-canopy)",
                   }}>
                     {loginEvents.filter(l => isSameDay(l.occurred_at, new Date())).length} today
                   </span>
                   <span style={{
-                    fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "2px solid var(--ink)",
+                    fontSize: 10, fontWeight: 700, padding: "3px 8px", border: "1px solid var(--line)", borderRadius: 999,
                     textTransform: "uppercase", letterSpacing: ".06em", background: "var(--white)",
                   }}>
                     {loginEvents.length} last 7 days
@@ -901,7 +689,7 @@ export default function AdminDashboard() {
                         <Fragment key={l.id}>
                         {newDay && (
                           <tr>
-                            <td colSpan={4} style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", background: "rgba(10,10,10,.04)" }}>
+                            <td colSpan={4} style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", background: "var(--tint-neutral)" }}>
                               {dayLabel(l.occurred_at)}
                             </td>
                           </tr>

@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
+import "../dashboard.css";
+import { useDashboardTheme, ThemeToggle } from "../components/theme";
 import { UserButton } from "@clerk/nextjs";
 import AdminDashboardLink from "../components/AdminDashboardLink";
 
@@ -54,6 +56,7 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
+  const { theme, toggleTheme, themeColor } = useDashboardTheme();
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -156,7 +159,7 @@ export default function UnifiedDashboard() {
 
       const element = document.getElementById("dashboard-export-area");
       if (!element) return;
-      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#faf0ea" });
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: themeColor("--bone", "#faf0ea") });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -186,7 +189,7 @@ const downloadRecapReport = async () => {
       element.style.overflow = "visible";
 
       // Take the full-height screenshot
-      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: themeColor("--surface", "#ffffff") });
       
       // 2. Put the modal back to normal immediately
       element.style.maxHeight = originalMaxHeight || "85vh";
@@ -297,249 +300,7 @@ const downloadRecapReport = async () => {
   };
 
   return (
-    <div className="dashboard-wrapper">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900,500&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-
-        .dashboard-wrapper {
-          --bone: #faf0ea; --ink: #0a0a0a; --white: #ffffff;
-          --canopy: #56e39f; --canopy-pale: #d6f8ea;
-          --street: #ff4f33; --street-pale: #ffe3de;
-          --muted: #767672; --card: #ffffff; --border: #0a0a0a;
-          --shadow: 4px 4px 0 0 #0a0a0a; --shadow-lg: 6px 6px 0 0 #0a0a0a;
-          --bg: var(--bone); --black: var(--ink);
-          --green: var(--canopy); --green-light: var(--canopy); --green-pale: var(--canopy-pale);
-          --orange: var(--street);
-          font-family: 'Manrope', system-ui, sans-serif;
-          background: var(--bone); color: var(--ink);
-          min-height: 100vh; position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-          -webkit-font-smoothing: antialiased;
-        }
-        .dashboard-wrapper * { box-sizing: border-box; }
-
-        .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: var(--ink); border-right: 2px solid var(--ink); padding: 28px 20px; display: flex; flex-direction: column; z-index: 100; }
-        .sidebar-icon { width: 24px; height: 24px; border-radius: 5px; display: block; margin-bottom: 10px; }
-        .sidebar-logo { font-family: 'Cabinet Grotesk', sans-serif; font-size: 10px; font-weight: 700; color: rgba(250,240,234,0.45); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 4px; }
-        .sidebar-brand { font-family: 'Cabinet Grotesk', sans-serif; font-size: 22px; font-weight: 800; color: var(--bone); margin-bottom: 36px; letter-spacing: -0.02em; }
-        .nav-label { font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(250,240,234,0.3); margin-bottom: 8px; margin-top: 20px; }
-        .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 0; font-size: 11px; font-weight: 700; color: rgba(250,240,234,0.6); cursor: pointer; transition: all 0.15s; margin-bottom: 2px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.06em; border: 2px solid transparent; }
-        .nav-item:hover, .nav-item.active { background: var(--canopy); color: var(--ink); border-color: var(--canopy); }
-        .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
-
-        .main { margin-left: 220px; padding: 32px; min-height: 100vh; padding-top: 80px; }
-        .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
-        .topbar-left h1 { font-family: 'Cabinet Grotesk', sans-serif; font-size: 26px; font-weight: 800; color: var(--ink); margin: 0; display: flex; align-items: center; gap: 12px; letter-spacing: -0.02em; }
-        .topbar-left p { font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 2px; margin-bottom: 0; }
-        .topbar-right { display: flex; align-items: center; gap: 16px; }
-        .badge { background: var(--canopy); color: var(--ink); font-size: 10px; font-weight: 700; padding: 4px 12px; border: 2px solid var(--ink); text-transform: uppercase; letter-spacing: 0.08em; }
-        .btn-action-primary { background: var(--white); border: 2px solid var(--ink); padding: 6px 12px; font-size: 10px; font-weight: 700; cursor: pointer; color: var(--ink); transition: all 0.15s; display: flex; align-items: center; gap: 6px; box-shadow: 3px 3px 0 0 var(--ink); text-transform: uppercase; letter-spacing: 0.05em; }
-        .btn-action-primary:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 0 var(--ink); }
-        .btn-action-primary:active { transform: translate(0,0); box-shadow: none; }
-
-        .section { display: none; } .section.active { display: block; }
-
-        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-        .stat-card { background: var(--card); border: 2px solid var(--ink); padding: 20px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
-        .stat-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; margin-top: 0; }
-        .stat-value { font-family: 'Cabinet Grotesk', sans-serif; font-size: 34px; font-weight: 800; color: var(--ink); line-height: 1; margin-bottom: 6px; margin-top: 0; letter-spacing: -0.02em; }
-        .stat-value.green { color: var(--canopy); }
-
-        .two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 20px; }
-        .card { background: var(--card); border: 2px solid var(--ink); padding: 22px; margin-bottom: 14px; box-shadow: var(--shadow); }
-        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-        .card-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 15px; font-weight: 800; color: var(--ink); margin: 0; letter-spacing: -0.02em; }
-        .card-sub { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 2px; margin-bottom: 0; }
-
-        .chart-bars { display: flex; align-items: flex-end; gap: 10px; height: 140px; padding-bottom: 24px; position: relative; }
-        .chart-bars::after { content: ''; position: absolute; bottom: 24px; left: 0; right: 0; height: 2px; background: var(--ink); }
-        .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
-        .bar-fill { width: 100%; border-radius: 0; background: var(--canopy); border: 2px solid var(--ink); border-bottom: none; transition: height 0.6s ease; position: relative; }
-        .bar-label { font-size: 10px; font-weight: 700; color: var(--muted); margin-top: 6px; text-align: center; white-space: nowrap; margin-bottom: 0; text-transform: uppercase; letter-spacing: 0.06em; }
-        .bar-val { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--ink); white-space: nowrap; }
-
-        .cal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .cal-card { background: var(--card); border: 2px solid var(--ink); border-left: 4px solid var(--ink); padding: 16px; display: flex; flex-direction: column; box-shadow: 3px 3px 0 0 var(--ink); }
-        .cal-card.clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
-        .cal-card.clickable:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 0 var(--ink); }
-        .cal-view-details { font-size: 10px; font-weight: 700; color: var(--ink); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 4px; }
-        .cal-card.status-Complete { border-left-color: var(--canopy); }
-        .cal-card.status-Upcoming { border-left-color: var(--street); }
-        .cal-date { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
-        .cal-time { text-transform: none; font-weight: 500; }
-        .cal-store { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 4px; margin-top: 0; letter-spacing: -0.01em; }
-        .cal-market { font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 8px; margin-top: 0; }
-        .cal-products { font-size: 10px; font-weight: 700; color: var(--ink); margin-top: -4px; margin-bottom: 12px; background: var(--canopy-pale); border: 1px solid var(--ink); padding: 3px 8px; display: inline-block; text-transform: uppercase; letter-spacing: 0.05em; }
-        .cal-footer { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: auto; }
-        .cal-status { font-size: 10px; font-weight: 700; padding: 3px 9px; display: inline-block; text-transform: uppercase; letter-spacing: 0.08em; border: 2px solid var(--ink); }
-        .cal-status.status-Complete { background: var(--canopy); color: var(--ink); }
-        .cal-status.status-Upcoming { background: var(--street); color: var(--bone); }
-        .cal-actions { display: flex; gap: 4px; }
-        .btn-action { font-size: 10px; font-weight: 700; padding: 4px 8px; border: 2px solid var(--ink); background: var(--white); cursor: pointer; color: var(--ink); text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 2px 2px 0 0 var(--ink); transition: all 0.15s; }
-        .btn-action:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 var(--ink); }
-        .btn-action:active { transform: none; box-shadow: none; }
-
-        .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--ink); font-size: 13px; align-items: center; }
-        .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; margin-top: 1px; }
-        .intel-text { color: var(--ink); font-weight: 500; line-height: 1.5; margin: 0; flex: 1; }
-        .intel-link { color: var(--ink); text-decoration: none; font-weight: 700; font-size: 10px; padding: 4px 8px; border: 2px solid var(--ink); background: var(--canopy); text-transform: uppercase; letter-spacing: 0.06em; box-shadow: 2px 2px 0 0 var(--ink); transition: all 0.15s; }
-        .intel-link:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 var(--ink); }
-
-        .photo-section { margin-top: 16px; }
-        .photo-event { border: 2px solid var(--ink); margin-bottom: 10px; box-shadow: var(--shadow); background: var(--card); }
-        .photo-event-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; cursor: pointer; user-select: none; }
-        .photo-event-header:hover { background: var(--canopy-pale); }
-        .photo-event-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0; letter-spacing: -0.01em; }
-        .photo-event-count { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; display: flex; align-items: center; gap: 10px; }
-        .photo-event-chevron { font-size: 12px; transition: transform 0.2s; display: inline-block; }
-        .photo-event-chevron.open { transform: rotate(180deg); }
-        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; padding: 12px; border-top: 2px solid var(--ink); }
-        .photo-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; cursor: pointer; border: 2px solid var(--ink); display: block; transition: all 0.15s; }
-        .photo-thumb:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 0 var(--ink); }
-        .photo-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 32px 0; }
-        .lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 3000; display: flex; align-items: center; justify-content: center; }
-        .lightbox-img { max-width: 90vw; max-height: 90vh; object-fit: contain; box-shadow: 0 0 0 3px var(--ink); }
-        .lightbox-close { position: absolute; top: 20px; right: 24px; color: #fff; font-size: 28px; cursor: pointer; font-weight: 700; background: none; border: none; line-height: 1; }
-
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        .form-group.full { grid-column: 1 / -1; }
-        .form-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink); }
-        .form-input { font-family: 'Manrope', sans-serif; font-size: 13px; font-weight: 500; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 0; background: var(--white); color: var(--ink); outline: none; transition: all 0.15s; }
-        .form-input:focus { box-shadow: 3px 3px 0 0 var(--ink); transform: translate(-2px, -2px); }
-        .form-input::placeholder { color: rgba(10,10,10,0.35); }
-        .form-textarea { resize: vertical; min-height: 80px; }
-        .time-inputs { display: flex; align-items: center; gap: 10px; }
-        .btn-submit { font-family: 'Cabinet Grotesk', sans-serif; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--bone); border: 2px solid var(--ink); padding: 12px 28px; cursor: pointer; box-shadow: var(--shadow); transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.08em; }
-        .btn-submit:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
-        .btn-submit:active { transform: none; box-shadow: none; }
-        .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-        .success-msg { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; box-shadow: 3px 3px 0 0 var(--ink); }
-
-        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(250,240,234,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
-        .spinner { border: 4px solid rgba(10,10,10,0.1); width: 40px; height: 40px; border-radius: 0; border-left-color: var(--ink); animation: spin 1s linear infinite; margin-bottom: 16px; }
-
-        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(10,10,10,0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
-        .modal-content { background: var(--bone); padding: 24px; border: 2px solid var(--ink); box-shadow: var(--shadow-lg); width: 100%; max-width: 400px; }
-        .modal-content.large { max-width: 700px; max-height: 85vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 16px; }
-        .modal-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
-        .modal-desc { font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 16px; }
-        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
-        .btn-close-icon { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--ink); padding: 0; line-height: 1; font-weight: 700; }
-        .btn-cancel { background: var(--bone); border: 2px solid var(--ink); padding: 10px 16px; cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; box-shadow: 3px 3px 0 0 var(--ink); transition: all 0.15s; }
-        .btn-cancel:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 0 var(--ink); }
-
-        .recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .recap-item { background: var(--white); border: 2px solid var(--ink); padding: 12px; display: flex; flex-direction: column; gap: 4px; }
-        .recap-item.full-width { grid-column: 1 / -1; }
-        .recap-key { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-        .recap-val { font-size: 13px; font-weight: 500; color: var(--ink); word-break: break-word; }
-
-        .cal-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-        .cal-section-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 16px; font-weight: 800; color: var(--ink); margin: 0; letter-spacing: -0.02em; }
-        .cal-section-count { font-size: 10px; font-weight: 700; padding: 3px 10px; border: 2px solid var(--ink); text-transform: uppercase; letter-spacing: 0.08em; }
-        .cal-section-count.upcoming { background: var(--street); color: var(--bone); }
-        .cal-section-count.previous { background: var(--canopy); color: var(--ink); }
-        .cal-load-more-wrap { display: flex; justify-content: center; margin-top: 16px; }
-        .btn-load-more { background: var(--white); border: 2px solid var(--ink); padding: 9px 22px; font-family: 'Manrope', sans-serif; font-size: 11px; font-weight: 700; color: var(--ink); cursor: pointer; box-shadow: 3px 3px 0 0 var(--ink); transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.06em; }
-        .btn-load-more:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 0 var(--ink); }
-        .btn-load-more:active { transform: none; box-shadow: none; }
-        .cal-section-divider { border: none; border-top: 2px solid var(--ink); margin: 24px 0; }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* ── Tablet (900px and below) ── */
-        @media (max-width: 900px) {
-          .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; z-index: 999; border-top: 2px solid rgba(250,240,234,0.2); border-right: none; }
-          .sidebar-icon, .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
-          .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; width: 25%; margin-bottom: 0; border: none; }
-          .nav-item .icon { font-size: 18px; width: auto; text-align: center; margin: 0 auto; }
-          .main { margin-left: 0; padding: 18px; padding-bottom: 90px; padding-top: 20px; }
-          .topbar { flex-direction: column; align-items: flex-start; gap: 14px; }
-          .topbar-left h1 { font-size: 22px; }
-          .topbar-right { width: 100%; justify-content: space-between; flex-direction: row-reverse; }
-          .stat-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-          .stat-card { padding: 18px; }
-          .stat-value { font-size: 30px; }
-          .two-col { grid-template-columns: 1fr; }
-          .card { padding: 18px; }
-          .cal-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-          .form-grid { grid-template-columns: 1fr; gap: 14px; }
-          .time-inputs { flex-direction: column; align-items: flex-start; gap: 8px; }
-          .time-inputs span { display: none; }
-          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 5px; }
-          .modal-content { max-width: 90vw; }
-          .recap-grid { grid-template-columns: 1fr; }
-        }
-
-        /* ── Mobile (600px and below) ── */
-        @media (max-width: 600px) {
-          .main { padding: 14px; margin-left: 0; }
-          .topbar { flex-direction: column; gap: 10px; }
-          .topbar-left h1 { font-size: 18px; }
-          .topbar-left p { font-size: 11px; }
-          .topbar-right { width: 100%; justify-content: flex-start; gap: 10px; flex-direction: row; }
-          .btn-action-primary { padding: 5px 10px; font-size: 9px; }
-          .stat-grid { grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
-          .stat-card { padding: 14px 16px; }
-          .stat-value { font-size: 26px; }
-          .stat-label { font-size: 9px; margin-bottom: 6px; }
-          .card { padding: 14px; margin-bottom: 10px; }
-          .card-title { font-size: 14px; }
-          .card-sub { font-size: 10px; }
-          .cal-grid { grid-template-columns: 1fr; gap: 8px; }
-          .cal-card { padding: 12px; }
-          .cal-store { font-size: 13px; }
-          .cal-market { font-size: 10px; }
-          .form-grid { grid-template-columns: 1fr; gap: 12px; }
-          .form-label { font-size: 9px; }
-          .form-input { padding: 8px 12px; font-size: 13px; }
-          .btn-submit { padding: 10px 20px; font-size: 11px; }
-          .chart-bars { height: 120px; }
-          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 4px; padding: 10px; }
-          .photo-thumb { aspect-ratio: 1; }
-          .modal-content { max-width: 95vw; padding: 16px; }
-          .modal-title { font-size: 16px; }
-          .recap-grid { grid-template-columns: 1fr; gap: 10px; }
-          .recap-item { padding: 10px; }
-          .recap-key { font-size: 8px; }
-          .recap-val { font-size: 12px; }
-          .time-inputs { flex-direction: column; gap: 8px; }
-        }
-
-        /* ── Extra small (480px and below) ── */
-        @media (max-width: 480px) {
-          .main { padding: 12px; }
-          .topbar { gap: 8px; }
-          .topbar-left h1 { font-size: 16px; }
-          .topbar-left p { font-size: 10px; }
-          .topbar-right { flex-direction: column; width: 100%; gap: 8px; }
-          .btn-action-primary { padding: 4px 8px; font-size: 8px; width: 100%; justify-content: center; }
-          .stat-grid { gap: 8px; }
-          .stat-card { padding: 12px 14px; }
-          .stat-value { font-size: 22px; }
-          .stat-label { font-size: 8px; }
-          .card { padding: 12px; }
-          .card-title { font-size: 13px; }
-          .cal-grid { gap: 6px; }
-          .cal-card { padding: 10px; }
-          .cal-store { font-size: 12px; }
-          .cal-date { font-size: 9px; }
-          .form-grid { gap: 10px; }
-          .form-label { font-size: 8px; }
-          .form-input { padding: 8px 10px; font-size: 12px; }
-          .btn-submit { padding: 8px 16px; font-size: 10px; width: 100%; }
-          .chart-bars { height: 100px; }
-          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 3px; padding: 8px; }
-          .modal-content { padding: 14px; }
-          .modal-title { font-size: 14px; }
-          .modal-desc { font-size: 11px; }
-          .recap-item { padding: 8px; }
-          .recap-key { font-size: 7px; }
-          .recap-val { font-size: 11px; }
-          .btn-cancel, .btn-submit { padding: 8px 14px; font-size: 9px; }
-        }
-      `}} />
+    <div className="dashboard-wrapper" data-theme={theme}>
 
       {/* CHANGE REQUEST MODAL (UPCOMING) */}
       {changeModal.isOpen && (
@@ -637,6 +398,7 @@ const downloadRecapReport = async () => {
             <p style={{marginTop: '2px'}}>Live data from Supabase</p>
           </div>
           <div className="topbar-right" data-html2canvas-ignore="true">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <UserButton />
             <span className="badge">{metrics.activations} Activations Logged</span>
           </div>
@@ -693,7 +455,7 @@ const downloadRecapReport = async () => {
                 </div>
               ))}
               {metrics.upcoming.length === 0 && (
-                <p style={{fontSize: '12px', color: '#888', gridColumn: '1/-1'}}>No upcoming activations scheduled.</p>
+                <p style={{fontSize: '12px', color: 'var(--muted)', gridColumn: '1/-1'}}>No upcoming activations scheduled.</p>
               )}
             </div>
             {visibleUpcoming < metrics.upcoming.length && (
@@ -728,7 +490,7 @@ const downloadRecapReport = async () => {
                 </div>
               ))}
               {metrics.previous.length === 0 && (
-                <p style={{fontSize: '12px', color: '#888', gridColumn: '1/-1'}}>No previous activations found.</p>
+                <p style={{fontSize: '12px', color: 'var(--muted)', gridColumn: '1/-1'}}>No previous activations found.</p>
               )}
             </div>
             {visiblePrevious < metrics.previous.length && (
@@ -753,7 +515,7 @@ const downloadRecapReport = async () => {
                   {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link" data-html2canvas-ignore="true">View Photo</a>}
                </div>
             ))}
-            {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No intel gathered yet.</p>}
+            {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: 'var(--muted)'}}>No intel gathered yet.</p>}
           </div>
 
           <div className="card" style={{marginTop: '14px'}}>

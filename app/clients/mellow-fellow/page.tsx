@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
+import "../dashboard.css";
+import { useDashboardTheme, ThemeToggle } from "../components/theme";
 import { UserButton } from "@clerk/nextjs";
 import AdminDashboardLink from "../components/AdminDashboardLink";
 import NotificationStaff from "../components/NotificationStaff";
@@ -63,8 +65,28 @@ function cleanEventDescription(description?: string | null): string {
   return (match ? match[0] : description).trim();
 }
 
+// Carrier tracking deep links. Shipments are logged with just a tracking number (no carrier
+// field), so the carrier is inferred from the number format; anything unrecognized falls back
+// to a multi-carrier tracker.
+function trackingUrl(raw: string): string {
+  const n = raw.replace(/\s+/g, '');
+  if (/^1Z[0-9A-Z]{16}$/i.test(n)) return `https://www.ups.com/track?tracknum=${n}`;
+  if (/^9[2345]\d{18,24}$/.test(n) || /^[A-Z]{2}\d{9}US$/i.test(n)) return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${n}`;
+  if (/^(\d{12}|\d{15})$/.test(n)) return `https://www.fedex.com/fedextrack/?trknbr=${n}`;
+  return `https://t.17track.net/en#nums=${n}`;
+}
+
+function TrackingLink({ number }: { number: string | null }) {
+  if (!number) return <>—</>;
+  return <a href={trackingUrl(number)} target="_blank" rel="noopener noreferrer" className="tracking-link">{number} ↗</a>;
+}
+
+const formatShipmentFlavor = (f: { flavor_name: string; potency_mg?: number | null; cases_sent: number }) =>
+  `${f.flavor_name}${f.potency_mg ? ` ${f.potency_mg}mg` : ''} ×${f.cases_sent}`;
+
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
+  const { theme, toggleTheme, themeColor } = useDashboardTheme();
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -100,6 +122,129 @@ export default function UnifiedDashboard() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const [expandedNotif, setExpandedNotif] = useState<string | null>(null);
+
+  // --- SHIPMENT ENTRY (log 4-pack cases + materials sent directly to an ambassador) ---
+  const MATERIAL_OPTIONS = [
+    { key: 'tee', label: 'Tee' },
+    { key: 'tablecloth', label: 'Table Cloth' },
+    { key: 'standee', label: 'Standee / Banner' },
+    { key: 'pos_items', label: 'POS Items' },
+    { key: 'merch', label: 'Merch' },
+  ];
+
+  const [shipmentData, setShipmentData] = useState<{
+    ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
+    skus: { sku: string; flavor_name: string; cans_per_case: number; potency_mg?: number | null; retail_price?: number | null }[];
+    events: { id: string; title: string; event_date: string; city: string | null }[];
+    recentShipments: any[];
+  }>({ ambassadors: [], skus: [], events: [], recentShipments: [] });
+  const [shipmentLoading, setShipmentLoading] = useState(false);
+  const [shipmentForm, setShipmentForm] = useState({
+    user_id: "", event_id: "", tracking_number: "",
+    shipped_at: new Date().toISOString().split("T")[0], notes: "",
+  });
+  const [flavorLines, setFlavorLines] = useState<{ sku: string; cases_sent: string }[]>([{ sku: "", cases_sent: "" }]);
+  const [materialQty, setMaterialQty] = useState<Record<string, string>>({});
+  const [ambassadorQuery, setAmbassadorQuery] = useState("");
+  const [showAmbassadorList, setShowAmbassadorList] = useState(false);
+  const [shipmentSubmitting, setShipmentSubmitting] = useState(false);
+  const [shipmentError, setShipmentError] = useState("");
+  const [shipmentResult, setShipmentResult] = useState<{ ambassadorName: string; balances: any[]; materials: { item: string; quantity: number }[] } | null>(null);
+
+  const fetchShipmentData = async () => {
+    setShipmentLoading(true);
+    try {
+      const res = await fetch(`/api/shipments?client=${encodeURIComponent(TARGET_BRAND)}`);
+      if (res.ok) setShipmentData(await res.json());
+    } catch (e) { console.error('Failed to fetch shipment data', e); }
+    setShipmentLoading(false);
+  };
+
+  useEffect(() => { if (activeSection === 'shipment') fetchShipmentData(); }, [activeSection]);
+
+  // Deep link support so a "Log a Shipment" email can jump straight to this tab, e.g.
+  // /clients/mellow-fellow?section=shipment
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section) setActiveSection(section);
+  }, []);
+
+  const filteredAmbassadors = ambassadorQuery.trim()
+    ? shipmentData.ambassadors.filter(a => a.full_name.toLowerCase().includes(ambassadorQuery.trim().toLowerCase()))
+    : shipmentData.ambassadors;
+
+  const selectAmbassador = (a: { id: string; full_name: string }) => {
+    setShipmentForm(prev => ({ ...prev, user_id: a.id }));
+    setAmbassadorQuery(a.full_name);
+    setShowAmbassadorList(false);
+  };
+
+  const selectedAmbassador = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id) || null;
+  const selectedAmbassadorAddressLines = selectedAmbassador
+    ? [
+        selectedAmbassador.street_address,
+        selectedAmbassador.address_line_2,
+        [selectedAmbassador.city, selectedAmbassador.state, selectedAmbassador.zip_code].filter(Boolean).join(', '),
+      ].filter(Boolean) as string[]
+    : [];
+
+  const updateFlavorLine = (index: number, patch: Partial<{ sku: string; cases_sent: string }>) => {
+    setFlavorLines(prev => prev.map((line, i) => i === index ? { ...line, ...patch } : line));
+  };
+  const addFlavorLine = () => setFlavorLines(prev => prev.length < shipmentData.skus.length ? [...prev, { sku: "", cases_sent: "" }] : prev);
+  const removeFlavorLine = (index: number) => setFlavorLines(prev => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
+  const skusAlreadyPicked = (excludeIndex: number) => new Set(flavorLines.filter((_, i) => i !== excludeIndex).map(l => l.sku).filter(Boolean));
+  const canHintFor = (line: { sku: string; cases_sent: string }) => {
+    const sku = shipmentData.skus.find(s => s.sku === line.sku);
+    return sku && Number(line.cases_sent) > 0 ? { cans: Number(line.cases_sent) * sku.cans_per_case, perCase: sku.cans_per_case } : null;
+  };
+
+  const submitShipment = async () => {
+    setShipmentError("");
+    const items = flavorLines.filter(l => l.sku && l.cases_sent);
+    const materials = MATERIAL_OPTIONS
+      .filter(m => Number(materialQty[m.key]) > 0)
+      .map(m => ({ item: m.key, quantity: Number(materialQty[m.key]) }));
+
+    if (!shipmentForm.user_id || !shipmentForm.tracking_number || !shipmentForm.shipped_at) {
+      setShipmentError("Please fill out recipient, tracking number, and ship date.");
+      return;
+    }
+    // A half-filled flavor line (flavor without cases, or cases without flavor) would be
+    // silently dropped, so flag it instead. Flavors themselves are optional: supplies-only
+    // shipments are common.
+    if (flavorLines.some(l => Boolean(l.sku) !== Boolean(l.cases_sent))) {
+      setShipmentError("Finish or remove the flavor line: each one needs a flavor and a case count.");
+      return;
+    }
+    if (items.length === 0 && materials.length === 0) {
+      setShipmentError("Add at least one flavor or material to ship.");
+      return;
+    }
+    setShipmentSubmitting(true);
+    try {
+      const res = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...shipmentForm, event_id: shipmentForm.event_id || null, items, materials, client: TARGET_BRAND }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const ambassadorName = shipmentData.ambassadors.find(a => a.id === shipmentForm.user_id)?.full_name || 'Ambassador';
+        setShipmentResult({ ambassadorName, balances: data.balances || [], materials });
+        setShipmentForm({ user_id: "", event_id: "", tracking_number: "", shipped_at: new Date().toISOString().split("T")[0], notes: "" });
+        setFlavorLines([{ sku: "", cases_sent: "" }]);
+        setMaterialQty({});
+        setAmbassadorQuery("");
+        fetchShipmentData();
+      } else {
+        setShipmentError(data.error || "Failed to log shipment. Please try again.");
+      }
+    } catch (e) {
+      setShipmentError("Network error. Please try again.");
+    }
+    setShipmentSubmitting(false);
+  };
 
   const fetchClientData = async () => {
     setIsLoading(true);
@@ -147,9 +292,9 @@ export default function UnifiedDashboard() {
     catch { return ts; }
   };
 
-  const notifTypeColor: Record<string, string> = { email: 'var(--canopy-pale)', alert: 'var(--street)', update: '#c7d7fe', announcement: '#fde68a' };
+  const notifTypeColor: Record<string, string> = { email: 'var(--canopy-pale)', alert: 'var(--street)', update: 'var(--tint-blue)', announcement: 'var(--tint-amber)' };
   const notifTypeDark: Record<string, boolean> = { alert: true };
-  const emailStatusColor: Record<string, string> = { delivered: 'var(--canopy-pale)', sent: '#c7d7fe', failed: 'var(--street-pale)', pending: '#fde68a' };
+  const emailStatusColor: Record<string, string> = { delivered: 'var(--canopy-pale)', sent: 'var(--tint-blue)', failed: 'var(--street-pale)', pending: 'var(--tint-amber)' };
 
   useEffect(() => { fetchClientData(); fetchNotifications(); }, []);
 
@@ -189,7 +334,7 @@ export default function UnifiedDashboard() {
       const { jsPDF } = await import("jspdf");
       const element = document.getElementById("dashboard-export-area");
       if (!element) return;
-      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#faf0ea" });
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: themeColor("--bone", "#faf0ea") });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -209,7 +354,7 @@ export default function UnifiedDashboard() {
       if (!element) return;
       const orig = { maxHeight: element.style.maxHeight, overflow: element.style.overflow };
       element.style.maxHeight = "none"; element.style.overflow = "visible";
-      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: themeColor("--surface", "#ffffff") });
       element.style.maxHeight = orig.maxHeight || "85vh"; element.style.overflow = orig.overflow || "auto";
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
@@ -270,230 +415,7 @@ export default function UnifiedDashboard() {
   };
 
   return (
-    <div className="dashboard-wrapper">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900,500&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-        .dashboard-wrapper {
-          --bone: #faf0ea; --ink: #0a0a0a; --white: #ffffff;
-          --canopy: #9b59b6; --canopy-pale: #ead5f5;
-          --street: #ff4f33; --street-pale: #ffe3de;
-          --muted: #767672; --card: #ffffff;
-          --shadow: 4px 4px 0 0 #0a0a0a; --shadow-lg: 6px 6px 0 0 #0a0a0a;
-          font-family: 'Manrope', system-ui, sans-serif;
-          background: var(--bone); color: var(--ink);
-          min-height: 100vh; position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-          -webkit-font-smoothing: antialiased;
-        }
-        .dashboard-wrapper * { box-sizing: border-box; }
-        .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: var(--ink); padding: 28px 20px; display: flex; flex-direction: column; z-index: 100; }
-        .sidebar-icon { width: 24px; height: 24px; border-radius: 5px; display: block; margin-bottom: 10px; }
-        .sidebar-logo { font-family: 'Cabinet Grotesk', sans-serif; font-size: 10px; font-weight: 700; color: rgba(250,240,234,0.45); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 4px; }
-        .sidebar-brand { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; font-weight: 800; color: var(--bone); margin-bottom: 36px; letter-spacing: -0.02em; }
-        .nav-label { font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(250,240,234,0.3); margin-bottom: 8px; margin-top: 20px; }
-        .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 11px; font-weight: 700; color: rgba(250,240,234,0.6); cursor: pointer; transition: all 0.15s; margin-bottom: 2px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.06em; border: 2px solid transparent; }
-        .nav-item:hover, .nav-item.active { background: var(--canopy); color: var(--white); border-color: var(--canopy); }
-        .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
-        .main { margin-left: 220px; padding: 32px; min-height: 100vh; padding-top: 80px; }
-        .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
-        .topbar-left h1 { font-family: 'Cabinet Grotesk', sans-serif; font-size: 26px; font-weight: 800; color: var(--ink); margin: 0; display: flex; align-items: center; gap: 12px; letter-spacing: -0.02em; }
-        .topbar-left p { font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 2px; margin-bottom: 0; }
-        .topbar-right { display: flex; align-items: center; gap: 16px; }
-        .badge { background: var(--canopy); color: var(--white); font-size: 10px; font-weight: 700; padding: 4px 12px; border: 2px solid var(--ink); text-transform: uppercase; letter-spacing: 0.08em; }
-        .btn-action-primary { background: var(--white); border: 2px solid var(--ink); padding: 6px 12px; font-size: 10px; font-weight: 700; cursor: pointer; color: var(--ink); transition: all 0.15s; display: flex; align-items: center; gap: 6px; box-shadow: 3px 3px 0 0 var(--ink); text-transform: uppercase; letter-spacing: 0.05em; }
-        .btn-action-primary:hover { transform: translate(-2px,-2px); box-shadow: 4px 4px 0 0 var(--ink); }
-        .section { display: none; } .section.active { display: block; }
-        .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
-        .stat-card { background: var(--card); border: 2px solid var(--ink); padding: 20px; box-shadow: var(--shadow); }
-        .stat-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; margin-top: 0; }
-        .stat-value { font-family: 'Cabinet Grotesk', sans-serif; font-size: 34px; font-weight: 800; color: var(--ink); line-height: 1; margin-bottom: 6px; margin-top: 0; letter-spacing: -0.02em; }
-        .stat-value.green { color: var(--canopy); }
-        .two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 20px; }
-        .card { background: var(--card); border: 2px solid var(--ink); padding: 22px; margin-bottom: 14px; box-shadow: var(--shadow); }
-        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-        .card-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 15px; font-weight: 800; color: var(--ink); margin: 0; letter-spacing: -0.02em; }
-        .card-sub { font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 2px; margin-bottom: 0; }
-        .chart-bars { display: flex; align-items: flex-end; gap: 10px; height: 140px; padding-bottom: 24px; position: relative; }
-        .chart-bars::after { content: ''; position: absolute; bottom: 24px; left: 0; right: 0; height: 2px; background: var(--ink); }
-        .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
-        .bar-fill { width: 100%; background: var(--canopy); border: 2px solid var(--ink); border-bottom: none; transition: height 0.6s ease; position: relative; }
-        .bar-label { font-size: 10px; font-weight: 700; color: var(--muted); margin-top: 6px; text-align: center; white-space: nowrap; margin-bottom: 0; text-transform: uppercase; letter-spacing: 0.06em; }
-        .bar-val { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--ink); white-space: nowrap; }
-        .cal-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
-        .cal-card { background: var(--card); border: 2px solid var(--ink); border-left: 4px solid var(--ink); padding: 16px; display: flex; flex-direction: column; box-shadow: 3px 3px 0 0 var(--ink); }
-        .cal-card.clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
-        .cal-card.clickable:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 0 var(--ink); }
-        .cal-card.status-Complete { border-left-color: var(--canopy); }
-        .cal-card.status-Upcoming { border-left-color: var(--street); }
-        .cal-date { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; margin-top: 0; display: flex; justify-content: space-between; }
-        .cal-store { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 4px; margin-top: 0; }
-        .cal-market { font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 8px; margin-top: 0; }
-        .cal-products { font-size: 10px; font-weight: 700; color: var(--ink); margin-top: -4px; margin-bottom: 12px; background: var(--canopy-pale); border: 1px solid var(--ink); padding: 3px 8px; display: inline-block; text-transform: uppercase; letter-spacing: 0.05em; }
-        .cal-footer { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: auto; }
-        .cal-status { font-size: 10px; font-weight: 700; padding: 3px 9px; display: inline-block; text-transform: uppercase; border: 2px solid var(--ink); }
-        .cal-status.status-Complete { background: var(--canopy); color: var(--white); }
-        .cal-status.status-Upcoming { background: var(--street); color: var(--bone); }
-        .cal-actions { display: flex; gap: 4px; }
-        .btn-action { font-size: 10px; font-weight: 700; padding: 4px 8px; border: 2px solid var(--ink); background: var(--white); cursor: pointer; color: var(--ink); text-transform: uppercase; box-shadow: 2px 2px 0 0 var(--ink); transition: all 0.15s; }
-        .intel-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--ink); font-size: 13px; align-items: center; }
-        .intel-icon { font-size: 16px; width: 24px; flex-shrink: 0; }
-        .intel-text { color: var(--ink); font-weight: 500; line-height: 1.5; margin: 0; flex: 1; }
-        .intel-link { color: var(--white); text-decoration: none; font-weight: 700; font-size: 10px; padding: 4px 8px; border: 2px solid var(--ink); background: var(--canopy); text-transform: uppercase; }
-
-        .photo-section { margin-top: 16px; }
-        .photo-event { border: 2px solid var(--ink); margin-bottom: 10px; box-shadow: var(--shadow); background: var(--card); }
-        .photo-event-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; cursor: pointer; user-select: none; }
-        .photo-event-header:hover { background: var(--canopy-pale); }
-        .photo-event-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0; letter-spacing: -0.01em; }
-        .photo-event-count { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; display: flex; align-items: center; gap: 10px; }
-        .photo-event-chevron { font-size: 12px; transition: transform 0.2s; display: inline-block; }
-        .photo-event-chevron.open { transform: rotate(180deg); }
-        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; padding: 12px; border-top: 2px solid var(--ink); }
-        .photo-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; cursor: pointer; border: 2px solid var(--ink); display: block; transition: all 0.15s; }
-        .photo-thumb:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 0 var(--ink); }
-        .photo-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 32px 0; }
-        .lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 3000; display: flex; align-items: center; justify-content: center; }
-        .lightbox-img { max-width: 90vw; max-height: 90vh; object-fit: contain; box-shadow: 0 0 0 3px var(--ink); }
-        .lightbox-close { position: absolute; top: 20px; right: 24px; color: #fff; font-size: 28px; cursor: pointer; font-weight: 700; background: none; border: none; line-height: 1; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        .form-group.full { grid-column: 1/-1; }
-        .form-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink); }
-        .form-input { font-family: 'Manrope', sans-serif; font-size: 13px; font-weight: 500; padding: 10px 14px; border: 2px solid var(--ink); background: var(--white); color: var(--ink); outline: none; }
-        .form-textarea { resize: vertical; min-height: 80px; }
-        .btn-submit { font-family: 'Cabinet Grotesk', sans-serif; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--bone); border: 2px solid var(--ink); padding: 12px 28px; cursor: pointer; box-shadow: var(--shadow); text-transform: uppercase; }
-        .success-msg { background: var(--canopy-pale); border: 2px solid var(--ink); padding: 14px 18px; font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 14px; }
-        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(10,10,10,0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
-        .modal-content { background: var(--bone); padding: 24px; border: 2px solid var(--ink); box-shadow: var(--shadow); width: 100%; max-width: 400px; }
-        .modal-content.large { max-width: 700px; max-height: 85vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 16px; }
-        .modal-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 20px; font-weight: 800; margin: 0; }
-        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
-        .btn-close-icon { background: none; border: none; font-size: 20px; cursor: pointer; }
-        .btn-cancel { background: var(--bone); border: 2px solid var(--ink); padding: 10px 16px; cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-        .recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .recap-item { background: var(--white); border: 2px solid var(--ink); padding: 12px; display: flex; flex-direction: column; gap: 4px; }
-        .recap-item.full-width { grid-column: 1/-1; }
-        .recap-key { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-        .recap-val { font-size: 13px; font-weight: 500; color: var(--ink); word-break: break-word; }
-        .cal-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-        .cal-section-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 16px; font-weight: 800; color: var(--ink); margin: 0; }
-        .cal-section-count { font-size: 10px; font-weight: 700; padding: 3px 10px; border: 2px solid var(--ink); text-transform: uppercase; }
-        .cal-section-count.upcoming { background: var(--street); color: var(--bone); }
-        .cal-section-count.previous { background: var(--canopy); color: var(--white); }
-        .cal-load-more-wrap { display: flex; justify-content: center; margin-top: 16px; }
-        .btn-load-more { background: var(--white); border: 2px solid var(--ink); padding: 9px 22px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
-        .notif-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
-        .notif-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .notif-unread-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border: 2px solid var(--ink); text-transform: uppercase; background: var(--street); color: var(--bone); }
-        .notif-list { display: flex; flex-direction: column; gap: 10px; }
-        .notif-card { background: var(--white); border: 2px solid var(--ink); border-left: 4px solid var(--ink); padding: 16px; box-shadow: 3px 3px 0 0 var(--ink); }
-        .notif-card.unread { border-left-color: var(--street); background: var(--street-pale); }
-        .notif-card.read { border-left-color: var(--canopy); opacity: 0.72; }
-        .notif-subject { font-family: 'Cabinet Grotesk', sans-serif; font-size: 14px; font-weight: 800; color: var(--ink); margin: 0 0 6px 0; }
-        .notif-body { font-size: 12px; font-weight: 500; color: var(--ink); line-height: 1.6; margin: 0; white-space: pre-wrap; word-break: break-word; }
-        .notif-body.collapsed { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
-        .notif-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
-        .notif-time { font-size: 10px; font-weight: 500; color: var(--muted); }
-        .notif-footer-actions { display: flex; gap: 6px; }
-        .btn-notif { font-size: 10px; font-weight: 700; padding: 4px 10px; border: 2px solid var(--ink); background: var(--white); cursor: pointer; text-transform: uppercase; }
-        .notif-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 40px 0; }
-        .nav-notif-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--street); color: var(--bone); border: 1px solid var(--bone); font-size: 9px; font-weight: 700; min-width: 16px; height: 15px; padding: 0 3px; margin-left: 5px; }
-        .notif-type { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; margin-right: 4px; }
-        .notif-email-status { font-size: 9px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); text-transform: uppercase; }
-        /* ── Tablet (900px and below) ── */
-        @media (max-width: 900px) {
-          .sidebar { position: fixed; bottom: 0; left: 0; top: auto; width: 100%; height: 70px; padding: 8px; flex-direction: row; justify-content: space-around; border-top: 2px solid rgba(250,240,234,0.2); border-right: none; }
-          .sidebar-icon, .sidebar-logo, .sidebar-brand, .nav-label { display: none; }
-          .nav-item { flex-direction: column; font-size: 9px; padding: 4px; text-align: center; gap: 4px; width: 25%; margin-bottom: 0; border: none; }
-          .nav-item .icon { font-size: 18px; width: auto; text-align: center; margin: 0 auto; }
-          .main { margin-left: 0; padding: 18px; padding-bottom: 90px; padding-top: 20px; }
-          .topbar { flex-direction: column; align-items: flex-start; gap: 14px; }
-          .topbar-left h1 { font-size: 22px; }
-          .topbar-right { width: 100%; justify-content: space-between; flex-direction: row-reverse; }
-          .stat-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-          .stat-card { padding: 18px; }
-          .stat-value { font-size: 30px; }
-          .two-col { grid-template-columns: 1fr; }
-          .card { padding: 18px; }
-          .cal-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-          .form-grid { grid-template-columns: 1fr; gap: 14px; }
-          .time-inputs { flex-direction: column; align-items: flex-start; gap: 8px; }
-          .time-inputs span { display: none; }
-          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 5px; }
-          .modal-content { max-width: 90vw; }
-          .recap-grid { grid-template-columns: 1fr; }
-        }
-
-        /* ── Mobile (600px and below) ── */
-        @media (max-width: 600px) {
-          .main { padding: 14px; margin-left: 0; }
-          .topbar { flex-direction: column; gap: 10px; }
-          .topbar-left h1 { font-size: 18px; }
-          .topbar-left p { font-size: 11px; }
-          .topbar-right { width: 100%; justify-content: flex-start; gap: 10px; flex-direction: row; }
-          .btn-action-primary { padding: 5px 10px; font-size: 9px; }
-          .stat-grid { grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
-          .stat-card { padding: 14px 16px; }
-          .stat-value { font-size: 26px; }
-          .stat-label { font-size: 9px; margin-bottom: 6px; }
-          .card { padding: 14px; margin-bottom: 10px; }
-          .card-title { font-size: 14px; }
-          .card-sub { font-size: 10px; }
-          .cal-grid { grid-template-columns: 1fr; gap: 8px; }
-          .cal-card { padding: 12px; }
-          .cal-store { font-size: 13px; }
-          .cal-market { font-size: 10px; }
-          .cal-products { font-size: 9px; }
-          .form-grid { grid-template-columns: 1fr; gap: 12px; }
-          .form-label { font-size: 9px; }
-          .form-input { padding: 8px 12px; font-size: 13px; }
-          .btn-submit { padding: 10px 20px; font-size: 11px; }
-          .chart-bars { height: 120px; }
-          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 4px; padding: 10px; }
-          .photo-thumb { aspect-ratio: 1; }
-          .modal-content { max-width: 95vw; padding: 16px; }
-          .modal-title { font-size: 16px; }
-          .recap-grid { grid-template-columns: 1fr; gap: 10px; }
-          .recap-item { padding: 10px; }
-          .recap-key { font-size: 8px; }
-          .recap-val { font-size: 12px; }
-          .time-inputs { flex-direction: column; gap: 8px; }
-        }
-
-        /* ── Extra small (480px and below) ── */
-        @media (max-width: 480px) {
-          .main { padding: 12px; }
-          .topbar { gap: 8px; }
-          .topbar-left h1 { font-size: 16px; }
-          .topbar-left p { font-size: 10px; }
-          .topbar-right { flex-direction: column; width: 100%; gap: 8px; }
-          .btn-action-primary { padding: 4px 8px; font-size: 8px; width: 100%; justify-content: center; }
-          .stat-grid { gap: 8px; }
-          .stat-card { padding: 12px 14px; }
-          .stat-value { font-size: 22px; }
-          .stat-label { font-size: 8px; }
-          .card { padding: 12px; }
-          .card-title { font-size: 13px; }
-          .cal-grid { gap: 6px; }
-          .cal-card { padding: 10px; }
-          .cal-store { font-size: 12px; }
-          .cal-date { font-size: 9px; }
-          .form-grid { gap: 10px; }
-          .form-label { font-size: 8px; }
-          .form-input { padding: 8px 10px; font-size: 12px; }
-          .btn-submit { padding: 8px 16px; font-size: 10px; width: 100%; }
-          .chart-bars { height: 100px; }
-          .photo-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 3px; padding: 8px; }
-          .modal-content { padding: 14px; }
-          .modal-title { font-size: 14px; }
-          .modal-desc { font-size: 11px; }
-          .recap-item { padding: 8px; }
-          .recap-key { font-size: 7px; }
-          .recap-val { font-size: 11px; }
-          .btn-cancel, .btn-submit { padding: 8px 14px; font-size: 9px; }
-        }
-      `}} />
+    <div className="dashboard-wrapper" data-theme={theme} data-brand="mellow-fellow">
 
       {changeModal.isOpen && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setChangeModal({isOpen:false,type:"",event:null,notes:""})}}>          <div className="modal-content">
@@ -548,6 +470,7 @@ export default function UnifiedDashboard() {
         <a className={`nav-item ${activeSection==='calendar'?'active':''}`} onClick={()=>setActiveSection('calendar')}><span className="icon">📅</span> Calendar</a>
         <a className={`nav-item ${activeSection==='intel'?'active':''}`} onClick={()=>setActiveSection('intel')}><span className="icon">🔍</span> Market Intel</a>
         <a className={`nav-item ${activeSection==='request'?'active':''}`} onClick={()=>setActiveSection('request')}><span className="icon">➕</span> Request</a>
+        <a className={`nav-item ${activeSection==='shipment'?'active':''}`} onClick={()=>setActiveSection('shipment')}><span className="icon">📦</span> Log Shipment</a>
         <Link href="/profiles" className="nav-item"><span className="icon">👥</span> View BA Profiles</Link>
         <a className={`nav-item ${activeSection==='notifications'?'active':''}`} onClick={()=>setActiveSection('notifications')}>
           <span className="icon">🔔</span> Notifications
@@ -563,6 +486,7 @@ export default function UnifiedDashboard() {
             <p>Live data · Mellow Fellow Cannabis</p>
           </div>
           <div className="topbar-right">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <UserButton />
             <button className="btn-action-primary" onClick={fetchClientData}>↻ Sync</button>
             <button className="btn-action-primary" onClick={downloadDashboardReport}>{isExportingDashboard?"Generating...":"⬇ Export"}</button>
@@ -701,8 +625,8 @@ export default function UnifiedDashboard() {
                 {notifications.map(n=>(
                   <div key={n.id} className={`notif-card ${n.read?'read':'unread'}`}>
                     <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'6px',flexWrap:'wrap'}}>
-                      <span className="notif-type" style={{background:notifTypeColor[n.type?.toLowerCase()]||'#e5e7eb',color:notifTypeDark[n.type?.toLowerCase()]?'var(--bone)':'var(--ink)'}}>{n.type||'general'}</span>
-                      {n.email_status&&<span className="notif-email-status" style={{background:emailStatusColor[n.email_status?.toLowerCase()]||'#e5e7eb'}}>{n.email_status}</span>}
+                      <span className="notif-type" style={{background:notifTypeColor[n.type?.toLowerCase()]||'var(--surface-2)',color:notifTypeDark[n.type?.toLowerCase()]?'var(--on-street)':'var(--ink)'}}>{n.type||'general'}</span>
+                      {n.email_status&&<span className="notif-email-status" style={{background:emailStatusColor[n.email_status?.toLowerCase()]||'var(--surface-2)'}}>{n.email_status}</span>}
                       {!n.read&&<button className="btn-notif" style={{marginLeft:'auto'}} onClick={()=>markAsRead(n.id)}>Mark Read</button>}
                     </div>
                     <p className="notif-subject">{n.subject}</p>
@@ -715,6 +639,251 @@ export default function UnifiedDashboard() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+
+        <div className={`section ${activeSection === 'shipment' ? 'active' : ''}`} data-html2canvas-ignore="true">
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Log a Sample Shipment</p>
+                <p className="card-sub">Record what you've shipped directly to an ambassador — Day Drinking and Evening Buzz cases, plus swag — so their sample balance stays accurate. Add the tracking number and you can follow every box from the list below.</p>
+              </div>
+            </div>
+
+            {shipmentLoading && <p style={{fontSize: '12px', color: 'var(--muted)'}}>Loading ambassadors and flavors…</p>}
+
+            <div className="form-grid">
+              <div className="form-group combobox full">
+                <label className="form-label">Recipient (Ambassador)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search by name…"
+                  value={ambassadorQuery}
+                  onFocus={() => setShowAmbassadorList(true)}
+                  onChange={(e) => { setAmbassadorQuery(e.target.value); setShipmentForm(prev => ({ ...prev, user_id: "" })); setShowAmbassadorList(true); }}
+                  onBlur={() => setTimeout(() => setShowAmbassadorList(false), 150)}
+                />
+                {showAmbassadorList && (
+                  <div className="combobox-list">
+                    {filteredAmbassadors.length === 0 && <div className="combobox-empty">No ambassadors confirmed on your events yet.</div>}
+                    {filteredAmbassadors.map(a => (
+                      <div key={a.id} className="combobox-option" onMouseDown={() => selectAmbassador(a)}>
+                        {a.full_name}
+                        {(a.city || a.state) && <div className="combobox-option-sub">{[a.city, a.state].filter(Boolean).join(', ')}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedAmbassador && (
+                  selectedAmbassadorAddressLines.length > 0 ? (
+                    <div className="address-preview">
+                      <p className="address-preview-label">Shipping Address on File</p>
+                      {selectedAmbassadorAddressLines.map((line, i) => <p key={i} className="address-preview-line">{line}</p>)}
+                    </div>
+                  ) : (
+                    <div className="address-preview address-preview-missing">
+                      No shipping address on file for {selectedAmbassador.full_name} — confirm with them before shipping.
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Flavors (optional, up to {shipmentData.skus.length || 3})</label>
+                <div className="flavor-lines">
+                  {flavorLines.map((line, i) => {
+                    const hint = canHintFor(line);
+                    const taken = skusAlreadyPicked(i);
+                    return (
+                      <div className="flavor-line" key={i}>
+                        <div className="flavor-line-top">
+                          <select
+                            className="form-input"
+                            value={line.sku}
+                            onChange={(e) => updateFlavorLine(i, { sku: e.target.value })}
+                          >
+                            <option value="">No flavor (supplies only)</option>
+                            {shipmentData.skus.filter(s => !taken.has(s.sku) || s.sku === line.sku).map(s => (
+                              <option key={s.sku} value={s.sku}>{`${s.flavor_name}${s.potency_mg ? ` · ${s.potency_mg}mg` : ''}${s.retail_price ? ` · $${Number(s.retail_price).toFixed(2)}/4pk` : ''}`}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="flavor-line-remove"
+                            onClick={() => removeFlavorLine(i)}
+                            disabled={flavorLines.length === 1}
+                            aria-label="Remove flavor"
+                          >✕</button>
+                        </div>
+                        <div className="flavor-line-cases">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            className="form-input"
+                            placeholder="4-packs"
+                            value={line.cases_sent}
+                            onChange={(e) => updateFlavorLine(i, { cases_sent: e.target.value })}
+                          />
+                          {hint && <p className="can-hint">= <strong>{hint.cans}</strong> cans ({hint.perCase}/4-pack)</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {flavorLines.length < shipmentData.skus.length && (
+                  <button type="button" className="btn-action-primary" style={{marginTop: '8px'}} onClick={addFlavorLine}>+ Add Another Flavor</button>
+                )}
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Materials Included (Optional)</label>
+                <div className="materials-grid">
+                  {MATERIAL_OPTIONS.map(m => {
+                    const checked = Number(materialQty[m.key]) > 0;
+                    return (
+                      <div className={`material-item ${checked ? 'checked' : ''}`} key={m.key}>
+                        <label className="material-item-check">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => setMaterialQty(prev => ({ ...prev, [m.key]: e.target.checked ? (prev[m.key] || '1') : '' }))}
+                          />
+                          {m.label}
+                        </label>
+                        {checked && (
+                          <input
+                            type="number"
+                            min="1"
+                            className="form-input material-item-qty"
+                            value={materialQty[m.key] ?? '1'}
+                            onChange={(e) => setMaterialQty(prev => ({ ...prev, [m.key]: e.target.value }))}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Tracking Number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 1Z999AA10123456784"
+                  value={shipmentForm.tracking_number}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, tracking_number: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Date Shipped</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={shipmentForm.shipped_at}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, shipped_at: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Tour Date (Optional)</label>
+                <select
+                  className="form-input"
+                  value={shipmentForm.event_id}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, event_id: e.target.value }))}
+                >
+                  <option value="">Not tied to a specific date</option>
+                  {shipmentData.events.map(ev => (
+                    <option key={ev.id} value={ev.id}>{ev.title} — {ev.event_date}{ev.city ? ` (${ev.city})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group full">
+                <label className="form-label">Notes (Optional)</label>
+                <textarea
+                  className="form-input form-textarea"
+                  placeholder="Anything the team should know about this shipment…"
+                  value={shipmentForm.notes}
+                  onChange={(e) => setShipmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <button className="btn-submit" onClick={submitShipment} disabled={shipmentSubmitting}>
+              {shipmentSubmitting ? "Logging Shipment..." : "Log Shipment"}
+            </button>
+            {shipmentError && <div className="error-msg">{shipmentError}</div>}
+
+            {shipmentResult && (
+              <div className="balance-card">
+                <p className="balance-card-title">✅ Shipment logged for {shipmentResult.ambassadorName}</p>
+                {shipmentResult.balances.length > 0 ? (
+                  shipmentResult.balances.map((b: any) => (
+                    <div key={b.sku} style={{marginBottom: '10px'}}>
+                      <div className="balance-stat-row"><span>{b.flavor_name}{shipmentData.skus.find(k => k.sku === b.sku)?.potency_mg ? ` ${shipmentData.skus.find(k => k.sku === b.sku)?.potency_mg}mg` : ''}</span><span></span></div>
+                      <div className="balance-stat-row"><span>Total Cans Sent</span><span>{b.total_cans_sent}</span></div>
+                      <div className="balance-stat-row"><span>Total Cans Used</span><span>{b.total_cans_used}</span></div>
+                      <div className="balance-stat-row"><span>Updated Cans Remaining</span><span className="balance-stat-value">{b.calculated_cans_remaining}</span></div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{fontSize: '12px', margin: 0}}>Shipment saved. Balance will appear once the ambassador reports usage.</p>
+                )}
+                {shipmentResult.materials.length > 0 && (
+                  <p style={{fontSize: '12px', marginTop: '8px', marginBottom: 0}}>
+                    Also included: {shipmentResult.materials.map(m => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{marginTop: '14px'}}>
+            <div className="card-header"><div><p className="card-title">Recent Shipments</p><p className="card-sub">Last 25 shipments logged to your ambassadors</p></div></div>
+            {shipmentData.recentShipments.length === 0 ? (
+              <p style={{fontSize: '12px', color: 'var(--muted)'}}>No shipments logged yet.</p>
+            ) : (
+              <>
+                <div className="shipment-table-wrap">
+                  <table className="shipment-table">
+                    <thead>
+                      <tr><th>Date</th><th>Ambassador</th><th>Flavors</th><th>Materials</th><th>Tracking #</th></tr>
+                    </thead>
+                    <tbody>
+                      {shipmentData.recentShipments.map((s: any) => (
+                        <tr key={s.key}>
+                          <td>{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                          <td>{s.ambassador_name}</td>
+                          <td>{s.flavors.map(formatShipmentFlavor).join(', ')}</td>
+                          <td>{s.materials.length > 0 ? s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ') : '—'}</td>
+                          <td><TrackingLink number={s.tracking_number} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="shipment-cards">
+                  {shipmentData.recentShipments.map((s: any) => (
+                    <div className="shipment-card" key={s.key}>
+                      <div className="shipment-card-top">
+                        <span className="shipment-card-ambassador">{s.ambassador_name}</span>
+                        <span className="shipment-card-date">{new Date(s.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div className="shipment-card-flavors">{s.flavors.map(formatShipmentFlavor).join(', ')}</div>
+                      {s.materials.length > 0 && (
+                        <div className="shipment-card-materials">+ {s.materials.map((m: any) => `${m.quantity} ${MATERIAL_OPTIONS.find(o => o.key === m.item)?.label || m.item}`).join(', ')}</div>
+                      )}
+                      <div className="shipment-card-tracking">Tracking: <TrackingLink number={s.tracking_number} /></div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
