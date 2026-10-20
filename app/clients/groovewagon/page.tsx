@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 import AdminDashboardLink from "../components/AdminDashboardLink";
+import NotificationStaff from "../components/NotificationStaff";
 import Link from "next/link";
 
 const TARGET_BRAND = "GROOVEWAGON";
@@ -706,6 +707,7 @@ export default function UnifiedDashboard() {
                     </div>
                     <p className="notif-subject">{n.subject}</p>
                     <p className={`notif-body ${expandedNotif===n.id?'':'collapsed'}`}>{n.body}</p>
+                    <NotificationStaff metadata={n.metadata} />
                     <div className="notif-footer">
                       <span className="notif-time">{formatNotifTime(n.created_at)}</span>
                       <button className="btn-notif" onClick={()=>setExpandedNotif(expandedNotif===n.id?null:n.id)}>{expandedNotif===n.id?'▲':'Read More ▼'}</button>
