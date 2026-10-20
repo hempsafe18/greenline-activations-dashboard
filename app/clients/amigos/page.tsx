@@ -7,6 +7,7 @@ import NotificationStaff from "../components/NotificationStaff";
 import Link from "next/link";
 
 const TARGET_BRAND = "AMIGOS";
+const THEME_KEY = "greenline-dashboard-theme";
 
 const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
   { key: 'sampling_type', label: 'Sampling Type' },
@@ -103,6 +104,20 @@ const RECAP_DISPLAY_FIELDS: { key: string; label: string; long?: boolean }[] = [
 
 export default function UnifiedDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
+  // Light (bone) is the default; dark is opt-in and remembered per browser.
+  // Storage can throw (private mode, blocked site data), so the page must work without it.
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    try { if (localStorage.getItem(THEME_KEY) === "dark") setTheme("dark"); } catch {}
+  }, []);
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch {}
+  };
+  // html2canvas paints its own background, so read the live theme token for PDF exports.
+  const themeColor = (name: string, fallback: string) =>
+    getComputedStyle(document.querySelector(".dashboard-wrapper") ?? document.body).getPropertyValue(name).trim() || fallback;
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -331,11 +346,10 @@ export default function UnifiedDashboard() {
   };
 
   const notifTypeColor: Record<string, string> = {
-    email: 'var(--canopy-pale)', alert: 'var(--street)', update: '#c7d7fe', announcement: '#fde68a'
+    email: 'var(--canopy-pale)', alert: 'var(--street)', update: 'var(--tint-blue)', announcement: 'var(--tint-amber)'
   };
-  const notifTypeDark: Record<string, boolean> = { alert: true };
   const emailStatusColor: Record<string, string> = {
-    delivered: 'var(--canopy-pale)', sent: '#c7d7fe', failed: 'var(--street-pale)', pending: '#fde68a'
+    delivered: 'var(--canopy-pale)', sent: 'var(--tint-blue)', failed: 'var(--street-pale)', pending: 'var(--tint-amber)'
   };
 
   useEffect(() => { fetchClientData(); fetchNotifications(); }, []);
@@ -388,7 +402,7 @@ export default function UnifiedDashboard() {
 
       const element = document.getElementById("dashboard-export-area");
       if (!element) return;
-      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#faf0ea" });
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: themeColor("--bone", "#faf0ea") });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -418,7 +432,7 @@ const downloadRecapReport = async () => {
       element.style.overflow = "visible";
 
       // Take the full-height screenshot
-      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: themeColor("--surface", "#ffffff") });
       
       // 2. Put the modal back to normal immediately
       element.style.maxHeight = originalMaxHeight || "85vh";
@@ -547,7 +561,7 @@ const downloadRecapReport = async () => {
   };
 
   return (
-    <div className="dashboard-wrapper">
+    <div className="dashboard-wrapper" data-theme={theme}>
 
       {/* CHANGE REQUEST MODAL (UPCOMING) */}
       {changeModal.isOpen && (
@@ -651,6 +665,12 @@ const downloadRecapReport = async () => {
             <p style={{marginTop: '2px'}}>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right" data-html2canvas-ignore="true">
+            <button
+              className="btn-action-primary theme-toggle"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              title={theme === "dark" ? "Light theme" : "Dark theme"}
+            >{theme === "dark" ? "☀" : "☾"}</button>
             <UserButton />
             <span className="badge">{metrics.activations} Activations Logged</span>
           </div>
@@ -707,7 +727,7 @@ const downloadRecapReport = async () => {
                 </div>
               ))}
               {metrics.upcoming.length === 0 && (
-                <p style={{fontSize: '12px', color: '#888', gridColumn: '1/-1'}}>No upcoming activations scheduled.</p>
+                <p style={{fontSize: '12px', color: 'var(--muted)', gridColumn: '1/-1'}}>No upcoming activations scheduled.</p>
               )}
             </div>
             {visibleUpcoming < metrics.upcoming.length && (
@@ -742,7 +762,7 @@ const downloadRecapReport = async () => {
                 </div>
               ))}
               {metrics.previous.length === 0 && (
-                <p style={{fontSize: '12px', color: '#888', gridColumn: '1/-1'}}>No previous activations found.</p>
+                <p style={{fontSize: '12px', color: 'var(--muted)', gridColumn: '1/-1'}}>No previous activations found.</p>
               )}
             </div>
             {visiblePrevious < metrics.previous.length && (
@@ -767,7 +787,7 @@ const downloadRecapReport = async () => {
                   {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="intel-link" data-html2canvas-ignore="true">View Photo</a>}
                </div>
             ))}
-            {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: '#888'}}>No intel gathered yet.</p>}
+            {metrics.intel.length === 0 && <p style={{fontSize: '12px', color: 'var(--muted)'}}>No intel gathered yet.</p>}
           </div>
 
           <div className="card" style={{marginTop: '14px'}}>
@@ -848,8 +868,8 @@ const downloadRecapReport = async () => {
                         <span
                           className="notif-type"
                           style={{
-                            background: notifTypeColor[n.type?.toLowerCase()] || '#e5e7eb',
-                            color: notifTypeDark[n.type?.toLowerCase()] ? 'var(--bone)' : 'var(--ink)'
+                            background: notifTypeColor[n.type?.toLowerCase()] || 'var(--surface-2)',
+                            color: 'var(--ink)'
                           }}
                         >
                           {n.type || 'general'}
@@ -857,7 +877,7 @@ const downloadRecapReport = async () => {
                         {n.email_status && (
                           <span
                             className="notif-email-status"
-                            style={{ background: emailStatusColor[n.email_status?.toLowerCase()] || '#e5e7eb', color: 'var(--ink)' }}
+                            style={{ background: emailStatusColor[n.email_status?.toLowerCase()] || 'var(--surface-2)', color: 'var(--ink)' }}
                           >
                             ✉ {n.email_status}
                           </span>
