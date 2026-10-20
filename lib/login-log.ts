@@ -14,6 +14,7 @@ export function clientIdFromEmail(email: string): string | null {
   if (e.endsWith('@growcannabis.group')) return 'GROW';
   if (e.endsWith('@workingrelief.com')) return 'GROOVEWAGON';
   if (e.endsWith('@drinkwillies.com')) return 'WILLIES_REMEDY';
+  if (e.endsWith('@kickbeverages.com')) return 'KICK_FIZZ';
   if (e.endsWith('@claybourneco.com')) return 'CLAYBOURNE_CO';
   if (e.endsWith('@plift.com')) return 'PLIFT';
   return null;

@@ -78,7 +78,7 @@ The panel shows the last 7 days, grouped by day. By default only sign-ins from a
 
 Client dashboard for Kick Fizz, built on the Amigos layout (events, calendar, market intel, requests, notifications, and the **Log Shipment** tab). Brand code `KICK_FIZZ`, company name `Kick Fizz`.
 
-- **SKUs:** Day Drinking – Lemonberry Ice and Evening Buzz – Black Cherry Vanilla, each in 2mg and 5mg (4 SKUs in `inventory_skus`, 24-can cases). A single shipment can include all four.
+- **SKUs:** Day Drinking – Lemonberry Ice and Evening Buzz – Black Cherry Vanilla, each in 2mg and 5mg (4 SKUs in `inventory_skus`, 4-pack cases, $14.99 at 2mg and $17.99 at 5mg per 4-pack (`inventory_skus.retail_price`)). A single shipment can include all four.
 - **Shipment tracking:** logged shipments appear under Recent Shipments with the flavor + dosage and a tracking link. The carrier (UPS, USPS, FedEx) is inferred from the tracking number format; anything else opens a multi-carrier tracker. The tab deep-links at `/clients/kick-fizz?section=shipment`.
-- **Setup:** apply `supabase/migrations/20261020_add_kick_fizz_client_and_skus.sql` (client row + SKUs), then fill in the contact on the `clients` row. Events pick up the client from `events.brand_name = 'Kick Fizz'`.
-- **Client logins:** add Kick Fizz's email domain to `CLIENT_DASHBOARDS` in `lib/viewer.ts` and to each `clientIdFromEmail` (`lib/login-log.ts` and the `app/api/*` routes). Until then only Greenline admins can open the dashboard.
+- **Setup:** apply `supabase/migrations/20261020_add_kick_fizz_client_and_skus.sql` (client row + SKUs), contact is Julie Rhodes. Events pick up the client from `events.brand_name = 'Kick Fizz'`.
+- **Client logins:** `@kickbeverages.com` maps to this dashboard in `lib/viewer.ts`, `lib/login-log.ts` and each `clientIdFromEmail` in `app/api/*`.

@@ -27,6 +27,7 @@ function clientIdFromEmail(email: string): string | null {
   if (email.endsWith('@growcannabis.group')) return 'GROW';
   if (email.endsWith('@workingrelief.com')) return 'GROOVEWAGON';
   if (email.endsWith('@drinkwillies.com')) return 'WILLIES_REMEDY';
+  if (email.endsWith('@kickbeverages.com')) return 'KICK_FIZZ';
   if (email.endsWith('@plift.com')) return 'PLIFT';
   if (email.endsWith('@greenlineactivations.com')) return null; // admin: allow any client
   return null;
@@ -102,7 +103,7 @@ export async function GET(req: Request) {
     // (Amigos, Willie's, Claybourne...), so it must be filtered by brand.
     supabase
       .from('inventory_skus')
-      .select('sku, flavor_name, cans_per_case, potency_mg, product_line')
+      .select('sku, flavor_name, cans_per_case, potency_mg, product_line, retail_price')
       .eq('brand', brand)
       .order('product_line', { ascending: true })
       .order('flavor_name', { ascending: true })

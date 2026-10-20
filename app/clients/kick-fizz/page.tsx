@@ -125,7 +125,7 @@ export default function UnifiedDashboard() {
 
   const [shipmentData, setShipmentData] = useState<{
     ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
-    skus: { sku: string; flavor_name: string; cans_per_case: number; potency_mg?: number | null }[];
+    skus: { sku: string; flavor_name: string; cans_per_case: number; potency_mg?: number | null; retail_price?: number | null }[];
     events: { id: string; title: string; event_date: string; city: string | null }[];
     recentShipments: any[];
   }>({ ambassadors: [], skus: [], events: [], recentShipments: [] });
@@ -1277,7 +1277,7 @@ const downloadRecapReport = async () => {
                           >
                             <option value="">No flavor (supplies only)</option>
                             {shipmentData.skus.filter(s => !taken.has(s.sku) || s.sku === line.sku).map(s => (
-                              <option key={s.sku} value={s.sku}>{s.potency_mg ? `${s.flavor_name} · ${s.potency_mg}mg` : s.flavor_name}</option>
+                              <option key={s.sku} value={s.sku}>{`${s.flavor_name}${s.potency_mg ? ` · ${s.potency_mg}mg` : ''}${s.retail_price ? ` · $${Number(s.retail_price).toFixed(2)}/4pk` : ''}`}</option>
                             ))}
                           </select>
                           <button
