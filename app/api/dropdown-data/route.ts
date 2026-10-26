@@ -38,6 +38,10 @@ const DEFAULT_PRODUCTS: Record<string, string[]> = {
   ],
 };
 
+// Launch markets that should be selectable on the Request Activation form before
+// any event has been booked there. Merged with the cities pulled from events.
+const LAUNCH_MARKETS = ['Dallas'];
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const client = searchParams.get('client');
@@ -67,7 +71,7 @@ export async function GET(req: Request) {
       .in('brand_name', brandNames),
   ]);
 
-  const cities = new Set<string>();
+  const cities = new Set<string>(LAUNCH_MARKETS);
   for (const e of eventsResult.data ?? []) {
     if (e.city?.trim()) cities.add(e.city.trim());
   }
