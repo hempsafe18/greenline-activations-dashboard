@@ -17,6 +17,12 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Baked into the client bundle at build time and also served by /api/version, so an
+  // open tab can tell when a newer deployment is live (see UpdateBanner). Unset locally,
+  // which turns the banner off in dev.
+  env: {
+    NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA ?? "",
+  },
   images: {
     remotePatterns,
     formats: ["image/avif", "image/webp"],
