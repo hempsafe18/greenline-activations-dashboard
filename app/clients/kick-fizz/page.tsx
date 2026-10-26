@@ -616,7 +616,6 @@ const downloadRecapReport = async () => {
               </div>
             </h1>
             <p style={{marginTop: '4px', marginBottom: '2px'}}>Welcome back, David</p>
-            <p style={{marginTop: '2px'}}>Live connected to Google Sheets</p>
           </div>
           <div className="topbar-right" data-html2canvas-ignore="true">
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
