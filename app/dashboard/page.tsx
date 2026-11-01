@@ -57,6 +57,8 @@ export default function AdminDashboard() {
   const [clientStats, setClientStats] = useState<ClientStats[]>([]);
   const [ambassadors, setAmbassadors] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [inactiveClients, setInactiveClients] = useState<string[]>([]);
+  const [statusSaving, setStatusSaving] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
   const [notifyForm, setNotifyForm] = useState<NotifyForm>({
     type: "event", client: "3CHI", storeName: "", eventDate: "",
@@ -82,8 +84,33 @@ export default function AdminDashboard() {
     if (!ADMIN_EMAILS.includes(email)) { window.location.href = "/"; }
   }, [isLoaded, user]);
 
+  const fetchClientStatus = async () => {
+    try {
+      const res = await fetch("/api/client-status");
+      if (res.ok) { const d = await res.json(); setInactiveClients(d.inactive ?? []); }
+    } catch (e) { console.error("Failed to fetch client status", e); }
+  };
+
+  const toggleClientActive = async (clientKey: string, name: string, makeActive: boolean) => {
+    if (!makeActive && !window.confirm(`Set ${name} to inactive?`)) return;
+    setStatusSaving(clientKey);
+    try {
+      const res = await fetch("/api/client-status", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client: clientKey, active: makeActive }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setInactiveClients(prev => makeActive ? prev.filter(k => k !== clientKey) : [...prev, clientKey]);
+    } catch (e) {
+      console.error("Failed to update client status", e);
+      window.alert(`Couldn't update ${name}. Try again.`);
+    }
+    setStatusSaving(null);
+  };
+
   const fetchAll = async () => {
     setIsLoading(true);
+    fetchClientStatus();
 
     // Fetch ambassador count in parallel (non-blocking)
     fetch("/api/ambassador-roster")
@@ -215,6 +242,7 @@ export default function AdminDashboard() {
   };
 
   // ─── Derived aggregates ──────────────────────────────────────────
+  const activeBrandCount  = CLIENTS.filter(c => !inactiveClients.includes(c.clientKey)).length;
   const totalActivations  = clientStats.reduce((s, c) => s + c.activations, 0);
   const totalSampled      = clientStats.reduce((s, c) => s + c.sampled, 0);
   const totalSold         = clientStats.reduce((s, c) => s + c.sold, 0);
@@ -256,7 +284,7 @@ export default function AdminDashboard() {
         <hr className="adm-divider" />
         <p className="adm-nav-label">Client Portals</p>
         {CLIENTS.map(c => (
-          <Link key={c.id} className="adm-nav-item" href={c.href}>
+          <Link key={c.id} className="adm-nav-item" href={c.href} style={inactiveClients.includes(c.clientKey) ? { opacity: 0.5 } : undefined}>
             <span className="adm-nav-dot" style={{ background: c.color }} />
             {c.name}
           </Link>
@@ -275,7 +303,7 @@ export default function AdminDashboard() {
             <h1 className="adm-topbar-title">Master Dashboard</h1>
             <p className="adm-topbar-sub">
               {lastUpdated ? `Synced at ${lastUpdated}` : "Loading..."}{" · "}
-              {CLIENTS.length} brands · {allCitiesArr.length} markets
+              {activeBrandCount} active brands · {allCitiesArr.length} markets
             </p>
           </div>
           <div className="adm-topbar-right">
@@ -467,7 +495,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="adm-status-item" style={{ borderLeft: "4px solid var(--ink)" }}>
                   <span className="adm-status-label">Brands Active</span>
-                  <span className="adm-status-num">{CLIENTS.length}</span>
+                  <span className="adm-status-num">{activeBrandCount}</span>
                   <div className="adm-status-bar" style={{ background: "var(--tint-neutral)" }}>
                     <div style={{ height: "100%", width: "100%", background: "var(--ink)" }} />
                   </div>
@@ -498,12 +526,16 @@ export default function AdminDashboard() {
                     <th>Conversion</th>
                     <th>Markets</th>
                     <th>Upcoming</th>
+                    <th>Status</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {clientStats.map(c => (
-                    <tr key={c.name}>
+                  {clientStats.map(c => {
+                    const clientKey = CLIENTS.find(x => x.name === c.name)?.clientKey ?? "";
+                    const isInactive = inactiveClients.includes(clientKey);
+                    return (
+                    <tr key={c.name} style={isInactive ? { opacity: 0.55 } : undefined}>
                       <td>
                         <div className="adm-client-name">
                           <div className="adm-client-dot" style={{ background: c.color }} />
@@ -533,10 +565,22 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td>
+                        <button
+                          type="button"
+                          className="adm-open-btn"
+                          disabled={statusSaving === clientKey}
+                          onClick={() => toggleClientActive(clientKey, c.name, isInactive)}
+                          style={{ cursor: "pointer", opacity: 1 }}
+                        >
+                          {statusSaving === clientKey ? "Saving…" : isInactive ? "Inactive · Reactivate" : "Active · Deactivate"}
+                        </button>
+                      </td>
+                      <td>
                         <Link href={c.href} className="adm-open-btn">Open →</Link>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
