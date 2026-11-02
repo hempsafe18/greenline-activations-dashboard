@@ -10,9 +10,12 @@ type PhotoGroup = {
   photos: Photo[];
 };
 
-// Storage folder names differ from URL-friendly client slugs in some cases
-const STORAGE_SLUG: Record<string, string> = {
-  'mellow-fellow': 'mellow_fellow',
+// Some clients have photos under more than one folder name. Mellow Fellow's
+// older photos live under `mellow_fellow` (underscore), but the recap upload
+// function (team portal: upload-recap-photo) writes new ones under the client
+// slug `mellow-fellow` (hyphen) -- read both or new photos never show up.
+const STORAGE_SLUGS: Record<string, string[]> = {
+  'mellow-fellow': ['mellow-fellow', 'mellow_fellow'],
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -84,13 +87,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'client param required' }, { status: 400 });
   }
 
-  const storageFolder = STORAGE_SLUG[client] ?? client;
+  const storageFolders = STORAGE_SLUGS[client] ?? [client];
 
   // Photos live under two conventions in the recap-photos bucket:
   //   1. legacy:  {client}/{category}/file          (e.g. 3chi, mellow_fellow, older amigos)
   //   2. current: brand-images/{client}/{category}/file  (what the app writes today)
   // Read both bases and merge so every client shows all of its photos.
-  const baseFolders = [storageFolder, `brand-images/${storageFolder}`];
+  const baseFolders = storageFolders.flatMap((f) => [f, `brand-images/${f}`]);
 
   // Accumulate storage paths (with byte size, content etag, and upload time) per
   // category across both bases.
