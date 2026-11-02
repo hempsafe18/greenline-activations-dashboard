@@ -283,8 +283,8 @@ export default function AdminDashboard() {
         <Link className="adm-nav-item" href="/profiles"><span>👥</span> Ambassador Profiles</Link>
         <hr className="adm-divider" />
         <p className="adm-nav-label">Client Portals</p>
-        {CLIENTS.map(c => (
-          <Link key={c.id} className="adm-nav-item" href={c.href} style={inactiveClients.includes(c.clientKey) ? { opacity: 0.5 } : undefined}>
+        {CLIENTS.filter(c => !inactiveClients.includes(c.clientKey)).map(c => (
+          <Link key={c.id} className="adm-nav-item" href={c.href}>
             <span className="adm-nav-dot" style={{ background: c.color }} />
             {c.name}
           </Link>
