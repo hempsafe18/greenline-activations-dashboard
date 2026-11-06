@@ -96,7 +96,7 @@ export async function GET(req: Request) {
       // Address fields are included here (unlike the public ambassador directory in
       // lib/ambassadors.ts, which deliberately excludes them) because this endpoint is
       // authenticated and exists specifically so clients can address a physical shipment.
-      .select('user_id, status, event:events!inner(client_id), profile:profiles(id, full_name, city, state, street_address, address_line_2, zip_code)')
+      .select('user_id, status, event:events!inner(client_id), profile:profiles(id, full_name, city, state, street_address, address_line_2, zip_code, phone)')
       .eq('status', 'confirmed')
       .eq('event.client_id', clientUuid),
     // Only this client's own products: inventory_skus is shared across every brand
@@ -131,7 +131,7 @@ export async function GET(req: Request) {
   // De-dupe ambassadors confirmed on more than one of this client's events.
   type AmbassadorRow = {
     id: string; full_name: string; city: string | null; state: string | null;
-    street_address: string | null; address_line_2: string | null; zip_code: string | null;
+    street_address: string | null; address_line_2: string | null; zip_code: string | null; phone: string | null;
   };
   const ambassadorMap = new Map<string, AmbassadorRow>();
   for (const row of ambassadorsResult.data ?? []) {

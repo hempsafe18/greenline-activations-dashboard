@@ -83,7 +83,7 @@ export async function GET(req: Request) {
   const [ambassadorsResult, eventsResult, shipmentsResult] = await Promise.all([
     supabase
       .from('applications')
-      .select('user_id, status, event:events!inner(client_id), profile:profiles(id, full_name, city, state, street_address, address_line_2, zip_code)')
+      .select('user_id, status, event:events!inner(client_id), profile:profiles(id, full_name, city, state, street_address, address_line_2, zip_code, phone)')
       .eq('status', 'confirmed')
       .eq('event.client_id', clientUuid),
     supabase
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
 
   type AmbassadorRow = {
     id: string; full_name: string; city: string | null; state: string | null;
-    street_address: string | null; address_line_2: string | null; zip_code: string | null;
+    street_address: string | null; address_line_2: string | null; zip_code: string | null; phone: string | null;
   };
   const ambassadorMap = new Map<string, AmbassadorRow>();
   for (const row of ambassadorsResult.data ?? []) {
