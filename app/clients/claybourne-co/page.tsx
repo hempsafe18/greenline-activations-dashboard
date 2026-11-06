@@ -95,7 +95,7 @@ export default function UnifiedDashboard() {
   ];
 
   const [shipmentData, setShipmentData] = useState<{
-    ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null }[];
+    ambassadors: { id: string; full_name: string; city: string | null; state: string | null; street_address: string | null; address_line_2: string | null; zip_code: string | null; phone: string | null }[];
     events: { id: string; title: string; event_date: string; city: string | null }[];
     recentShipments: any[];
   }>({ ambassadors: [], events: [], recentShipments: [] });
@@ -608,6 +608,7 @@ export default function UnifiedDashboard() {
                     <div className="address-preview">
                       <p className="address-preview-label">Shipping Address on File</p>
                       {selectedAmbassadorAddressLines.map((line, i) => <p key={i} className="address-preview-line">{line}</p>)}
+                      {selectedAmbassador.phone && <p className="address-preview-line">Phone: {selectedAmbassador.phone}</p>}
                     </div>
                   ) : (
                     <div className="address-preview address-preview-missing">
